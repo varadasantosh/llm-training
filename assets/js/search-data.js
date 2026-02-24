@@ -83,17 +83,6 @@ ninja.data = [{
             window.open("https://blog.google/technology/ai/google-gemini-update-flash-ai-assistant-io-2024/", "_blank");
           
         },
-      },{id: "post-a-post-with-chart-js",
-        
-          title: "a post with chart.js",
-        
-        description: "this is what included chart.js code could look like",
-        section: "Posts",
-        handler: () => {
-          
-            window.location.href = "/chartjs/";
-          
-        },
       },{id: "post-a-post-with-tikzjax",
         
           title: "a post with TikZJax",
