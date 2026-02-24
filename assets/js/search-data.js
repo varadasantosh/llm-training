@@ -292,28 +292,6 @@ ninja.data = [{
             window.location.href = "/distill/";
           
         },
-      },{id: "post-a-post-with-twitter",
-        
-          title: "a post with twitter",
-        
-        description: "an example of a blog post with twitter",
-        section: "Posts",
-        handler: () => {
-          
-            window.location.href = "/twitter/";
-          
-        },
-      },{id: "post-a-post-with-math",
-        
-          title: "a post with math",
-        
-        description: "an example of a blog post with some math",
-        section: "Posts",
-        handler: () => {
-          
-            window.location.href = "/math/";
-          
-        },
       },{id: "books-the-godfather",
           title: 'The Godfather',
           description: "",
