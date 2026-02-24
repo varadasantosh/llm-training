@@ -1,6 +1,6 @@
 ---
 layout: default
-permalink: /ml-notes/blog/
+permalink: /blog/
 title: blog
 nav: true
 nav_order: 1
