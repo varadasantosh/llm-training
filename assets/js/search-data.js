@@ -94,17 +94,6 @@ ninja.data = [{
             window.location.href = "/advanced-images/";
           
         },
-      },{id: "post-a-post-with-vega-lite",
-        
-          title: "a post with vega lite",
-        
-        description: "this is what included vega lite code could look like",
-        section: "Posts",
-        handler: () => {
-          
-            window.location.href = "/vega-lite/";
-          
-        },
       },{id: "post-a-post-with-geojson",
         
           title: "a post with geojson",
@@ -149,17 +138,6 @@ ninja.data = [{
             window.location.href = "/tikzjax/";
           
         },
-      },{id: "post-a-post-with-bibliography",
-        
-          title: "a post with bibliography",
-        
-        description: "an example of a blog post with bibliography",
-        section: "Posts",
-        handler: () => {
-          
-            window.location.href = "/post-bibliography/";
-          
-        },
       },{id: "post-a-post-with-jupyter-notebook",
         
           title: "a post with jupyter notebook",
@@ -169,17 +147,6 @@ ninja.data = [{
         handler: () => {
           
             window.location.href = "/jupyter-notebook/";
-          
-        },
-      },{id: "post-a-post-with-custom-blockquotes",
-        
-          title: "a post with custom blockquotes",
-        
-        description: "an example of a blog post with custom blockquotes",
-        section: "Posts",
-        handler: () => {
-          
-            window.location.href = "/custom-blockquotes/";
           
         },
       },{id: "post-displaying-external-posts-on-your-al-folio-blog",
