@@ -270,17 +270,6 @@ ninja.data = [{
             window.location.href = "/assets/pdf/example_pdf.pdf";
           
         },
-      },{id: "post-a-post-with-diagrams",
-        
-          title: "a post with diagrams",
-        
-        description: "an example of a blog post with diagrams",
-        section: "Posts",
-        handler: () => {
-          
-            window.location.href = "/diagrams/";
-          
-        },
       },{id: "post-a-distill-style-blog-post",
         
           title: "a distill-style blog post",
@@ -290,17 +279,6 @@ ninja.data = [{
         handler: () => {
           
             window.location.href = "/distill/";
-          
-        },
-      },{id: "post-a-post-with-twitter",
-        
-          title: "a post with twitter",
-        
-        description: "an example of a blog post with twitter",
-        section: "Posts",
-        handler: () => {
-          
-            window.location.href = "/twitter/";
           
         },
       },{id: "books-the-godfather",
