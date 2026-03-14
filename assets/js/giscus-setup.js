@@ -18,9 +18,9 @@ function determineGiscusTheme() {
 
   let giscusAttributes = {
     src: "https://giscus.app/client.js",
-    "data-repo": "varadasantosh/ml-notes",
+    "data-repo": "varadasantosh/llm-training",
     "data-repo-id": "",
-    "data-category": "Comments",
+    "data-category": "General",
     "data-category-id": "",
     "data-mapping": "title",
     "data-strict": "1",
