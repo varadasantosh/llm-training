@@ -49,7 +49,7 @@ What this blog focuses on is a challenge that sits underneath all of those phase
 
 Before starting our journey it is important to referesh how the training loop works , this is the core of the model training process.
 
-    ```python
+    {% highlight python %}
         def train_step(model, optimizer, batch):
         for batch in dataloader:
             input,target = batch  
@@ -58,6 +58,7 @@ Before starting our journey it is important to referesh how the training loop wo
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
-    ```
+    {% endhighlight %}
+    
    
    
