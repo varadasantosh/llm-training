@@ -51,13 +51,13 @@ Before starting our journey it is important to referesh how the training loop wo
 
     {% highlight python %}
         def train_step(model, optimizer, batch):
-        for batch in dataloader:
-            input,target = batch  
-            output = model(input)
-            loss = loss_fn(output,target)
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
+            for batch in dataloader:
+                input,target = batch  
+                output = model(input)
+                loss = loss_fn(output,target)
+                loss.backward()
+                optimizer.step()
+                optimizer.zero_grad()
     {% endhighlight %}
     
    
