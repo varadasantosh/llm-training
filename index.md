@@ -30,7 +30,7 @@ Machine Learning is goig through one such moments right now.
 **What are Large Language Models**
 Large Language Models are token factories, we know how a factory takes raw materials, runs them through a series of machines and processes, and produces something useful at the end, LLMs do exactly that. Tokens go in, get processed through layers of computation across GPU machines, and tokens come out.
 
-What comes out depends entirely on what goes in. Feed it tokens from a patient's health record, it returns a diagnosis summary. Feed it a pull request, it gives back a code review. Feed it a bank's financial report, it produce the key risks and bottlenecks . Give a text describing the scene and imagination output can be an image or Same factory completely different products.
+What comes out depends entirely on what goes in. Feed it tokens from a patient's health record, it returns a diagnosis summary. Feed it a pull request, it gives back a code review. Feed it a bank's financial report, it produce the key risks and bottlenecks . Give a text describing the scene and imagination output can be an image or set of images . Same factory completely different products.
 
 Before LLMs, every task needed its own model. A translation model. A summarization model. A sentiment classifier. Each one trained for one job,  LLMs change the paradigm, trained on raw text at internet scale, that just... works across all of them. 
 
@@ -44,3 +44,5 @@ understands the input it's seeing.
 Getting there isn't a single step either. LLMs go through several training phases — Pre-Training on massive datasets, followed by Post-Training refinements like Reinforcement Learning from Human Feedback (RLHF) and more. Each phase deserves its own deep dive, and we'll save those for another time.
 
 What this blog focuses on is a challenge that sits underneath all of those phases — how do you even run this training at scale? Trillions of tokens, billions of parameters, thousands of GPUs. No single machine can hold a model this large, let alone train it in any reasonable amount of time.
+
+## The Training Loop — A Quick Refresher
