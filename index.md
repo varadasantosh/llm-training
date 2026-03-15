@@ -25,7 +25,6 @@ weren't incremental improvements, they were resets.
 
 Machine Learning is goig through one such moments right now.
 
-
 <!-- Add timeline of ML evolution -->
 
 **What are Large Language Models**
