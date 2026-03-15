@@ -12,7 +12,7 @@ authors:
 
 toc:
   - name: Introduction
-  - name: The Training Loop — A Quick Refresher
+  - name: The Training Loop - A Quick Refresher
 
 # bibliography: references.bib
 ---
@@ -45,4 +45,4 @@ Getting there isn't a single step either. LLMs go through several training phase
 
 What this blog focuses on is a challenge that sits underneath all of those phases — how do you even run this training at scale? Trillions of tokens, billions of parameters, thousands of GPUs. No single machine can hold a model this large, let alone train it in any reasonable amount of time.
 
-## The Training Loop — A Quick Refresher
+## The Training Loop - A Quick Refresher
