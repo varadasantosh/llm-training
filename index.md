@@ -60,5 +60,9 @@ Before starting our journey it is important to referesh how the training loop wo
                 optimizer.zero_grad()
     {% endhighlight %}
     
-   
+ **Steps**
+ 1. model(input) - Forward Pass
+ 2. loss.backward() - Backward Pass , Calculate Gradients w.r.to inputs & activations
+ 3. optimizer.step() - Update optimizer states (Valid for Optimizers like Adam)
+ 4. optimizer.zero_grad() - Reset Gradients to Zero before next batch  
    
