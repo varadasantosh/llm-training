@@ -12,6 +12,7 @@ authors:
 
 toc:
   - name: Introduction
+  - name: The Training Loop — A Quick Refresher
 
 # bibliography: references.bib
 ---
