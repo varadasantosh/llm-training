@@ -68,10 +68,10 @@ Though pytorch training loop is familiar to all of us let's refresh the process 
    
 {% include figure.liquid path="assets/img/llm-training/section-2/forward-pass.png" class="img-small" caption="Figure: Forward Pass" %}
 
-\begin{equation*}
+$$\begin{equation*}
 \mathbf{A}_1 = \mathbf{X} \cdot \mathbf{W}_1^\top + \mathbf{b}_1 
-\end{equation*}
+\end{equation*}$$
 
-\begin{equation*}
+$$\begin{equation*}
 \hat{\mathbf{Y}} = \mathbf{A}_1 \cdot \mathbf{W}_2^\top + \mathbf{b}_2
-\end{equation*}
+\end{equation*}$$
