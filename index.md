@@ -69,13 +69,24 @@ Though pytorch training loop is familiar to all of us let's refresh the process 
 
 Forward Pass is relatively straight forward, inputs are passed through layers in sequence by applying dot product with weights of respective layer , activations (output) from **nᵗʰ layer** are passed as input to **n+1ᵗʰ layer**. As described in Figure-1 we require Parameters and Activations to complete one forward pass
 
-$$
-\mathbf{A}_1 = \mathbf{X} \cdot \mathbf{W}_1^\top + \mathbf{b}_1
-$$
-
-$$
-\hat{\mathbf{Y}} = \mathbf{A}_1 \cdot \mathbf{W}_2^\top + \mathbf{b}_2
-$$
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px;">
+  <thead>
+    <tr style="border-bottom:2px solid var(--global-divider-color, #ddd); text-align:left;">
+      <th style="padding:10px 12px;">Layer</th>
+      <th style="padding:10px 12px;">Equation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+      <td style="padding:10px 12px; white-space:nowrap;">Layer 1</td>
+      <td style="padding:10px 12px;">$\mathbf{A}_1 = \mathbf{X} \cdot \mathbf{W}_1^\top + \mathbf{b}_1$</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+      <td style="padding:10px 12px; white-space:nowrap;">Layer 2 (Output)</td>
+      <td style="padding:10px 12px;">$\hat{\mathbf{Y}} = \mathbf{A}_1 \cdot \mathbf{W}_2^\top + \mathbf{b}_2$</td>
+    </tr>
+  </tbody>
+</table>
 
 Loss calculated by **loss_fn** becomes input for Backward Pass to update the parameters of each layer, magintude by how much parameters (weights,bias) should be adjusted is determined by Gradients, Optimizer States & Learning Rate. while Learning Rate is Hyper Parameter this is not relevant to our current dicussion hence we will focus on Gradients & Optimizer States, Figure-2 shows the inputs and outputs to each layer during backward pass, along with below equations we should be good with backward pass 
 
@@ -84,52 +95,69 @@ Backward pass involves two types of Gradient calculations
 1. Gradients w.r.t Parameters(Weights) - Necessary for calculating Optimizer States & Updating Weights for the respective Layer
 2. Gradients w.r.t Activations - Required for passing them as input to Preceeding Layer - Preceeding Layers uses them to calculate the Gradients
 
-**Loss:**
-
-$$
-\frac{\nabla L}{\nabla \hat{Y}}
-$$
-
-**Layer 2 — Gradients:** 
-*w.r.t Weights* $W_2$ :
-
-$$
-\frac{\nabla L}{\nabla W_2} = \frac{\nabla L}{\nabla \hat{Y}} \cdot A_1^\top
-$$
-
-*w.r.t Activations* $A_1$ :
-
-$$
-\frac{\nabla L}{\nabla A_1} = \frac{\nabla L}{\nabla \hat{Y}} \cdot W_2
-$$
-
-**Layer 1 — Gradients:**
-
-*w.r.t Weights* $W_1$ :
-
-$$
-\frac{\nabla L}{\nabla W_1} = \frac{\nabla L}{\nabla A_1} \cdot X^\top
-$$
-
-*w.r.t Activations* $X$ :
-
-$$
-\frac{\nabla L}{\nabla X} = \frac{\nabla L}{\nabla A_1} \cdot W_1
-$$
-
-**Parameter Update (Adam Optimizer):**
-
-$$
-m_t = \beta_1 m_{t-1} + (1 - \beta_1) \frac{\nabla L}{\nabla W}
-$$
-
-$$
-v_t = \beta_2 v_{t-1} + (1 - \beta_2) \left(\frac{\nabla L}{\nabla W}\right)^2
-$$
-
-$$
-W_{t+1} = W_t - \eta \frac{m_t}{\sqrt{v_t} + \epsilon}
-$$
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px;">
+  <thead>
+    <tr style="border-bottom:2px solid var(--global-divider-color, #ddd); text-align:left;">
+      <th style="padding:10px 12px;">Step</th>
+      <th style="padding:10px 12px;">Description</th>
+      <th style="padding:10px 12px;">Equation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="border-bottom:1px solid var(--global-divider-color, #eee); background:var(--global-code-bg-color, #f8f8f8);">
+      <td style="padding:10px 12px;" colspan="3"><strong>Loss</strong></td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+      <td style="padding:10px 12px; white-space:nowrap;">Loss gradient</td>
+      <td style="padding:10px 12px;">Gradient of loss w.r.t output</td>
+      <td style="padding:10px 12px;">$\frac{\nabla L}{\nabla \hat{Y}}$</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--global-divider-color, #eee); background:var(--global-code-bg-color, #f8f8f8);">
+      <td style="padding:10px 12px;" colspan="3"><strong>Layer 2 — Gradients</strong></td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+      <td style="padding:10px 12px; white-space:nowrap;">w.r.t Weights $W_2$</td>
+      <td style="padding:10px 12px;">For updating weights</td>
+      <td style="padding:10px 12px;">$\frac{\nabla L}{\nabla W_2} = \frac{\nabla L}{\nabla \hat{Y}} \cdot A_1^\top$</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+      <td style="padding:10px 12px; white-space:nowrap;">w.r.t Activations $A_1$</td>
+      <td style="padding:10px 12px;">Passed to preceding layer</td>
+      <td style="padding:10px 12px;">$\frac{\nabla L}{\nabla A_1} = \frac{\nabla L}{\nabla \hat{Y}} \cdot W_2$</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--global-divider-color, #eee); background:var(--global-code-bg-color, #f8f8f8);">
+      <td style="padding:10px 12px;" colspan="3"><strong>Layer 1 — Gradients</strong></td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+      <td style="padding:10px 12px; white-space:nowrap;">w.r.t Weights $W_1$</td>
+      <td style="padding:10px 12px;">For updating weights</td>
+      <td style="padding:10px 12px;">$\frac{\nabla L}{\nabla W_1} = \frac{\nabla L}{\nabla A_1} \cdot X^\top$</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+      <td style="padding:10px 12px; white-space:nowrap;">w.r.t Activations $X$</td>
+      <td style="padding:10px 12px;">Backpropagated to input</td>
+      <td style="padding:10px 12px;">$\frac{\nabla L}{\nabla X} = \frac{\nabla L}{\nabla A_1} \cdot W_1$</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--global-divider-color, #eee); background:var(--global-code-bg-color, #f8f8f8);">
+      <td style="padding:10px 12px;" colspan="3"><strong>Parameter Update (Adam Optimizer)</strong></td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+      <td style="padding:10px 12px; white-space:nowrap;">1st moment</td>
+      <td style="padding:10px 12px;">Exponential moving avg of gradients</td>
+      <td style="padding:10px 12px;">$m_t = \beta_1 m_{t-1} + (1 - \beta_1) \frac{\nabla L}{\nabla W}$</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+      <td style="padding:10px 12px; white-space:nowrap;">2nd moment</td>
+      <td style="padding:10px 12px;">Exponential moving avg of squared gradients</td>
+      <td style="padding:10px 12px;">$v_t = \beta_2 v_{t-1} + (1 - \beta_2) \left(\frac{\nabla L}{\nabla W}\right)^2$</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; white-space:nowrap;">Weight update</td>
+      <td style="padding:10px 12px;">Adaptive learning rate step</td>
+      <td style="padding:10px 12px;">$W_{t+1} = W_t - \eta \frac{m_t}{\sqrt{v_t} + \epsilon}$</td>
+    </tr>
+  </tbody>
+</table>
 
 
 {% include figure.liquid path="assets/img/llm-training/section-2/forward-pass.png" class="img-small" caption="Figure-1: Forward Pass" %}
