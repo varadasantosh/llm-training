@@ -66,4 +66,4 @@ Though pytorch training loop is familiar to all of us let's refresh the process 
 3. optimizer.step() - Update optimizer states (Valid for Optimizers like Adam)
 4. optimizer.zero_grad() - Reset Gradients to Zero before next batch
    
-{% include figure.liquid path="assets/img/forward-pass-2.png" class="img-small" caption="Figure: Forward Pass" %}
+{% include figure.liquid path="assets/img/llm-training/section-2/forward-pass-2.png" class="img-small" caption="Figure: Forward Pass" %}
