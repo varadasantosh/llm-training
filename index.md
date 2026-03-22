@@ -69,36 +69,59 @@ Though pytorch training loop is familiar to all of us let's refresh the process 
 
 Forward Pass is relatively straight forward, inputs are passed through layers in sequence by applying dot product with weights of respective layer , activations (output) from **nᵗʰ layer** are passed as input to **n+1ᵗʰ layer**. As described in Figure-1 we require Parameters and Activations to complete one forward pass
 
-$$\begin{equation}
-\mathbf{A}_1 = \mathbf{X} \cdot \mathbf{W}_1^\top + \mathbf{b}_1 
-\end{equation}$$
-
-$$\begin{equation}
-\hat{\mathbf{Y}} = \mathbf{A}_1 \cdot \mathbf{W}_2^\top + \mathbf{b}_2
-\end{equation}$$
+<d-math block>
+\boxed{
+\begin{aligned}
+\mathbf{A}_1 &= \mathbf{X} \cdot \mathbf{W}_1^\top + \mathbf{b}_1 \\[6pt]
+\hat{\mathbf{Y}} &= \mathbf{A}_1 \cdot \mathbf{W}_2^\top + \mathbf{b}_2
+\end{aligned}
+}
+</d-math>
 
 Loss calculated by **loss_fn** becomes input for Backward Pass to update the parameters of each layer, magintude by how much parameters (weights,bias) should be adjusted is determined by Gradients, Optimizer States & Learning Rate. while Learning Rate is Hyper Parameter this is not relevant to our current dicussion hence we will focus on Gradients & Optimizer States, Figure-2 shows the inputs and outputs to each layer during backward pass, along with below equations we should be good with backward pass 
 
 Backward pass involves two types of Gradient calculations
 
 1. Gradients w.r.t Parameters(Weights) - Necessary for calculating Optimizer States & Updating Weights for the respective Layer
-2. Gradients w.r.t Activations Activations - Required for passing them as input to Preceeding Layer - Preceeding Layers uses them to calculate the Gradients for 
+2. Gradients w.r.t Activations - Required for passing them as input to Preceeding Layer - Preceeding Layers uses them to calculate the Gradients
 
-Loss: $$\begin{equation}\frac{\nabla{L}}{\nabla{\hat{Y}}} \end{equation}  $$
-Layer-2 Gradients w.r.t Weights(w₂): $$\begin{equation}\frac{\nabla{L}}{\nabla{W_2}} = \frac{\nabla{L}}{\nabla{\hat{Y}}} \cdot A_1^T \end{equation}$$
-Layer 2 Gradient w.r.t Activations(A₁):$$\begin{equation}\nabla_{A_1} L = \nabla_{\hat{Y}} L \cdot W_2 \end{equation} $$
-Layer-2 Gradients w.r.t Activations(A₁):$$ \begin{equation}\frac{\nabla{L}}{\nabla_{A_1}}  = \frac{\nabla{L}}{\nabla{\hat{Y}}} \cdot W_2 \end{equation}$$
+**Loss:**
 
-Layer-1 Gradients w.r.t Weiths(w₁):$$ \begin{equation}\frac{\nabla{L}}{\nabla{W_1}}  = \frac{\nabla{L}}{\nabla{A_1}}  \cdot X^T \end{equation}$$
+<d-math block>
+\frac{\partial L}{\partial \hat{Y}}
+</d-math>
 
-Layer-1 Gradients w.r.t Activations: $$ \begin{equation}\frac{\nabla{L}}{\nabla{X}}  = \frac{\nabla{L}}{\nabla{A_1}}  \cdot W_1 \end{equation}$$
+**Layer 2 — Gradients:**
 
-Parameter Update(Optimizer Step): $$\begin{equation}
-m_t = \beta_1 m_{t-1} + (1 - \beta_1) \frac{\nabla{L}}{\nabla{W}}
-\end{equation}$$
-$$v_t = \begin{equation}\beta_2 v_{t-1} + (1 - \beta_2) (\frac{\nabla{L}}{\nabla{W}} )^2  \end{equation}$$
-$$\begin{equation}W_{t+1} = W_t - \eta \frac{m_t}{\sqrt{v_t} + \epsilon}
-\end{equation}$$
+<d-math block>
+\begin{aligned}
+\frac{\partial L}{\partial W_2} &= \frac{\partial L}{\partial \hat{Y}} \cdot A_1^\top
+& \quad & \text{(w.r.t Weights } W_2\text{)} \\[8pt]
+\frac{\partial L}{\partial A_1} &= \frac{\partial L}{\partial \hat{Y}} \cdot W_2
+& \quad & \text{(w.r.t Activations } A_1\text{)}
+\end{aligned}
+</d-math>
+
+**Layer 1 — Gradients:**
+
+<d-math block>
+\begin{aligned}
+\frac{\partial L}{\partial W_1} &= \frac{\partial L}{\partial A_1} \cdot X^\top
+& \quad & \text{(w.r.t Weights } W_1\text{)} \\[8pt]
+\frac{\partial L}{\partial X} &= \frac{\partial L}{\partial A_1} \cdot W_1
+& \quad & \text{(w.r.t Activations } X\text{)}
+\end{aligned}
+</d-math>
+
+**Parameter Update (Adam Optimizer):**
+
+<d-math block>
+\begin{aligned}
+m_t &= \beta_1 \, m_{t-1} + (1 - \beta_1) \frac{\partial L}{\partial W} \\[6pt]
+v_t &= \beta_2 \, v_{t-1} + (1 - \beta_2) \left(\frac{\partial L}{\partial W}\right)^2 \\[6pt]
+W_{t+1} &= W_t - \eta \, \frac{m_t}{\sqrt{v_t} + \epsilon}
+\end{aligned}
+</d-math>
 
 
 {% include figure.liquid path="assets/img/llm-training/section-2/forward-pass.png" class="img-small" caption="Figure-1: Forward Pass" %}
