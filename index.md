@@ -66,9 +66,9 @@ Though pytorch training loop is familiar to all of us let's refresh the process 
 - optimizer.step() - Update optimizer states (Valid for Optimizers like Adam)
 - optimizer.zero_grad() - Reset Gradients to Zero before next batch
    
-<div style="position:relative; width:100%; margin-bottom:32px;">   
+<div style="display:inline-block; width:100%;">   
 {% include figure.liquid path="assets/img/llm-training/section-2/forward-pass.png" class="img-small" caption="Figure: Forward Pass" %}
-<div style="position:absolute; bottom:0; right:0;">
+<div style="display:flex; justify-content:flex-end; margin-top:-16px; margin-bottom:24px;">
 {% include model-ingredients-legend.html show="input,parameters,activations,output" %}
 </div>
 </div>
