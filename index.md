@@ -67,7 +67,7 @@ The pytorch training loop is familiar to all of us let's walk through it once mo
 - optimizer.zero_grad() - Reset Gradients to Zero before next batch
    
 
-The forward pass moves in one direction — input X enters Layer 1, gets multiplied with that layer's weights, a bias is added, and the result becomes activation A₁. That activation becomes the input to Layer 2, where the same operation happens again, giving us our final prediction Ŷ. This pattern holds for any number of layers — the output of layer n is always the input to layer n+1. To complete a forward pass, each layer only needs two things: its Parameters (w, b) and the incoming Activations.
+The forward pass moves in one direction — input X enters Layer 1, gets multiplied with that layer's weights, a bias is added, and the result becomes activation A₁. That activation becomes the input to Layer 2, where the same operation happens again, giving us our final prediction Ŷ. This pattern holds for any number of layers — the output of layer n-1 is always the input to layer n. To complete a forward pass, each layer only needs two things: its Parameters (w, b) and the incoming Activations.
 
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px;">
   <thead>
@@ -98,10 +98,14 @@ How much each parameter should change is determined by three things:Gradients, O
 Figure 2 shows exactly what's flowing in and out of each layer during 
 backward pass. Let's look at the equations behind it.
 
-Backward pass involves two types of Gradient calculations
 
-1. Gradients w.r.t Parameters(Weights) - Necessary for calculating Optimizer States & Updating Weights for the respective Layer
-2. Gradients w.r.t Activations - Required for passing them as input to Preceeding Layer - Preceeding Layers uses them to calculate the Gradients
+> **Backward pass involves two types of Gradient calculations:**
+> 1. **Gradients w.r.t Parameters (Weights)** — Necessary for 
+>    calculating Optimizer States and updating the layer's weights
+> 2. **Gradients w.r.t Activations** — Passed to the preceding 
+>    layer as input to continue the gradient chain
+
+
 
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px;">
   <thead>
