@@ -75,3 +75,6 @@ $$\begin{equation}
 $$\begin{equation}
 \hat{\mathbf{Y}} = \mathbf{A}_1 \cdot \mathbf{W}_2^\top + \mathbf{b}_2
 \end{equation}$$
+
+
+{% include figure.liquid path="assets/img/llm-training/section-2/backward-pass.png" class="img-small" caption="Figure: Backward Pass" %}
