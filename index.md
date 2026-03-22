@@ -47,7 +47,7 @@ What this blog focuses on is a challenge that sits underneath all of those phase
 
 ## The Training Loop-A Quick Refresher
 
-Though pytorch training loop is familiar to all of us let's refresh the process of forward and backward pass for one more time ,it is important to have clear understaind of different steps and components involved for understanding the later stages of the blog.
+Though pytorch training loop is familiar to all of us let's refresh the process of forward and backward pass for one more time to lay foundation for the later stages
 
     {% highlight python %}
         def train_step(model, optimizer, batch):
@@ -66,9 +66,9 @@ Though pytorch training loop is familiar to all of us let's refresh the process 
 - optimizer.step() - Update optimizer states (Valid for Optimizers like Adam)
 - optimizer.zero_grad() - Reset Gradients to Zero before next batch
    
-<div style="display:inline-block; width:100%;">   
+<div style="position:relative; width:100%; margin-bottom:32px;">   
 {% include figure.liquid path="assets/img/llm-training/section-2/forward-pass.png" class="img-small" caption="Figure: Forward Pass" %}
-<div style="display:flex; justify-content:flex-end; margin-top:-16px; margin-bottom:24px;">
+<div style="position:absolute; bottom:0; right:0;">
 {% include model-ingredients-legend.html show="input,parameters,activations,output" %}
 </div>
 </div>
