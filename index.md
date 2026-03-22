@@ -59,12 +59,13 @@ Though pytorch training loop is familiar to all of us let's refresh the process 
                 optimizer.step()
                 optimizer.zero_grad()
     {% endhighlight %}
-
-**Pytorch Training Loop**
-- model(input) - Forward Pas
-- loss.backward() - Backward Pass , Calculate Gradients w.r.to inputs & activations
-- optimizer.step() - Update optimizer states (Valid for Optimizers like Adam)
-- optimizer.zero_grad() - Reset Gradients to Zero before next batch
+    
+```
+- **model(input) - Forward Pass**
+- **loss.backward() - Backward Pass , Calculate Gradients w.r.to inputs & activations**
+- **optimizer.step() - Update optimizer states (Valid for Optimizers like Adam)**
+- **optimizer.zero_grad() - Reset Gradients to Zero before next batch**
+```
    
 {% include figure.liquid path="assets/img/llm-training/section-2/forward-pass.png" class="img-small" caption="Figure: Forward Pass" %}
 
