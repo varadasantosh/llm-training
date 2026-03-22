@@ -94,13 +94,13 @@ $$
 *w.r.t Weights* $W_2$ :
 
 $$
-\frac{\abla L}{\abla W_2} = \frac{\abla L}{\abla \hat{Y}} \cdot A_1^\top
+\frac{\nabla L}{\nabla W_2} = \frac{\nabla L}{\nabla \hat{Y}} \cdot A_1^\top
 $$
 
 *w.r.t Activations* $A_1$ :
 
 $$
-\frac{\abla L}{\abla A_1} = \frac{\abla L}{\abla \hat{Y}} \cdot W_2
+\frac{\nabla L}{\nabla A_1} = \frac{\nabla L}{\nabla \hat{Y}} \cdot W_2
 $$
 
 **Layer 1 — Gradients:**
@@ -108,19 +108,19 @@ $$
 *w.r.t Weights* $W_1$ :
 
 $$
-\frac{\abla L}{\abla W_1} = \frac{\abla L}{\abla A_1} \cdot X^\top
+\frac{\nabla L}{\nabla W_1} = \frac{\nabla L}{\nabla A_1} \cdot X^\top
 $$
 
 *w.r.t Activations* $X$ :
 
 $$
-\frac{\abla L}{\abla X} = \frac{\abla L}{\abla A_1} \cdot W_1
+\frac{\nabla L}{\nabla X} = \frac{\nabla L}{\nabla A_1} \cdot W_1
 $$
 
 **Parameter Update (Adam Optimizer):**
 
 $$
-m_t = \beta_1 m_{t-1} + (1 - \beta_1) \frac{\abla L}{\abla W}
+m_t = \beta_1 m_{t-1} + (1 - \beta_1) \frac{\nabla L}{\nabla W}
 $$
 
 $$
