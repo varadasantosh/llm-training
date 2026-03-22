@@ -99,15 +99,8 @@ Figure 2 shows exactly what's flowing in and out of each layer during
 backward pass. Let's look at the equations behind it.
 
 
-> **Backward pass involves two types of Gradient calculations:**
-> 1. **Gradients w.r.t Parameters (Weights)** — Necessary for 
->    calculating Optimizer States and updating the layer's weights
-> 2. **Gradients w.r.t Activations** — Passed as input to the preceeding 
->    layer to continue with the gradient chain
-
-
 <d-aside>
-  <b>Two types of Gradient calculations:</b>
+  <b>Backward pass involves two types of Gradient calculations:</b>
   <ol>
     <li><b>w.r.t Parameters (Weights)</b> — needed for calculating 
     Optimizer States and updating the layer's weights</li>
