@@ -68,8 +68,7 @@ Though pytorch training loop is familiar to all of us let's refresh the process 
    
 <div style="display:inline-block; width:100%;">   
 {% include figure.liquid path="assets/img/llm-training/section-2/forward-pass.png" class="img-small" caption="Figure: Forward Pass" %}
-
-    <div style="display:flex; justify-content:flex-end; margin-top:-16px; margin-bottom:24px;">
-        {% include model-ingredients-legend.html show="input,activations,output" %}
-    </div>
+<div style="display:flex; justify-content:flex-end; margin-top:-16px; margin-bottom:24px;">
+{% include model-ingredients-legend.html show="input,parameters,activations,output" %}
+</div>
 </div>
