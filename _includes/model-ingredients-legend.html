@@ -1,0 +1,40 @@
+{% assign show = include.show | default: "input,parameters,activations,gradients,optimizer,output" %}
+
+<div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; margin-bottom:24px;">
+  {% if show contains "input" %}
+  <div style="display:flex; align-items:center; gap:6px;">
+    <div style="width:18px; height:18px; border-radius:4px; background:#185FA5;"></div>
+    <span style="font-size:13px; color:var(--global-text-color);">Input</span>
+  </div>
+  {% endif %}
+  {% if show contains "parameters" %}
+  <div style="display:flex; align-items:center; gap:6px;">
+    <div style="width:18px; height:18px; border-radius:4px; background:#534AB7;"></div>
+    <span style="font-size:13px; color:var(--global-text-color);">Parameters</span>
+  </div>
+  {% endif %}
+  {% if show contains "activations" %}
+  <div style="display:flex; align-items:center; gap:6px;">
+    <div style="width:18px; height:18px; border-radius:4px; background:#0F6E56;"></div>
+    <span style="font-size:13px; color:var(--global-text-color);">Activations</span>
+  </div>
+  {% endif %}
+  {% if show contains "gradients" %}
+  <div style="display:flex; align-items:center; gap:6px;">
+    <div style="width:18px; height:18px; border-radius:4px; background:#BA7517;"></div>
+    <span style="font-size:13px; color:var(--global-text-color);">Gradients</span>
+  </div>
+  {% endif %}
+  {% if show contains "optimizer" %}
+  <div style="display:flex; align-items:center; gap:6px;">
+    <div style="width:18px; height:18px; border-radius:4px; background:#993C1D;"></div>
+    <span style="font-size:13px; color:var(--global-text-color);">Optimizer state</span>
+  </div>
+  {% endif %}
+  {% if show contains "output" %}
+  <div style="display:flex; align-items:center; gap:6px;">
+    <div style="width:18px; height:18px; border-radius:4px; background:#3B6D11;"></div>
+    <span style="font-size:13px; color:var(--global-text-color);">Output / Loss</span>
+  </div>
+  {% endif %}
+</div>
