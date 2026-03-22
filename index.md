@@ -73,5 +73,5 @@ $$\begin{equation*}
 \end{equation*}$$
 
 $$\begin{equation*}
-\hat{\mathbf{Y}} = \mathbf{A}_1 \cdot \mathbf{W}_2^\top + \mathbf{b}_2
+\hat{\mathbf{Y}_hat} = \mathbf{A}_1 \cdot \mathbf{W}_2^\top + \mathbf{b}_2
 \end{equation*}$$
