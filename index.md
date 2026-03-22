@@ -47,7 +47,7 @@ What this blog focuses on is a challenge that sits underneath all of those phase
 
 ## The Training Loop-A Quick Refresher
 
-Though pytorch training loop is familiar to all of us let's refresh the process of forward and backward pass for one more time to lay foundation for the later stages
+The pytorch training loop is familiar to all of us let's walk through it once more to build the foundation for later stages.
 
     {% highlight python %}
         def train_step(model, optimizer, batch):
@@ -67,7 +67,7 @@ Though pytorch training loop is familiar to all of us let's refresh the process 
 - optimizer.zero_grad() - Reset Gradients to Zero before next batch
    
 
-Forward Pass is relatively straight forward, inputs are passed through layers in sequence by applying dot product with weights of respective layer , activations (output) from **nᵗʰ layer** are passed as input to **n+1ᵗʰ layer**. As described in Figure-1 we require Parameters and Activations to complete one forward pass
+The forward pass moves in one direction — input X enters Layer 1, gets multiplied with that layer's weights, a bias is added, and the result becomes activation A₁. That activation becomes the input to Layer 2, where the same operation happens again, giving us our final prediction Ŷ. This pattern holds for any number of layers — the output of layer n is always the input to layer n+1. To complete a forward pass, each layer only needs two things: its Parameters (w, b) and the incoming Activations.
 
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px;">
   <thead>
@@ -88,7 +88,15 @@ Forward Pass is relatively straight forward, inputs are passed through layers in
   </tbody>
 </table>
 
-Loss calculated by **loss_fn** becomes input for Backward Pass to update the parameters of each layer, magintude by how much parameters (weights,bias) should be adjusted is determined by Gradients, Optimizer States & Learning Rate. while Learning Rate is Hyper Parameter this is not relevant to our current dicussion hence we will focus on Gradients & Optimizer States, Figure-2 shows the inputs and outputs to each layer during backward pass, along with below equations we should be good with backward pass 
+{% include figure.liquid path="assets/img/llm-training/section-2/forward-pass.png" class="img-small" caption="Figure-1: Forward Pass" %}
+
+Once loss_fn gives us the loss, it acts as a compass — telling the model 
+how wrong it was, which direction to correct itself. The backward pass uses this signal to update the parameters of every layer in the network.
+
+How much each parameter should change is determined by three things:Gradients, Optimizer States, and Learning Rate. Learning Rate is a hyperparameter we'll dedicate separate discussion to — for now, let's focus on Gradients and Optimizer States, since these are computed and stored every single training step.
+
+Figure 2 shows exactly what's flowing in and out of each layer during 
+backward pass. Let's look at the equations behind it.
 
 Backward pass involves two types of Gradient calculations
 
@@ -122,7 +130,7 @@ Backward pass involves two types of Gradient calculations
     </tr>
     <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
       <td style="padding:10px 12px; white-space:nowrap;">w.r.t Activations $A_1$</td>
-      <td style="padding:10px 12px;">Passed to preceding layer</td>
+      <td style="padding:10px 12px;">Passed to preceeding layer</td>
       <td style="padding:10px 12px;">$\frac{\nabla L}{\nabla A_1} = \frac{\nabla L}{\nabla \hat{Y}} \cdot W_2$</td>
     </tr>
     <tr style="border-bottom:1px solid var(--global-divider-color, #eee); background:var(--global-code-bg-color, #f8f8f8);">
@@ -158,10 +166,6 @@ Backward pass involves two types of Gradient calculations
     </tr>
   </tbody>
 </table>
-
-
-{% include figure.liquid path="assets/img/llm-training/section-2/forward-pass.png" class="img-small" caption="Figure-1: Forward Pass" %}
-
 
 
 
