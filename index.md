@@ -102,10 +102,19 @@ backward pass. Let's look at the equations behind it.
 > **Backward pass involves two types of Gradient calculations:**
 > 1. **Gradients w.r.t Parameters (Weights)** — Necessary for 
 >    calculating Optimizer States and updating the layer's weights
-> 2. **Gradients w.r.t Activations** — Passed to the preceding 
->    layer as input to continue the gradient chain
+> 2. **Gradients w.r.t Activations** — Passed as input to the preceeding 
+>    layer to continue with the gradient chain
 
 
+<d-aside>
+  <b>Two types of Gradient calculations:</b>
+  <ol>
+    <li><b>w.r.t Parameters (Weights)</b> — needed for calculating 
+    Optimizer States and updating the layer's weights</li>
+    <li><b>w.r.t Activations</b> — passed as input to the preceding 
+    layer to continue the gradient chain</li>
+  </ol>
+</d-aside>
 
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px;">
   <thead>
