@@ -87,7 +87,7 @@ Backward pass involves two types of Gradient calculations
 **Loss:**
 
 $$
-\frac{\partial L}{\partial \hat{Y}}
+\frac{\abla L}{\abla \hat{Y}}
 $$
 
 **Layer 2 — Gradients:**
@@ -95,13 +95,13 @@ $$
 *w.r.t Weights* $W_2$ :
 
 $$
-\frac{\partial L}{\partial W_2} = \frac{\partial L}{\partial \hat{Y}} \cdot A_1^\top
+\frac{\abla L}{\abla W_2} = \frac{\abla L}{\abla \hat{Y}} \cdot A_1^\top
 $$
 
 *w.r.t Activations* $A_1$ :
 
 $$
-\frac{\partial L}{\partial A_1} = \frac{\partial L}{\partial \hat{Y}} \cdot W_2
+\frac{\abla L}{\abla A_1} = \frac{\abla L}{\abla \hat{Y}} \cdot W_2
 $$
 
 **Layer 1 — Gradients:**
@@ -109,23 +109,23 @@ $$
 *w.r.t Weights* $W_1$ :
 
 $$
-\frac{\partial L}{\partial W_1} = \frac{\partial L}{\partial A_1} \cdot X^\top
+\frac{\abla L}{\abla W_1} = \frac{\abla L}{\abla A_1} \cdot X^\top
 $$
 
 *w.r.t Activations* $X$ :
 
 $$
-\frac{\partial L}{\partial X} = \frac{\partial L}{\partial A_1} \cdot W_1
+\frac{\abla L}{\abla X} = \frac{\abla L}{\abla A_1} \cdot W_1
 $$
 
 **Parameter Update (Adam Optimizer):**
 
 $$
-m_t = \beta_1 m_{t-1} + (1 - \beta_1) \frac{\partial L}{\partial W}
+m_t = \beta_1 m_{t-1} + (1 - \beta_1) \frac{\abla L}{\abla W}
 $$
 
 $$
-v_t = \beta_2 v_{t-1} + (1 - \beta_2) \left(\frac{\partial L}{\partial W}\right)^2
+v_t = \beta_2 v_{t-1} + (1 - \beta_2) \left(\frac{\abla L}{\abla W}\right)^2
 $$
 
 $$
