@@ -124,7 +124,7 @@ m_t = \beta_1 m_{t-1} + (1 - \beta_1) \frac{\nabla L}{\nabla W}
 $$
 
 $$
-v_t = \beta_2 v_{t-1} + (1 - \beta_2) \left(\frac{\abla L}{\abla W}\right)^2
+v_t = \beta_2 v_{t-1} + (1 - \beta_2) \left(\frac{\nabla L}{\nabla W}\right)^2
 $$
 
 $$
