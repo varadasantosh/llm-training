@@ -60,7 +60,7 @@ Though pytorch training loop is familiar to all of us let's refresh the process 
                 optimizer.zero_grad()
     {% endhighlight %}
 
-**Steps**
+**Pytorch Training Loop**
 - model(input) - Forward Pas
 - loss.backward() - Backward Pass , Calculate Gradients w.r.to inputs & activations
 - optimizer.step() - Update optimizer states (Valid for Optimizers like Adam)
@@ -68,3 +68,6 @@ Though pytorch training loop is familiar to all of us let's refresh the process 
    
 {% include figure.liquid path="assets/img/llm-training/section-2/forward-pass.png" class="img-small" caption="Figure: Forward Pass" %}
 
+\begin{equation*}
+\mathbf{X} \cdot \mathbf{W}^\top + \mathbf{b}_1 = \mathbf{A}_1
+\end{equation*}
