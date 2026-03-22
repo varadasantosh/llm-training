@@ -87,11 +87,10 @@ Backward pass involves two types of Gradient calculations
 **Loss:**
 
 $$
-\frac{\abla L}{\abla \hat{Y}}
+\frac{\nabla L}{\nabla \hat{Y}}
 $$
 
-**Layer 2 — Gradients:**
-
+**Layer 2 — Gradients:** 
 *w.r.t Weights* $W_2$ :
 
 $$
