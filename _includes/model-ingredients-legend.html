@@ -1,36 +1,36 @@
 <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; margin-top:8px; margin-bottom:24px;">
-  {% if show contains "input" %}
+  {% if include.show contains "input" %}
   <div style="display:flex; align-items:center; gap:8px; background:#EBF3FC; border:1px solid #185FA5; border-radius:6px; padding:4px 12px;">
     <div style="width:14px; height:14px; border-radius:3px; background:#185FA5; flex-shrink:0;"></div>
     <span style="font-size:13px; color:#185FA5; font-weight:500;">Input</span>
   </div>
   {% endif %}
-  {% if show contains "parameters" %}
+  {% if include.show contains "parameters" %}
   <div style="display:flex; align-items:center; gap:8px; background:#EEEDFE; border:1px solid #534AB7; border-radius:6px; padding:4px 12px;">
     <div style="width:14px; height:14px; border-radius:3px; background:#534AB7; flex-shrink:0;"></div>
     <span style="font-size:13px; color:#534AB7; font-weight:500;">Parameters</span>
   </div>
   {% endif %}
-  {% if show contains "activations" %}
+  {% if include.show contains "activations" %}
   <div style="display:flex; align-items:center; gap:8px; background:#E1F5EE; border:1px solid #0F6E56; border-radius:6px; padding:4px 12px;">
     <div style="width:14px; height:14px; border-radius:3px; background:#BA7517; flex-shrink:0;"></div>
     <span style="font-size:13px; color:#0F6E56; font-weight:500;">Activations</span>
   </div>
   {% endif %}
-  {% if show contains "gradients" %}
+  {% if include.show contains "gradients" %}
   <div style="display:flex; align-items:center; gap:8px; background:#FAEEDA; border:1px solid #BA7517; border-radius:6px; padding:4px 12px;">
     <div style="width:14px; height:14px; border-radius:3px; background:#BA7517; flex-shrink:0;"></div>
     <span style="font-size:13px; color:#BA7517; font-weight:500;">Gradients</span>
   </div>
   {% endif %}
-  {% if show contains "optimizer" %}
+  {% if include.show contains "optimizer" %}
   <div style="display:flex; align-items:center; gap:8px; background:#FAECE7; border:1px solid #993C1D; border-radius:6px; padding:4px 12px;">
     <div style="width:14px; height:14px; border-radius:3px; background:#993C1D; flex-shrink:0;"></div>
     <span style="font-size:13px; color:#993C1D; font-weight:500;">Optimizer state</span>
   </div>
   {% endif %}
-  {% if show contains "output" %}
-  <div style="display:flex; align-items:center; gap:8px; background:#EAF3DE; border:1px solid #3B6D11; border-radius:6px; padding:4px 12px;">
+  {% if include.show contains "output" %}
+  <div style="display:flex; align-items:center; gap:8px; background:#EAF3DE; border:1px solid #79e222; border-radius:6px; padding:4px 12px;">
     <div style="width:14px; height:14px; border-radius:3px; background:#79e222; flex-shrink:0;"></div>
     <span style="font-size:13px; color:#79e222; font-weight:500;">Output / Loss</span>
   </div>
