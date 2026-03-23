@@ -62,42 +62,6 @@ The PyTorch training loop is something most of us know well. But before diving i
           optimizer.zero_grad()
 {% endhighlight %}
 
-<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px;">
-  <thead>
-    <tr style="border-bottom:2px solid var(--global-divider-color, #ddd); text-align:left;">
-      <th style="padding:8px 12px;">Code</th>
-      <th style="padding:8px 12px;">Phase</th>
-      <th style="padding:8px 12px;">What happens</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
-      <td style="padding:8px 12px; font-family:monospace; white-space:nowrap;"><code>output = model(input)</code></td>
-      <td style="padding:8px 12px;"><span style="background:#e7f0fa; color:#1971c2; padding:2px 8px; border-radius:4px; font-weight:600; font-size:12px;">Forward Pass</span></td>
-      <td style="padding:8px 12px;">Input flows through layers, producing activations and final prediction</td>
-    </tr>
-    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
-      <td style="padding:8px 12px; font-family:monospace; white-space:nowrap;"><code>loss = loss_fn(output, target)</code></td>
-      <td style="padding:8px 12px;"><span style="background:#e7f0fa; color:#1971c2; padding:2px 8px; border-radius:4px; font-weight:600; font-size:12px;">Forward Pass</span></td>
-      <td style="padding:8px 12px;">Compare prediction with target to compute scalar loss</td>
-    </tr>
-    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
-      <td style="padding:8px 12px; font-family:monospace; white-space:nowrap;"><code>loss.backward()</code></td>
-      <td style="padding:8px 12px;"><span style="background:#fce4ec; color:#c2255c; padding:2px 8px; border-radius:4px; font-weight:600; font-size:12px;">Backward Pass</span></td>
-      <td style="padding:8px 12px;">Compute gradients w.r.t weights and activations for every layer</td>
-    </tr>
-    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
-      <td style="padding:8px 12px; font-family:monospace; white-space:nowrap;"><code>optimizer.step()</code></td>
-      <td style="padding:8px 12px;"><span style="background:#efe8e5; color:#846358; padding:2px 8px; border-radius:4px; font-weight:600; font-size:12px;">Optimizer Step</span></td>
-      <td style="padding:8px 12px;">Update optimizer states (e.g. Adam moments) and adjust weights</td>
-    </tr>
-    <tr>
-      <td style="padding:8px 12px; font-family:monospace; white-space:nowrap;"><code>optimizer.zero_grad()</code></td>
-      <td style="padding:8px 12px;"><span style="background:#f0f0f0; color:#555; padding:2px 8px; border-radius:4px; font-weight:600; font-size:12px;">Cleanup</span></td>
-      <td style="padding:8px 12px;">Reset gradients to zero before the next batch</td>
-    </tr>
-  </tbody>
-</table>
    
 
 The forward pass moves workflow : input X enters Layer 1, gets multiplied with that layer's weights, a bias is added, and the result becomes activation A₁. That activation becomes the input to Layer 2, where the same operation happens again, giving us our final prediction Ŷ. This pattern holds for any number of layers — the output of layer n-1 is always the input to layer n. To complete a forward pass, each layer only needs two things: its Parameters (w, b) and the incoming Activations.
@@ -209,3 +173,40 @@ backward pass. Let's look at the equations behind it.
 
 
 {% include figure.liquid path="assets/img/llm-training/section-2/backward-pass.png" class="img-small" caption="Figure-2: Backward Pass" %}
+
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px;">
+  <thead>
+    <tr style="border-bottom:2px solid var(--global-divider-color, #ddd); text-align:left;">
+      <th style="padding:8px 12px;">Code</th>
+      <th style="padding:8px 12px;">Phase</th>
+      <th style="padding:8px 12px;">What happens</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+      <td style="padding:8px 12px; font-family:monospace; white-space:nowrap;"><code>output = model(input)</code></td>
+      <td style="padding:8px 12px;"><span style="background:#e7f0fa; color:#1971c2; padding:2px 8px; border-radius:4px; font-weight:600; font-size:12px;">Forward Pass</span></td>
+      <td style="padding:8px 12px;">Input flows through layers, producing activations and final prediction</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+      <td style="padding:8px 12px; font-family:monospace; white-space:nowrap;"><code>loss = loss_fn(output, target)</code></td>
+      <td style="padding:8px 12px;"><span style="background:#e7f0fa; color:#1971c2; padding:2px 8px; border-radius:4px; font-weight:600; font-size:12px;">Forward Pass</span></td>
+      <td style="padding:8px 12px;">Compare prediction with target to compute scalar loss</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+      <td style="padding:8px 12px; font-family:monospace; white-space:nowrap;"><code>loss.backward()</code></td>
+      <td style="padding:8px 12px;"><span style="background:#fce4ec; color:#c2255c; padding:2px 8px; border-radius:4px; font-weight:600; font-size:12px;">Backward Pass</span></td>
+      <td style="padding:8px 12px;">Compute gradients w.r.t weights and activations for every layer</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+      <td style="padding:8px 12px; font-family:monospace; white-space:nowrap;"><code>optimizer.step()</code></td>
+      <td style="padding:8px 12px;"><span style="background:#efe8e5; color:#846358; padding:2px 8px; border-radius:4px; font-weight:600; font-size:12px;">Optimizer Step</span></td>
+      <td style="padding:8px 12px;">Update optimizer states (e.g. Adam moments) and adjust weights</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px; font-family:monospace; white-space:nowrap;"><code>optimizer.zero_grad()</code></td>
+      <td style="padding:8px 12px;"><span style="background:#f0f0f0; color:#555; padding:2px 8px; border-radius:4px; font-weight:600; font-size:12px;">Cleanup</span></td>
+      <td style="padding:8px 12px;">Reset gradients to zero before the next batch</td>
+    </tr>
+  </tbody>
+</table>
