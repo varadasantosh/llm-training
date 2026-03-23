@@ -47,27 +47,60 @@ What this blog focuses on is a challenge that sits underneath all of those phase
 
 ## The Training Loop-A Quick Refresher
 
-The pytorch training loop is familiar to all of us let's walk through it once more to build the foundation for later stages.
+The pytorch training loop is familiar to all of us, since working of forward pass & backward pass is crucial to understand the later stages let's walk through it once more to build the foundation for later stages.
 
-    {% highlight python %}
-        def train_step(model, optimizer, batch):
-            for batch in dataloader:
-                input,target = batch  
-                output = model(input)
-                loss = loss_fn(output,target)
-                loss.backward()
-                optimizer.step()
-                optimizer.zero_grad()
-    {% endhighlight %}
+The PyTorch training loop is something most of us know well. But before diving into parallelism techniques, a clear understanding of how the forward and backward passes work creates a baseline for every thing that follows — hence it is worth revisiting the mechanics before moving forward.
 
-**Pytorch Training Loop**
-- model(input) - Forward Pas
-- loss.backward() - Backward Pass , Calculate Gradients w.r.to inputs & activations
-- optimizer.step() - Update optimizer states (Valid for Optimizers like Adam)
-- optimizer.zero_grad() - Reset Gradients to Zero before next batch
+{% highlight python %}
+  def train_step(model, optimizer, batch):
+      for batch in dataloader:
+          input,target = batch  
+          output = model(input)
+          loss = loss_fn(output,target)
+          loss.backward()
+          optimizer.step()
+          optimizer.zero_grad()
+{% endhighlight %}
+
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px;">
+  <thead>
+    <tr style="border-bottom:2px solid var(--global-divider-color, #ddd); text-align:left;">
+      <th style="padding:8px 12px;">Code</th>
+      <th style="padding:8px 12px;">Phase</th>
+      <th style="padding:8px 12px;">What happens</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+      <td style="padding:8px 12px; font-family:monospace; white-space:nowrap;"><code>output = model(input)</code></td>
+      <td style="padding:8px 12px;"><span style="background:#e7f0fa; color:#1971c2; padding:2px 8px; border-radius:4px; font-weight:600; font-size:12px;">Forward Pass</span></td>
+      <td style="padding:8px 12px;">Input flows through layers, producing activations and final prediction</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+      <td style="padding:8px 12px; font-family:monospace; white-space:nowrap;"><code>loss = loss_fn(output, target)</code></td>
+      <td style="padding:8px 12px;"><span style="background:#e7f0fa; color:#1971c2; padding:2px 8px; border-radius:4px; font-weight:600; font-size:12px;">Forward Pass</span></td>
+      <td style="padding:8px 12px;">Compare prediction with target to compute scalar loss</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+      <td style="padding:8px 12px; font-family:monospace; white-space:nowrap;"><code>loss.backward()</code></td>
+      <td style="padding:8px 12px;"><span style="background:#fce4ec; color:#c2255c; padding:2px 8px; border-radius:4px; font-weight:600; font-size:12px;">Backward Pass</span></td>
+      <td style="padding:8px 12px;">Compute gradients w.r.t weights and activations for every layer</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+      <td style="padding:8px 12px; font-family:monospace; white-space:nowrap;"><code>optimizer.step()</code></td>
+      <td style="padding:8px 12px;"><span style="background:#efe8e5; color:#846358; padding:2px 8px; border-radius:4px; font-weight:600; font-size:12px;">Optimizer Step</span></td>
+      <td style="padding:8px 12px;">Update optimizer states (e.g. Adam moments) and adjust weights</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px; font-family:monospace; white-space:nowrap;"><code>optimizer.zero_grad()</code></td>
+      <td style="padding:8px 12px;"><span style="background:#f0f0f0; color:#555; padding:2px 8px; border-radius:4px; font-weight:600; font-size:12px;">Cleanup</span></td>
+      <td style="padding:8px 12px;">Reset gradients to zero before the next batch</td>
+    </tr>
+  </tbody>
+</table>
    
 
-The forward pass moves in one direction — input X enters Layer 1, gets multiplied with that layer's weights, a bias is added, and the result becomes activation A₁. That activation becomes the input to Layer 2, where the same operation happens again, giving us our final prediction Ŷ. This pattern holds for any number of layers — the output of layer n-1 is always the input to layer n. To complete a forward pass, each layer only needs two things: its Parameters (w, b) and the incoming Activations.
+The forward pass moves workflow : input X enters Layer 1, gets multiplied with that layer's weights, a bias is added, and the result becomes activation A₁. That activation becomes the input to Layer 2, where the same operation happens again, giving us our final prediction Ŷ. This pattern holds for any number of layers — the output of layer n-1 is always the input to layer n. To complete a forward pass, each layer only needs two things: its Parameters (w, b) and the incoming Activations.
 
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px;">
   <thead>
@@ -90,7 +123,7 @@ The forward pass moves in one direction — input X enters Layer 1, gets multipl
 
 {% include figure.liquid path="assets/img/llm-training/section-2/forward-pass.png" class="img-small" caption="Figure-1: Forward Pass" %}
 
-Once loss_fn gives us the loss, it acts as a compass — telling the model 
+Once **loss_fn** gives us the loss, it acts as a compass — telling the model 
 how wrong it was, which direction to correct itself. The backward pass uses this signal to update the parameters of every layer in the network.
 
 How much each parameter should change is determined by three things:Gradients, Optimizer States, and Learning Rate. Learning Rate is a hyperparameter we'll dedicate separate discussion to — for now, let's focus on Gradients and Optimizer States, since these are computed and stored every single training step.
