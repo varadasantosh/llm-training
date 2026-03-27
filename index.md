@@ -13,6 +13,7 @@ authors:
 toc:
   - name: Introduction
   - name: The Training Loop-A Quick Refresher
+  - name: Memory Calculation 
 
 # bibliography: references.bib
 ---
@@ -102,7 +103,7 @@ backward pass. Let's look at the equations behind it.
 
 <d-aside>
   <b>Backward pass involves two types of Gradient calculations:</b>
-  
+
   <ol>
     <li><b>w.r.t Parameters (Weights)</b> — needed for calculating 
     Optimizer States and updating the layer's weights</li>
@@ -219,3 +220,5 @@ backward pass. Let's look at the equations behind it.
     </tr>
   </tbody>
 </table>
+
+## Memory Calculation:
