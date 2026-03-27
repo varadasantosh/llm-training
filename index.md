@@ -68,7 +68,7 @@ The PyTorch training loop is something most of us know well. But before diving i
 
    
 
-The forward pass moves workflow : input X enters Layer 1, gets multiplied with that layer's weights, a bias is added, and the result becomes activation A₁. That activation becomes the input to Layer 2, where the same operation happens again, giving us our final prediction Ŷ. This pattern holds for any number of layers — the output of layer n-1 is always the input to layer n. To complete a forward pass, each layer only needs two things: its Parameters (w, b) and the incoming Activations.
+**Forward Pass** : input X enters Layer 1, gets multiplied with that layer's weights, a bias is added, and the result becomes activation A₁. That activation becomes the input to Layer 2, where the same operation happens again, giving us our final prediction Ŷ. This pattern holds for any number of layers — the output of layer n-1 is always the input to layer n. To complete a forward pass, each layer only needs two things: its Parameters (w, b) and the incoming Activations.
 
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px; border:2px dashed #555;">
   <thead>
@@ -91,7 +91,7 @@ The forward pass moves workflow : input X enters Layer 1, gets multiplied with t
 
 {% include figure.liquid path="assets/img/llm-training/section-2/forward-pass.svg" class="img-medium" caption="Figure-1: Forward Pass" %}
 
-Once **loss_fn** gives us the loss, it acts as a compass — telling the model 
+**Backward Pass:** Once **loss_fn** gives us the loss, it acts as a compass — telling the model 
 how wrong it was, which direction to correct itself. The backward pass uses this signal to update the parameters of every layer in the network.
 
 How much each parameter should change is determined by three things:Gradients, Optimizer States, and Learning Rate. Learning Rate is a hyperparameter we'll dedicate separate discussion to — for now, let's focus on Gradients and Optimizer States, since these are computed and stored every single training step.
@@ -173,7 +173,6 @@ backward pass. Let's look at the equations behind it.
     </tr>
   </tbody>
 </table>
-
 
 
 {% include figure.liquid path="assets/img/llm-training/section-2/backward-pass.svg" class="img-medium" caption="Figure-2: Backward Pass" %}
