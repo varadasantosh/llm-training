@@ -23,16 +23,22 @@ Technology has a pattern — every few decades, evolution in technology challeng
 just make communication cheaper, it shrunk the entire world. These 
 weren't incremental improvements, they were resets.
 
-Machine Learning is goig through one such moments right now.
+Machine Learning is going through one such moments right now.
 
 <!-- Add timeline of ML evolution -->
 
 **What are Large Language Models**
-Large Language Models are token factories, we know how a factory takes raw materials, runs them through a series of machines and processes, and produces something useful at the end, LLMs do exactly that. Tokens go in, get processed through layers of computation across GPU machines, and tokens come out.
+Large Language Models are token factories,Much like a traditional factory takes raw materials, runs them through a series of machines, and produces a finished product,LLMs do exactly that with information. Whether the input is text, images, or video, everything is converted into tokens.These tokens are passed as input & processed through layers of computation across GPU machines, and useful tokens come out the other side.
 
-What comes out depends entirely on what goes in. Feed it tokens from a patient's health record, it returns a diagnosis summary. Feed it a pull request, it gives back a code review. Feed it a bank's financial report, it produce the key risks and bottlenecks . Give a text describing the scene and imagination output can be an image or set of images . Same factory completely different products.
+But not all factories produce the same quality of goods. What comes out depends on three pillars: the raw materials you feed in, the design of the factory itself, and how well the manufacturing process is executed. For LLMs, these translate directly to **Data Preparation**, **Model Architecture**, and the **Training Process**.
 
-Before LLMs, every task needed its own model. A translation model. A summarization model. A sentiment classifier. Each one trained for one job,  LLMs change the paradigm, trained on raw text at internet scale, that just... works across all of them. 
+  {% include figure.liquid path="assets/img/llm-training/section-1/model-ingredients.png" class="img-small" caption="Figure-1: Model Ingredients" %}
+
+The utility of the factory depends entirely on the input. Feed it a patient's health records, and it returns a diagnostic summary. Feed it a pull request, and it provides a code review. Feed it a financial report, and it identifies risks and bottlenecks. It is the same factory producing completely different products based on the prompt.
+
+However, running a token factory at this scale is not easy to achieve.Frontier models evolving rapidly consist of hundreds of billions of parameters trained on trillions of tokens. We quickly hit a wall where a single GPU simply cannot hold the workload.
+
+**Analogy**: building a house for a few people is a straightforward task. Building a city for millions to live comfortably requires entirely different levels of planning, infrastructure, and communication. Model training faces the same leap in complexity. This blog explores how Parallelism techniques provide the infrastructure necessary to build these "cities" of intelligence.
 
 **So how does this factory actually learn?**
 
