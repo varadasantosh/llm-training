@@ -32,7 +32,7 @@ Large Language Models are token factories,Much like a traditional factory takes 
 
 But not all factories produce the same quality of goods. What comes out depends on three pillars: the raw materials you feed in, the design of the factory itself, and how well the manufacturing process is executed. For LLMs, these translate directly to **Data Preparation**, **Model Architecture**, and the **Training Process**.
 
-  {% include figure.liquid path="assets/img/llm-training/section-1/model-ingredients.png" class="img-small" caption="Figure-1: Model Ingredients" %}
+  {% include figure.liquid path="assets/img/llm-training/section-1/model-ingredients.svg" class="img-small" caption="Figure-1: Model Ingredients" %}
 
 The utility of the factory depends entirely on the input. Feed it a patient's health records, and it returns a diagnostic summary. Feed it a pull request, and it provides a code review. Feed it a financial report, and it identifies risks and bottlenecks. It is the same factory producing completely different products based on the prompt.
 
