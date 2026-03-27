@@ -457,7 +457,7 @@ third_party_libraries:
     version: "5.5.0"
   google_fonts:
     url:
-      fonts: "<link href=\"https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap\" rel=\"stylesheet\">"
+      fonts: "<link href=\"https://fonts.googleapis.com/css2?family=Delius&family=Outfit:wght@100..900&display=swap\" rel=\"stylesheet\">"
   highlightjs:
     integrity:
       css:
