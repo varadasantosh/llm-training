@@ -38,13 +38,21 @@ d-article {
   hr {
     border-bottom-color: var(--global-divider-color) !important;
   }
-  table {
+  table,
+  table tbody,
+  table thead {
     border: 1px dashed var(--global-divider-color) !important;
     border-collapse: collapse !important;
   }
   table th,
-  table td {
+  table td,
+  table tbody tr td,
+  table thead tr th,
+  table tbody tr th {
     border: 1px dashed var(--global-divider-color) !important;
+    border-style: dashed !important;
+    border-width: 1px !important;
+    border-color: var(--global-divider-color) !important;
   }
   a {
     color: var(--global-theme-color) !important;
