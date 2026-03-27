@@ -72,17 +72,17 @@ The forward pass moves workflow : input X enters Layer 1, gets multiplied with t
 
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px;">
   <thead>
-    <tr style="border-bottom:2px solid var(--global-divider-color, #ddd); text-align:left;">
+    <tr style="text-align:left;">
       <th style="padding:10px 12px;">Layer</th>
       <th style="padding:10px 12px;">Equation</th>
     </tr>
   </thead>
   <tbody>
-    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+    <tr>
       <td style="padding:10px 12px; white-space:nowrap;">Layer 1</td>
       <td style="padding:10px 12px;">$\mathbf{A}_1 = \mathbf{X} \cdot \mathbf{W}_1^\top + \mathbf{b}_1$</td>
     </tr>
-    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+    <tr>
       <td style="padding:10px 12px; white-space:nowrap;">Layer 2 (Output)</td>
       <td style="padding:10px 12px;">$\hat{\mathbf{Y}} = \mathbf{A}_1 \cdot \mathbf{W}_2^\top + \mathbf{b}_2$</td>
     </tr>
@@ -112,56 +112,56 @@ backward pass. Let's look at the equations behind it.
 
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px;">
   <thead>
-    <tr style="border-bottom:2px solid var(--global-divider-color, #ddd); text-align:left;">
+    <tr style="text-align:left;">
       <th style="padding:10px 12px;">Step</th>
       <th style="padding:10px 12px;">Description</th>
       <th style="padding:10px 12px;">Equation</th>
     </tr>
   </thead>
   <tbody>
-    <tr style="border-bottom:1px solid var(--global-divider-color, #eee); background:var(--global-code-bg-color, #f8f8f8);">
+    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
       <td style="padding:10px 12px;" colspan="3"><strong>Loss</strong></td>
     </tr>
-    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+    <tr>
       <td style="padding:10px 12px; white-space:nowrap;">Loss gradient</td>
       <td style="padding:10px 12px;">Gradient of loss w.r.t output</td>
       <td style="padding:10px 12px;">$\frac{\nabla L}{\nabla \hat{Y}}$</td>
     </tr>
-    <tr style="border-bottom:1px solid var(--global-divider-color, #eee); background:var(--global-code-bg-color, #f8f8f8);">
+    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
       <td style="padding:10px 12px;" colspan="3"><strong>Layer 2 — Gradients</strong></td>
     </tr>
-    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+    <tr>
       <td style="padding:10px 12px; white-space:nowrap;">w.r.t Weights $W_2$</td>
       <td style="padding:10px 12px;">For updating weights</td>
       <td style="padding:10px 12px;">$\frac{\nabla L}{\nabla W_2} = \frac{\nabla L}{\nabla \hat{Y}} \cdot A_1^\top$</td>
     </tr>
-    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+    <tr>
       <td style="padding:10px 12px; white-space:nowrap;">w.r.t Activations $A_1$</td>
       <td style="padding:10px 12px;">Passed to preceeding layer</td>
       <td style="padding:10px 12px;">$\frac{\nabla L}{\nabla A_1} = \frac{\nabla L}{\nabla \hat{Y}} \cdot W_2$</td>
     </tr>
-    <tr style="border-bottom:1px solid var(--global-divider-color, #eee); background:var(--global-code-bg-color, #f8f8f8);">
+    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
       <td style="padding:10px 12px;" colspan="3"><strong>Layer 1 — Gradients</strong></td>
     </tr>
-    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+    <tr>
       <td style="padding:10px 12px; white-space:nowrap;">w.r.t Weights $W_1$</td>
       <td style="padding:10px 12px;">For updating weights</td>
       <td style="padding:10px 12px;">$\frac{\nabla L}{\nabla W_1} = \frac{\nabla L}{\nabla A_1} \cdot X^\top$</td>
     </tr>
-    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+    <tr>
       <td style="padding:10px 12px; white-space:nowrap;">w.r.t Activations $X$</td>
       <td style="padding:10px 12px;">Backpropagated to input</td>
       <td style="padding:10px 12px;">$\frac{\nabla L}{\nabla X} = \frac{\nabla L}{\nabla A_1} \cdot W_1$</td>
     </tr>
-    <tr style="border-bottom:1px solid var(--global-divider-color, #eee); background:var(--global-code-bg-color, #f8f8f8);">
+    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
       <td style="padding:10px 12px;" colspan="3"><strong>Parameter Update (Adam Optimizer)</strong></td>
     </tr>
-    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+    <tr>
       <td style="padding:10px 12px; white-space:nowrap;">1st moment</td>
       <td style="padding:10px 12px;">Exponential moving avg of gradients</td>
       <td style="padding:10px 12px;">$m_t = \beta_1 m_{t-1} + (1 - \beta_1) \frac{\nabla L}{\nabla W}$</td>
     </tr>
-    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+    <tr>
       <td style="padding:10px 12px; white-space:nowrap;">2nd moment</td>
       <td style="padding:10px 12px;">Exponential moving avg of squared gradients</td>
       <td style="padding:10px 12px;">$v_t = \beta_2 v_{t-1} + (1 - \beta_2) \left(\frac{\nabla L}{\nabla W}\right)^2$</td>
@@ -185,29 +185,29 @@ backward pass. Let's look at the equations behind it.
     <col style="width:47%;">
   </colgroup>
   <thead>
-    <tr style="border-bottom:2px solid var(--global-divider-color, #ddd); text-align:left;">
+    <tr style="text-align:left;">
       <th style="padding:8px 12px;">Code</th>
       <th style="padding:8px 12px; text-align:center;">Phase</th>
       <th style="padding:8px 12px;">What happens</th>
     </tr>
   </thead>
   <tbody>
-    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+    <tr>
       <td style="padding:8px 12px; font-family:monospace; white-space:nowrap;"><code>output = model(input)</code></td>
       <td style="padding:8px 12px; text-align:center;"><span style="display:inline-block; min-width:110px; background:#e7f0fa; color:#1971c2; padding:3px 10px; border-radius:4px; font-weight:600; font-size:12px; text-align:center;">Forward Pass</span></td>
       <td style="padding:8px 12px;">Input flows through layers, producing activations and final prediction</td>
     </tr>
-    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+    <tr>
       <td style="padding:8px 12px; font-family:monospace; white-space:nowrap;"><code>loss = loss_fn(output, target)</code></td>
       <td style="padding:8px 12px; text-align:center;"><span style="display:inline-block; min-width:110px; background:#e7f0fa; color:#1971c2; padding:3px 10px; border-radius:4px; font-weight:600; font-size:12px; text-align:center;">Forward Pass</span></td>
       <td style="padding:8px 12px;">Compare prediction with target to compute scalar loss</td>
     </tr>
-    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+    <tr>
       <td style="padding:8px 12px; font-family:monospace; white-space:nowrap;"><code>loss.backward()</code></td>
       <td style="padding:8px 12px; text-align:center;"><span style="display:inline-block; min-width:110px; background:#fce4ec; color:#c2255c; padding:3px 10px; border-radius:4px; font-weight:600; font-size:12px; text-align:center;">Backward Pass</span></td>
       <td style="padding:8px 12px;">Compute gradients w.r.t weights and activations for every layer</td>
     </tr>
-    <tr style="border-bottom:1px solid var(--global-divider-color, #eee);">
+    <tr>
       <td style="padding:8px 12px; font-family:monospace; white-space:nowrap;"><code>optimizer.step()</code></td>
       <td style="padding:8px 12px; text-align:center;"><span style="display:inline-block; min-width:110px; background:#efe8e5; color:#846358; padding:3px 10px; border-radius:4px; font-weight:600; font-size:12px; text-align:center;">Optimizer Step</span></td>
       <td style="padding:8px 12px;">Update optimizer states (e.g. Adam moments) and adjust weights</td>

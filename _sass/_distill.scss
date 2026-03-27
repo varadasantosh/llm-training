@@ -35,11 +35,16 @@ d-article {
   }
   h1,
   h2,
-  hr,
-  table,
+  hr {
+    border-bottom-color: var(--global-divider-color) !important;
+  }
+  table {
+    border: 1px dashed var(--global-divider-color) !important;
+    border-collapse: collapse !important;
+  }
   table th,
   table td {
-    border-bottom-color: var(--global-divider-color) !important;
+    border: 1px dashed var(--global-divider-color) !important;
   }
   a {
     color: var(--global-theme-color) !important;
