@@ -102,6 +102,7 @@ backward pass. Let's look at the equations behind it.
 
 <d-aside>
   <b>Backward pass involves two types of Gradient calculations:</b>
+  
   <ol>
     <li><b>w.r.t Parameters (Weights)</b> — needed for calculating 
     Optimizer States and updating the layer's weights</li>
