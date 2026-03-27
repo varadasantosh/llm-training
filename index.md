@@ -32,7 +32,7 @@ Large Language Models are token factories,Much like a traditional factory takes 
 
 But not all factories produce the same quality of goods. What comes out depends on three pillars: the raw materials you feed in, the design of the factory itself, and how well the manufacturing process is executed. For LLMs, these translate directly to **Data Preparation**, **Model Architecture**, and the **Training Process**.
 
-  {% include figure.liquid path="assets/img/llm-training/section-1/model-ingredients.svg" class="img-small" caption="Figure-1: Model Ingredients" %}
+  {% include figure.liquid path="assets/img/llm-training/section-1/model-ingredients.svg" class="img-medium" caption="Figure-1: Model Ingredients" %}
 
 The utility of the factory depends entirely on the input. Feed it a patient's health records, and it returns a diagnostic summary. Feed it a pull request, and it provides a code review. Feed it a financial report, and it identifies risks and bottlenecks. It is the same factory producing completely different products based on the prompt.
 
@@ -89,7 +89,7 @@ The forward pass moves workflow : input X enters Layer 1, gets multiplied with t
   </tbody>
 </table>
 
-{% include figure.liquid path="assets/img/llm-training/section-2/forward-pass.png" class="img-small" caption="Figure-1: Forward Pass" %}
+{% include figure.liquid path="assets/img/llm-training/section-2/forward-pass.svg" class="img-medium" caption="Figure-1: Forward Pass" %}
 
 Once **loss_fn** gives us the loss, it acts as a compass — telling the model 
 how wrong it was, which direction to correct itself. The backward pass uses this signal to update the parameters of every layer in the network.
@@ -110,75 +110,75 @@ backward pass. Let's look at the equations behind it.
   </ol>
 </d-aside>
 
-<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px; border:1px dashed #ccc;">
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px; border:1px dashed #090808ff;">
   <thead>
     <tr style="text-align:left;">
-      <th style="padding:10px 12px; border:1px dashed #ccc;">Step</th>
-      <th style="padding:10px 12px; border:1px dashed #ccc;">Description</th>
-      <th style="padding:10px 12px; border:1px dashed #ccc;">Equation</th>
+      <th style="padding:10px 12px; border:1px dashed #090808ff;">Step</th>
+      <th style="padding:10px 12px; border:1px dashed #090808ff;">Description</th>
+      <th style="padding:10px 12px; border:1px dashed #090808ff;">Equation</th>
     </tr>
   </thead>
   <tbody>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:1px dashed #ccc;" colspan="3"><strong>Loss</strong></td>
+      <td style="padding:10px 12px; border:1px dashed #090808ff;" colspan="3"><strong>Loss</strong></td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; white-space:nowrap; border:1px dashed #ccc;">Loss gradient</td>
-      <td style="padding:10px 12px; border:1px dashed #ccc;">Gradient of loss w.r.t output</td>
-      <td style="padding:10px 12px; border:1px dashed #ccc;">$\frac{\nabla L}{\nabla \hat{Y}}$</td>
+      <td style="padding:10px 12px; white-space:nowrap; border:1px dashed #090808ff;">Loss gradient</td>
+      <td style="padding:10px 12px; border:1px dashed #090808ff;">Gradient of loss w.r.t output</td>
+      <td style="padding:10px 12px; border:1px dashed #090808ff;">$\frac{\nabla L}{\nabla \hat{Y}}$</td>
     </tr>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:1px dashed #ccc;" colspan="3"><strong>Layer 2 — Gradients</strong></td>
+      <td style="padding:10px 12px; border:1px dashed #090808ff;" colspan="3"><strong>Layer 2 — Gradients</strong></td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; white-space:nowrap; border:1px dashed #ccc;">w.r.t Weights $W_2$</td>
-      <td style="padding:10px 12px; border:1px dashed #ccc;">For updating weights</td>
-      <td style="padding:10px 12px; border:1px dashed #ccc;">$\frac{\nabla L}{\nabla W_2} = \frac{\nabla L}{\nabla \hat{Y}} \cdot A_1^\top$</td>
+      <td style="padding:10px 12px; white-space:nowrap; border:1px dashed #090808ff;">w.r.t Weights $W_2$</td>
+      <td style="padding:10px 12px; border:1px dashed #090808ff;">For updating weights</td>
+      <td style="padding:10px 12px; border:1px dashed #090808ff;">$\frac{\nabla L}{\nabla W_2} = \frac{\nabla L}{\nabla \hat{Y}} \cdot A_1^\top$</td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; white-space:nowrap; border:1px dashed #ccc;">w.r.t Activations $A_1$</td>
-      <td style="padding:10px 12px; border:1px dashed #ccc;">Passed to preceeding layer</td>
-      <td style="padding:10px 12px; border:1px dashed #ccc;">$\frac{\nabla L}{\nabla A_1} = \frac{\nabla L}{\nabla \hat{Y}} \cdot W_2$</td>
+      <td style="padding:10px 12px; white-space:nowrap; border:1px dashed #090808ff;">w.r.t Activations $A_1$</td>
+      <td style="padding:10px 12px; border:1px dashed #090808ff;">Passed to preceeding layer</td>
+      <td style="padding:10px 12px; border:1px dashed #090808ff;">$\frac{\nabla L}{\nabla A_1} = \frac{\nabla L}{\nabla \hat{Y}} \cdot W_2$</td>
     </tr>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:1px dashed #ccc;" colspan="3"><strong>Layer 1 — Gradients</strong></td>
+      <td style="padding:10px 12px; border:1px dashed #090808ff;" colspan="3"><strong>Layer 1 — Gradients</strong></td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; white-space:nowrap; border:1px dashed #ccc;">w.r.t Weights $W_1$</td>
-      <td style="padding:10px 12px; border:1px dashed #ccc;">For updating weights</td>
-      <td style="padding:10px 12px; border:1px dashed #ccc;">$\frac{\nabla L}{\nabla W_1} = \frac{\nabla L}{\nabla A_1} \cdot X^\top$</td>
+      <td style="padding:10px 12px; white-space:nowrap; border:1px dashed #090808ff;">w.r.t Weights $W_1$</td>
+      <td style="padding:10px 12px; border:1px dashed #090808ff;">For updating weights</td>
+      <td style="padding:10px 12px; border:1px dashed #090808ff;">$\frac{\nabla L}{\nabla W_1} = \frac{\nabla L}{\nabla A_1} \cdot X^\top$</td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; white-space:nowrap; border:1px dashed #ccc;">w.r.t Activations $X$</td>
-      <td style="padding:10px 12px; border:1px dashed #ccc;">Backpropagated to input</td>
-      <td style="padding:10px 12px; border:1px dashed #ccc;">$\frac{\nabla L}{\nabla X} = \frac{\nabla L}{\nabla A_1} \cdot W_1$</td>
+      <td style="padding:10px 12px; white-space:nowrap; border:1px dashed #090808ff;">w.r.t Activations $X$</td>
+      <td style="padding:10px 12px; border:1px dashed #090808ff;">Backpropagated to input</td>
+      <td style="padding:10px 12px; border:1px dashed #090808ff;">$\frac{\nabla L}{\nabla X} = \frac{\nabla L}{\nabla A_1} \cdot W_1$</td>
     </tr>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:1px dashed #ccc;" colspan="3"><strong>Parameter Update (Adam Optimizer)</strong></td>
+      <td style="padding:10px 12px; border:1px dashed #090808ff;" colspan="3"><strong>Parameter Update (Adam Optimizer)</strong></td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; white-space:nowrap; border:1px dashed #ccc;">1st moment</td>
-      <td style="padding:10px 12px; border:1px dashed #ccc;">Exponential moving avg of gradients</td>
-      <td style="padding:10px 12px; border:1px dashed #ccc;">$m_t = \beta_1 m_{t-1} + (1 - \beta_1) \frac{\nabla L}{\nabla W}$</td>
+      <td style="padding:10px 12px; white-space:nowrap; border:1px dashed #090808ff;">1st moment</td>
+      <td style="padding:10px 12px; border:1px dashed #090808ff;">Exponential moving avg of gradients</td>
+      <td style="padding:10px 12px; border:1px dashed #090808ff;">$m_t = \beta_1 m_{t-1} + (1 - \beta_1) \frac{\nabla L}{\nabla W}$</td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; white-space:nowrap; border:1px dashed #ccc;">2nd moment</td>
-      <td style="padding:10px 12px; border:1px dashed #ccc;">Exponential moving avg of squared gradients</td>
-      <td style="padding:10px 12px; border:1px dashed #ccc;">$v_t = \beta_2 v_{t-1} + (1 - \beta_2) \left(\frac{\nabla L}{\nabla W}\right)^2$</td>
+      <td style="padding:10px 12px; white-space:nowrap; border:1px dashed #090808ff;">2nd moment</td>
+      <td style="padding:10px 12px; border:1px dashed #090808ff;">Exponential moving avg of squared gradients</td>
+      <td style="padding:10px 12px; border:1px dashed #090808ff;">$v_t = \beta_2 v_{t-1} + (1 - \beta_2) \left(\frac{\nabla L}{\nabla W}\right)^2$</td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; white-space:nowrap; border:1px dashed #ccc;">Weight update</td>
-      <td style="padding:10px 12px; border:1px dashed #ccc;">Adaptive learning rate step</td>
-      <td style="padding:10px 12px; border:1px dashed #ccc;">$W_{t+1} = W_t - \eta \frac{m_t}{\sqrt{v_t} + \epsilon}$</td>
+      <td style="padding:10px 12px; white-space:nowrap; border:1px dashed #090808ff;">Weight update</td>
+      <td style="padding:10px 12px; border:1px dashed #090808ff;">Adaptive learning rate step</td>
+      <td style="padding:10px 12px; border:1px dashed #090808ff;">$W_{t+1} = W_t - \eta \frac{m_t}{\sqrt{v_t} + \epsilon}$</td>
     </tr>
   </tbody>
 </table>
 
 
 
-{% include figure.liquid path="assets/img/llm-training/section-2/backward-pass.png" class="img-small" caption="Figure-2: Backward Pass" %}
+{% include figure.liquid path="assets/img/llm-training/section-2/backward-pass.svg" class="img-medium" caption="Figure-2: Backward Pass" %}
 
-<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; table-layout:fixed; border:1px dashed #ccc;">
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; table-layout:fixed; border:1px dashed #090808ff;">
   <colgroup>
     <col style="width:35%;">
     <col style="width:18%;">
@@ -186,36 +186,36 @@ backward pass. Let's look at the equations behind it.
   </colgroup>
   <thead>
     <tr style="text-align:left;">
-      <th style="padding:8px 12px; border:1px dashed #ccc;">Code</th>
-      <th style="padding:8px 12px; text-align:center; border:1px dashed #ccc;">Phase</th>
-      <th style="padding:8px 12px; border:1px dashed #ccc;">What happens</th>
+      <th style="padding:8px 12px; border:1px dashed #090808ff;">Code</th>
+      <th style="padding:8px 12px; text-align:center; border:1px dashed #090808ff;">Phase</th>
+      <th style="padding:8px 12px; border:1px dashed #090808ff;">What happens</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td style="padding:8px 12px; font-family:monospace; white-space:nowrap; border:1px dashed #ccc;"><code>output = model(input)</code></td>
+      <td style="padding:8px 12px; font-family:monospace; white-space:nowrap; border:1px dashed #090808ff;"><code>output = model(input)</code></td>
+      <td style="padding:8px 12px; text-align:center; border:1px dashed #090808ff;"><span style="display:inline-block; min-width:110px; background:#e7f0fa; color:#1971c2; padding:3px 10px; border-radius:4px; font-weight:600; font-size:12px; text-align:center;">Forward Pass</span></td>
+      <td style="padding:8px 12px; border:1px dashed #090808ff;">Input flows through layers, producing activations and final prediction</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px; font-family:monospace; white-space:nowrap; border:1px dashed #090808ff;"><code>loss = loss_fn(output, target)</code></td>
       <td style="padding:8px 12px; text-align:center; border:1px dashed #ccc;"><span style="display:inline-block; min-width:110px; background:#e7f0fa; color:#1971c2; padding:3px 10px; border-radius:4px; font-weight:600; font-size:12px; text-align:center;">Forward Pass</span></td>
-      <td style="padding:8px 12px; border:1px dashed #ccc;">Input flows through layers, producing activations and final prediction</td>
+      <td style="padding:8px 12px; border:1px dashed #090808ff;">Compare prediction with target to compute scalar loss</td>
     </tr>
     <tr>
-      <td style="padding:8px 12px; font-family:monospace; white-space:nowrap; border:1px dashed #ccc;"><code>loss = loss_fn(output, target)</code></td>
-      <td style="padding:8px 12px; text-align:center; border:1px dashed #ccc;"><span style="display:inline-block; min-width:110px; background:#e7f0fa; color:#1971c2; padding:3px 10px; border-radius:4px; font-weight:600; font-size:12px; text-align:center;">Forward Pass</span></td>
-      <td style="padding:8px 12px; border:1px dashed #ccc;">Compare prediction with target to compute scalar loss</td>
+      <td style="padding:8px 12px; font-family:monospace; white-space:nowrap; border:1px dashed #090808ff;"><code>loss.backward()</code></td>
+      <td style="padding:8px 12px; text-align:center; border:1px dashed #090808ff;"><span style="display:inline-block; min-width:110px; background:#fce4ec; color:#c2255c; padding:3px 10px; border-radius:4px; font-weight:600; font-size:12px; text-align:center;">Backward Pass</span></td>
+      <td style="padding:8px 12px; border:1px dashed #090808ff;">Compute gradients w.r.t weights and activations for every layer</td>
     </tr>
     <tr>
-      <td style="padding:8px 12px; font-family:monospace; white-space:nowrap; border:1px dashed #ccc;"><code>loss.backward()</code></td>
-      <td style="padding:8px 12px; text-align:center; border:1px dashed #ccc;"><span style="display:inline-block; min-width:110px; background:#fce4ec; color:#c2255c; padding:3px 10px; border-radius:4px; font-weight:600; font-size:12px; text-align:center;">Backward Pass</span></td>
-      <td style="padding:8px 12px; border:1px dashed #ccc;">Compute gradients w.r.t weights and activations for every layer</td>
+      <td style="padding:8px 12px; font-family:monospace; white-space:nowrap; border:1px dashed #090808ff;"><code>optimizer.step()</code></td>
+      <td style="padding:8px 12px; text-align:center; border:1px dashed #090808ff;"><span style="display:inline-block; min-width:110px; background:#efe8e5; color:#846358; padding:3px 10px; border-radius:4px; font-weight:600; font-size:12px; text-align:center;">Optimizer Step</span></td>
+      <td style="padding:8px 12px; border:1px dashed #090808ff;">Update optimizer states (e.g. Adam moments) and adjust weights</td>
     </tr>
     <tr>
-      <td style="padding:8px 12px; font-family:monospace; white-space:nowrap; border:1px dashed #ccc;"><code>optimizer.step()</code></td>
-      <td style="padding:8px 12px; text-align:center; border:1px dashed #ccc;"><span style="display:inline-block; min-width:110px; background:#efe8e5; color:#846358; padding:3px 10px; border-radius:4px; font-weight:600; font-size:12px; text-align:center;">Optimizer Step</span></td>
-      <td style="padding:8px 12px; border:1px dashed #ccc;">Update optimizer states (e.g. Adam moments) and adjust weights</td>
-    </tr>
-    <tr>
-      <td style="padding:8px 12px; font-family:monospace; white-space:nowrap; border:1px dashed #ccc;"><code>optimizer.zero_grad()</code></td>
-      <td style="padding:8px 12px; text-align:center; border:1px dashed #ccc;"><span style="display:inline-block; min-width:110px; background:#f0f0f0; color:#555; padding:3px 10px; border-radius:4px; font-weight:600; font-size:12px; text-align:center;">Cleanup</span></td>
-      <td style="padding:8px 12px; border:1px dashed #ccc;">Reset gradients to zero before the next batch</td>
+      <td style="padding:8px 12px; font-family:monospace; white-space:nowrap; border:1px dashed #090808ff;"><code>optimizer.zero_grad()</code></td>
+      <td style="padding:8px 12px; text-align:center; border:1px dashed #090808ff;"><span style="display:inline-block; min-width:110px; background:#f0f0f0; color:#555; padding:3px 10px; border-radius:4px; font-weight:600; font-size:12px; text-align:center;">Cleanup</span></td>
+      <td style="padding:8px 12px; border:1px dashed #090808ff;">Reset gradients to zero before the next batch</td>
     </tr>
   </tbody>
 </table>
