@@ -20,7 +20,9 @@ d-article d-byline a {
 
 d-article {
   border-top-color: var(--global-divider-color) !important;
-  font-family: 'Outfit', sans-serif !important;
+  font-family: 'Roboto Mono', monospace !important;
+  font-weight: 400 !important;
+  font-style: normal !important;
   p,
   h1,
   h2,
@@ -31,7 +33,9 @@ d-article {
   li,
   table {
     color: var(--global-text-color) !important;
-    font-family: 'Outfit', sans-serif !important;
+    font-family: 'Roboto Mono', monospace !important;
+    font-weight: 400 !important;
+    font-style: normal;
   }
   h1,
   h2,
@@ -41,7 +45,7 @@ d-article {
   table,
   table tbody,
   table thead {
-    border: 1px dashed var(--global-divider-color) !important;
+    border: 2px dashed #555 !important;
     border-collapse: collapse !important;
   }
   table th,
@@ -49,10 +53,10 @@ d-article {
   table tbody tr td,
   table thead tr th,
   table tbody tr th {
-    border: 1px dashed var(--global-divider-color) !important;
+    border: 2px dashed #555 !important;
     border-style: dashed !important;
-    border-width: 1px !important;
-    border-color: var(--global-divider-color) !important;
+    border-width: 2px !important;
+    border-color: #555 !important;
   }
   a {
     color: var(--global-theme-color) !important;
