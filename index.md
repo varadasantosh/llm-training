@@ -272,9 +272,17 @@ If we consider high-performing CPU (approx. 5.36 TFLOPS) the time taken to train
 </figure>
 
 
-Let us now relook at one of the assumptions to confirm whether it is possible to place a model on single GPU, to reason with this we need to be aware of what consitutes a model. A model is not just a single entity it is complex graph of Parameters , Activations, Gradients, and Optimizer States.  When we call **model.to(device)**, we are moving all of them to limited VRAM of the GPU. Beside the model we need to ensure that input, output tensors are present on the same device where model is present, this is accomplished by **input.to(device)** and **output.to(device)**  Along with parameters, input and output, GPU also need **memory buffers** for **temporary caclculations** .Memory required for training model which is essentially (forward + backward pass) is determined by multiple variables & model architecture. From the original Transformer to modern frontier models, every architectural contributed to innovation—from RMSNorm and RoPE in Llama to Mixture of Experts (MoE) in Mixtral and MLA in DeepSeek — each of them impact physical footprint of the memory required for model, in earlier section we saw the necessity for Parallelism and 
+Let's go back to that assumption we made earlier — that a 405B model could fit on a single GPU. To understand why that's a problem, we need to understand what a model actually is.
 
-Below <a href="#llama-3-config" >table </a> from Llama-3 [paper](https://arxiv.org/pdf/2407.21783) contains few important configurations for the models of different sizes, from the table we can see that the as the number of layers directly impacts the size of the model, similar is the case with other configurations. Transformer models are extension to Deep Learning Models, Deep Learning models are hungry for data which means that to get better model it needs to be trained on huge dataset,this demans more resources (compute & memory) 
+A model isn't just its weights. When we call model.to(device), it is not just moving parameters onto the GPU we're moving an entire graph of interconnected components. Parameters required for forward pass, Gradients for every parameter, Optimizer States like Adam's m and v vectors, Activations from the forward pass that need to be held in memory for the backward pass and temporary buffers for intermediate calculations. All of that has 
+to live in VRAM simultaneously. Along with model ,input and output tensors need to sit on the same device as the model — so those eat into your memory budget too. When we add it all up, the memory required for a single training step is significantly more than just the model size alone.
+
+
+Below <a href="#llama-3-config" >table </a> from Llama-3 [paper](https://arxiv.org/pdf/2407.21783) clearly demonstrates how model architecture influence size of the models. the model configurations for 8B, 7B, 405B variants says everything, layers go from 32 to 126, 
+model dimension grows from 4,096 to 16,384, and FFN dimension jumps from 14,336 to 53,248. Every one of these numbers is a multiplier on your memory requirement. More layers means more weight matrices to store and more activations to hold in memory during the forward pass. Larger dimensions make each of those weight matrices bigger
+
+Deep Learning models are hungry — the more capable you want the model to be, the more 
+data it needs to see during training, which means longer training runs, more compute
 
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; table-layout:fixed; border:2px dashed #555;">
 <thead>
@@ -323,5 +331,5 @@ Below <a href="#llama-3-config" >table </a> from Llama-3 [paper](https://arxiv.o
 </table>
  
 <figure id="llama-3-config">
-  {% include figure.liquid path="assets/img/llm-training/section-3/Llama-3-config.png" class="img-medium" caption="Figure-1: Llama 3 Configurations" %}
+  {% include figure.liquid path="assets/img/llm-training/section-3/Llama-3-config.png" class="img-medium" caption="Figure-4: Llama 3 Configurations" %}
 </figure>
