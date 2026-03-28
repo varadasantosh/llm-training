@@ -272,9 +272,9 @@ If we consider high-performing CPU (approx. 5.36 TFLOPS) the time taken to train
 </figure>
 
 
-However, a model is not just a single entity. When we call **model.to(device)**, we are moving a complex graph of Parameters , Activations, Gradients, and Optimizer States into the limited VRAM of the GPU. From the original Transformer to modern frontier models, every architectural contributed to innovation—from RMSNorm and RoPE in Llama to Mixture of Experts (MoE) in Mixtral and MLA in DeepSeek — impacts this physical footprint of the memory required for model.
+Let us now relook at one of the assumptions to confirm whether it is possible to place a model on single GPU, to reason with this we need to be aware of what consitutes a model. A model is not just a single entity it is complex graph of Parameters , Activations, Gradients, and Optimizer States.  When we call **model.to(device)**, we are moving all of them to limited VRAM of the GPU. Beside the model we need to ensure that input, output tensors to be on the device this is accomplished by **input.to(device)** and **output.to(device)**  Along with those parameters, input and output, GPU also need memory buffers for temporary caclculations.Memory required for training model which is essentially (forward + backward pass) is determined by multiple variables & model architecture. From the original Transformer to modern frontier models, every architectural contributed to innovation—from RMSNorm and RoPE in Llama to Mixture of Experts (MoE) in Mixtral and MLA in DeepSeek — each of them impact physical footprint of the memory required for model, in earlier section we saw the necessity for Parallelism and 
 
-Below is a summary of the variables that influence our "Memory Bill." We will categorize them into Static Model States (the size of the "factory") and Dynamic Training States (the size of the "workload").
+Below <a href="#llama-3-config" table > contains summary of the variables that influence the overall memory requirements for model training
 
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; table-layout:fixed; border:2px dashed #555;">
 <thead>
@@ -322,4 +322,6 @@ Below is a summary of the variables that influence our "Memory Bill." We will ca
   </tbody>
 </table>
  
+<figure id="llama-3-config">
   {% include figure.liquid path="assets/img/llm-training/section-3/Llama-3-config.png" class="img-medium" caption="Figure-1: Llama 3 Configurations" %}
+</figure>
