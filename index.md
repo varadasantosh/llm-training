@@ -233,6 +233,7 @@ If we consider high-performing CPU (approx. 5.36 TFLOPS) the time taken to train
 
 
 
+<figure>
 <table id="table-gpu-vs-cpu" style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px; border:2px dashed #555;">
   <thead>
     <tr style="text-align:left;">
@@ -260,6 +261,8 @@ If we consider high-performing CPU (approx. 5.36 TFLOPS) the time taken to train
     </tr>
   </tbody>
 </table>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 1: GPU vs CPU Training Time Comparison for Llama-3 405B</figcaption>
+</figure>
 
 
 However, a model is not just a single entity. When we call **model.to(device)**, we are moving a complex graph of Parameters , Activations, Gradients, and Optimizer States into the limited VRAM of the GPU. From the original Transformer to modern frontier models, every architectural contributed to innovation—from RMSNorm and RoPE in Llama to Mixture of Experts (MoE) in Mixtral and MLA in DeepSeek — impacts this physical footprint of the memory required for model.
