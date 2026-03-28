@@ -230,15 +230,14 @@ backward pass. Let's look at the equations behind it.
 
 ## Why One GPU is Never Enough
 
-Now that we have refreshed our memory on the basic PyTorch training loop, we are ready to understand the requirements for training a frontier Large Language Model.
+Now that we have refreshed our memory on the basic PyTorch training loop, we are ready to understand the requirements for training a frontier Large Language Model. Training a  Large Language Model is fundamentally different engineering problem from earlier models came before them.
 
-Scaling laws dictate that for architectures of this magnitude, CPUs are no longer a viable choice. GPU architectures are purpose-built for the massive, parallel mathematical computations required at scale. This became evident in the history of CNNs when researchers used GPUs to train AlexNet; today, for LLMs, the GPU's role is irreplaceable.
+To understand why, let's start with something concrete. According to the "Llama 3 Herd of Models" [paper](https://arxiv.org/pdf/2407.21783), Llama 3 405B  had a training budget of $3.8 \times 10^{25}$ FLOPs.
 
-To put this in perspective, let’s look at the training budget for Llama 3 405B. According to the "Llama 3 Herd of Models" [paper](https://arxiv.org/pdf/2407.21783), Llama team considered a budge of $3.8 \times 10^{25}$ FLOPs.
+If we tried to train this model on a high-end CPU running at 5.36 TFLOPS, it would take approximately 224,000 years (see <a href="#table-gpu-vs-cpu">Table 1</a>).Even on a single 
+NVIDIA H100 GPU — one of the most powerful GPUs available at the time of training Llama-3  running at 34 TFLOPS (FP32), the time comes down to around 35,400 years. We are making two major assumptions here that a 405B model could even fit on a single GPU (it can't) and that we could achieve 100% of the peak throughput. In practice, achieving peak throughput is nearly impossible with hand-crafted kernels like FlashAttention and meticulous infrastructure planning achieving 40 - 50% of Peak Throughput is considered successful. 
 
-If we consider high-performing CPU (approx. 5.36 TFLOPS) the time taken to train a model would arrive at 224,000 years (see <a href="#table-gpu-vs-cpu">Table 1</a>). Even with a high-performing GPU a single high-performance NVIDIA H100 GPU (mentioned in Llama-3 paper) with peak throughput of 34 TFLOPS (FP32) time required to train **405B** model is **35,400 Years**, We make two major assumptions here: first, that a 405B model could even fit on a single GPU (it can't), and second, that we can utilize 100% of the peak throughput. In practice, achieving peak throughput is nearly impossible without hand-crafted GPU kernels like FlashAttention and meticulous infrastructure planning. This massive time requirement is our primary motivation for Parallelism.
-
-
+This is why Scaling laws dictate that for architectures of this magnitude, CPUs are no longer a viable choice. GPU architectures are purpose-built for the massive, parallel mathematical computations required at scale. This became evident in the history of CNNs when researchers used GPUs to train AlexNet; today, for LLMs, the GPU's role is irreplaceable.
 
 <figure>
 <table id="table-gpu-vs-cpu" style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px; border:2px dashed #555;">
@@ -269,20 +268,17 @@ If we consider high-performing CPU (approx. 5.36 TFLOPS) the time taken to train
   </tbody>
 </table>
 <figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 1: GPU vs CPU Training Time Comparison for Llama-3 405B</figcaption>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;"> *Training Budget: 3.8 × 10²⁵ FLOPs | Formula: T = Training Budget / Peak Throughput*</figcaption>
 </figure>
 
+### What actually lives on that GPU?
 
 Let's go back to that assumption we made earlier — that a 405B model could fit on a single GPU. To understand why that's a problem, we need to understand what a model actually is.
 
 A model isn't just its weights. When we call model.to(device), it is not just moving parameters onto the GPU we're moving an entire graph of interconnected components. Parameters required for forward pass, Gradients for every parameter, Optimizer States like Adam's m and v vectors, Activations from the forward pass that need to be held in memory for the backward pass and temporary buffers for intermediate calculations. All of that has 
 to live in VRAM simultaneously. Along with model ,input and output tensors need to sit on the same device as the model . When we add it all up, the memory required for a single training step is significantly more than just the model size alone.
 
-
-Below <a href="#llama-3-config" >table </a> from Llama-3 [paper](https://arxiv.org/pdf/2407.21783) clearly demonstrates how model architecture influence size of the models. the model configurations for 8B, 7B, 405B variants says everything, layers go from 32 to 126, 
-model dimension grows from 4,096 to 16,384, and FFN dimension jumps from 14,336 to 53,248. Every one of these numbers is a multiplier on your memory requirement. More layers means more weight matrices to store and more activations to hold in memory during the forward pass. Larger dimensions make each of those weight matrices bigger
-
-Deep Learning models are hungry — the more capable you want the model to be, the more 
-data it needs to see during training, looking at family of Llama models this is very evident Llama-2 was trained on 1.8 Trillion Tokens, subsequent models Llama-3 & Llama-4 was trained on 15 Trillion & 30 Trillion Tokens respectively which translates to increase in batch size, number of batches, longer training runs & more compute.
+Training memory breaks down into these components — each of them competing for same VRAM or Off-chip RAM.
 
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; table-layout:fixed; border:2px dashed #555;">
 <thead>
@@ -292,7 +288,7 @@ data it needs to see during training, looking at family of Llama models this is 
 </thead>
 <tbody>
     <tr>
-      <td style="padding:8px 12px; border:2px dashed #555;">Parameters($\nPhi$)</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Parameters(w,b)</td>
     </tr>
     <tr>
       <td style="padding:8px 12px; border:2px dashed #555;">Gradients($\nabla$)</td>
@@ -329,7 +325,19 @@ data it needs to see during training, looking at family of Llama models this is 
     </tr>
   </tbody>
 </table>
+
+
+### How model architecture amplifies the problem
+
+Below <a href="#llama-3-config" >table </a> from Llama-3 [paper](https://arxiv.org/pdf/2407.21783) clearly demonstrates how model architecture influence size of the models. the model configurations for 8B, 70B, 405B variants says everything, layers go from 32 to 126, 
+model dimension grows from 4,096 to 16,384, and FFN dimension jumps from 14,336 to 53,248. Every one of these numbers is a multiplier on your memory requirement. More layers means more weight matrices to store and more activations to hold in memory during the forward pass. Larger dimensions make each of those weight matrices bigger
+
  
 <figure id="llama-3-config">
   {% include figure.liquid path="assets/img/llm-training/section-3/Llama-3-config.png" class="img-medium" caption="Figure-4: Llama 3 Configurations" %}
 </figure>
+
+Deep Learning models are hungry — the more capable you want the model to be, the more 
+data it needs to see during training, looking at family of Llama models this is very evident Llama-2 was trained on 1.8 Trillion Tokens, subsequent models Llama-3 & Llama-4 was trained on 15 Trillion & 30 Trillion Tokens respectively which translates to increase in batch size, number of batches, longer training runs & more compute.
+
+The time constraint and the memory constraint together make one thing clear — we need to distribute this problem across many GPUs working together. That coordination is exactly what Parallelism techniques are designed to solve, and that's what the rest of this blog is about.
