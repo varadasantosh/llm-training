@@ -97,7 +97,7 @@ how wrong it was, which direction to correct itself. The backward pass uses this
 
 How much each parameter should change is determined by three things:Gradients, Optimizer States, and Learning Rate. Learning Rate is a hyperparameter we'll dedicate separate discussion to — for now, let's focus on Gradients and Optimizer States, since these are computed and stored every single training step.
 
-Figure 2 shows exactly what's flowing in and out of each layer during 
+<a href="#fig-backward-pass">Figure 3</a> shows exactly what's flowing in and out of each layer during 
 backward pass. Let's look at the equations behind it.
 
 
@@ -112,6 +112,11 @@ backward pass. Let's look at the equations behind it.
   </ol>
 </d-aside>
 
+<figure id="fig-backward-pass">
+{% include figure.liquid path="assets/img/llm-training/section-2/backward-pass.svg" class="img-medium" caption="Figure-3: Backward Pass" %}
+</figure>
+
+<figure>
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px; border:2px dashed #555;">
   <thead>
     <tr style="text-align:left;">
@@ -175,9 +180,11 @@ backward pass. Let's look at the equations behind it.
     </tr>
   </tbody>
 </table>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 2: Backward Pass Gradient Calculations and Parameter Updates</figcaption>
+</figure>
 
 
-{% include figure.liquid path="assets/img/llm-training/section-2/backward-pass.svg" class="img-medium" caption="Figure-3: Backward Pass" %}
+
 
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; table-layout:fixed; border:2px dashed #555;">
   <colgroup>
