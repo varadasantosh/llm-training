@@ -13,7 +13,7 @@ authors:
 toc:
   - name: Introduction
   - name: The Training Loop-A Quick Refresher
-  - name: Memory Calculation 
+  - name: Why One GPU is Never Enough: Anatomy of a Frontier Model 
 
 # bibliography: references.bib
 ---
@@ -221,7 +221,7 @@ backward pass. Let's look at the equations behind it.
   </tbody>
 </table>
 
-## Dimensions of Model Training (Memory, Compute , Network) :
+## Why One GPU is Never Enough: Anatomy of a Frontier Model :
 
 Now that we have refreshed our memory on the basic PyTorch training loop, we are ready to understand the requirements for training a frontier Large Language Model.
 
@@ -229,7 +229,7 @@ Scaling laws dictate that for architectures of this magnitude, CPUs are no longe
 
 To put this in perspective, let’s look at the training budget for Llama 3 405B. According to the "Llama 3 Herd of Models" [paper](https://arxiv.org/pdf/2407.21783), Llama team considered a budge of $3.8 \times 10^{25}$ FLOPs.
 
-If we consider high-performing CPU (approx. 5.36 TFLOPS) the time taken to train a model would arrive at 224,000 years refer table[]  Even with a high-performing GPU a single high-performance NVIDIA H100 GPU (mentioned in Llama-3 paper) with peak throughput of 34 TFLOPS (FP32) time required to train **405B** model is **35,400 Years**, We make two major assumptions here: first, that a 405B model could even fit on a single GPU (it can't), and second, that we can utilize 100% of the peak throughput. In practice, achieving peak throughput is nearly impossible without hand-crafted GPU kernels like FlashAttention and meticulous infrastructure planning. This massive time requirement is our primary motivation for Parallelism.
+If we consider high-performing CPU (approx. 5.36 TFLOPS) the time taken to train a model would arrive at 224,000 years (see <a href="#table-gpu-vs-cpu">Table 1</a>).  Even with a high-performing GPU a single high-performance NVIDIA H100 GPU (mentioned in Llama-3 paper) with peak throughput of 34 TFLOPS (FP32) time required to train **405B** model is **35,400 Years**, We make two major assumptions here: first, that a 405B model could even fit on a single GPU (it can't), and second, that we can utilize 100% of the peak throughput. In practice, achieving peak throughput is nearly impossible without hand-crafted GPU kernels like FlashAttention and meticulous infrastructure planning. This massive time requirement is our primary motivation for Parallelism.
 
 
 
@@ -280,7 +280,7 @@ If we consider high-performing CPU (approx. 5.36 TFLOPS) the time taken to train
 </table>
 
 
-<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px; border:2px dashed #555;">
+<table id="table-gpu-vs-cpu" style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px; border:2px dashed #555;">
   <thead>
     <tr style="text-align:left;">
       <th style="padding:10px 12px; border:2px dashed #555; width:40%;">Hardware</th>
