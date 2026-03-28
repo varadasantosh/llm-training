@@ -227,18 +227,49 @@ Now that we have refreshed our memory on the basic PyTorch training loop, we are
 
 Technically, it is possible to train models using a CPU, but scaling laws does not for large-scale architectures like LLMs' CPU is no longer a viable choice. GPU architectures are purpose-built for performing the massive parallel mathematical computations required at scale. This became evident in the history of CNNs when researchers used GPUs to train AlexNet on the ImageNet dataset, drastically reducing training time. In research, time is the ultimate bottleneck; shorter training cycles open the window for more experiments, hyperparameter tuning, and architectural innovation.
 
-Inorder to establish this let us closely look at concrete numbers from the [paper](https://arxiv.org/pdf/2407.21783) Llama-3 Herd of Models, the paper mentioned about **training budget used for  Llama 405B parameters - 3.8 ×10^25^ FLOPs** & **H100** GPU Architecture used for training model. Peak throughput of H100 GPU is 34 TFLOPS, with this information Let us do some math to calculate the time taken for traning **405B** model. 
+Inorder to establish this let us closely look at concrete numbers from the [paper](https://arxiv.org/pdf/2407.21783) Llama-3 Herd of Models, the paper mentioned about **training budget used for  Llama 405B parameters - 3.8 ×10^25^ FLOPs** & **H100** GPU Architecture used for training model. Peak throughput of H100 GPU is 34 TFLOPS, with this information Let us do some math to calculate the time taken for traning **405B** model, considering a single H100 GPU it takes 35,400 Years. If we compare this with high performing CPU with Peak Throughput of **5.36 TFLOPS** it takes 2,24,000 years which is 6.3* slower than GPU, we are assuming that training process will be able to utilize peak throughput of GPU , this is in ideal scenario , the biggest challenge in Model training arena is to keep GPU's busy (we will see this when we move to further sections), to accomplish this we need optimizations at every layer of the infrastructure - compute, memory, network & GPU Kernels crafted engineered to achieve the peak throughput, this is where the Flash Attention Kernels shine.
 
-        ```
-           1 TFLOPS = 10^12^ FLOPS
-           H100 Peak Peformace = 34 * 10 ^12^ FLOPS
-           Training Budget = 3.8 * 10^25^ FLOPS
-           Time taken for Training. = \frac{Training Budget(In FLOPS)}{ Peak Througput (FLOPS/Sec) }\
-                                    =  \frac{3.8 * 10^25^ FLOPS} {34 * 10 ^12^ FLOPS}\
-                                    = 1.12 * 10^12^ seconds          
-                                    = 1.12 * 10^12^ /3.156 * 10^7^ = 35,400 Years
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px; border:2px dashed #555;">
+  <thead>
+    <tr style="text-align:left;">
+      <th style="padding:10px 12px; border:2px dashed #555; width:40%;">Given</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">Value</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">1 TFLOPS</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$10^{12}$ FLOPS</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">H100 Peak Performance</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$34 \times 10^{12}$ FLOPS</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">Training Budget (Llama 405B)</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$3.8 \times 10^{25}$ FLOPS</td>
+    </tr>
+  </tbody>
+</table>
 
-        ```
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px; border:2px dashed #555;">
+  <thead>
+    <tr style="text-align:left;">
+      <th style="padding:10px 12px; border:2px dashed #555; width:40%;">Step</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">Calculation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">Time (seconds)</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$T = \frac{\text{Training Budget}}{\text{Peak Throughput}} = \frac{3.8 \times 10^{25}}{34 \times 10^{12}} = 1.12 \times 10^{12} \text{ seconds}$</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">Time (years)</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$T = \frac{1.12 \times 10^{12}}{3.156 \times 10^{7}} \approx \textbf{35,400 Years}$</td>
+    </tr>
+  </tbody>
+</table>
 
  {% include figure.liquid path="assets/img/llm-training/section-3/Llama-3-config.png" class="img-medium" caption="Figure-1: Llama 3 Configurations" %}
 
