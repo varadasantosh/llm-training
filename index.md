@@ -223,20 +223,20 @@ backward pass. Let's look at the equations behind it.
 
 ## Dimensions of Model Training (Memory, Compute , Network) :
 
-Now that we have refreshed our memory on the basic PyTorch training loop, we are ready to understand the memory requirements for training a large language model.
+Now that we have refreshed our memory on the basic PyTorch training loop, we are ready to understand the requirements for training a frontier Large Language Model.
 
-Scaling laws dictate that for architectures of this magnitude, CPUs are an impossible bottleneck. GPUs are purpose-built for the massive parallel mathematical computations required at scale. However, even with modern hardware, the sheer volume of work is difficult to comprehend.
+Scaling laws dictate that for architectures of this magnitude, CPUs are no longer a viable choice. GPU architectures are purpose-built for the massive, parallel mathematical computations required at scale. This became evident in the history of CNNs when researchers used GPUs to train AlexNet; today, for LLMs, the GPU's role is irreplaceable.
 
-To put this in perspective, let’s look at the concrete numbers for Llama 3 405B. According to the training budget mentioned in the "Llama 3 Herd of Models" [paper](https://arxiv.org/pdf/2407.21783), the model required roughly $3.8 \times 10^{25}$ FLOPs.
+To put this in perspective, let’s look at the training budget for Llama 3 405B. According to the "Llama 3 Herd of Models" [paper](https://arxiv.org/pdf/2407.21783), Llama team considered a budge of $3.8 \times 10^{25}$ FLOPs.
 
-If we consider high-performing CPU (approx. 5.36 TFLOPS) the time taken to train a model would arrive at 224,000 years  Even with a high-performing GPU a single high-performance NVIDIA H100 GPU (mentioned in Llama-3 paper) with peak throughput of 34 TFLOPS (FP32) time required to train **405B** model is **35,400 Years**, here we made multiple assumption first one being that **405B** model fits entirely on single GPU which is against scaling laws, second that we will be able to utilize peak throughput in theory it is possible but in practice achieving peak throughput is far from possible but wtih optimizations at every layer of infrastructure: compute,memory,network and hand-crafted GPU kernels like FlashAttention we can come close to Peak throughput. bur for now let us proceed with these assumptions, by looking at math for time taken to training model , we have enough motivation to consider multiple GPUs' to parallelize training. Refer to below table for the math
+If we consider high-performing CPU (approx. 5.36 TFLOPS) the time taken to train a model would arrive at 224,000 years refer table[]  Even with a high-performing GPU a single high-performance NVIDIA H100 GPU (mentioned in Llama-3 paper) with peak throughput of 34 TFLOPS (FP32) time required to train **405B** model is **35,400 Years**, We make two major assumptions here: first, that a 405B model could even fit on a single GPU (it can't), and second, that we can utilize 100% of the peak throughput. In practice, achieving peak throughput is nearly impossible without hand-crafted GPU kernels like FlashAttention and meticulous infrastructure planning. This massive time requirement is our primary motivation for Parallelism.
 
 
 
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px; border:2px dashed #555;">
   <thead>
     <tr style="text-align:left;">
-      <th style="padding:10px 12px; border:2px dashed #555; width:40%;">Given</th>
+      <th style="padding:10px 12px; border:2px dashed #555; width:40%;">Metric</th>
       <th style="padding:10px 12px; border:2px dashed #555;">Value</th>
     </tr>
   </thead>
@@ -248,6 +248,10 @@ If we consider high-performing CPU (approx. 5.36 TFLOPS) the time taken to train
     <tr>
       <td style="padding:10px 12px; border:2px dashed #555;">H100 Peak Performance</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$34 \times 10^{12}$ FLOPS</td>
+    </tr>
+     <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">Peak Performance of High Performing CPU</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$5.6 \times 10^{12}$ FLOPS</td>
     </tr>
     <tr>
       <td style="padding:10px 12px; border:2px dashed #555;">Training Budget (Llama 405B)</td>
@@ -271,6 +275,29 @@ If we consider high-performing CPU (approx. 5.36 TFLOPS) the time taken to train
     <tr>
       <td style="padding:10px 12px; border:2px dashed #555;">Time (years)</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$T = \frac{1.12 \times 10^{12}}{3.156 \times 10^{7}} \approx \textbf{35,400 Years}$</td>
+    </tr>
+  </tbody>
+</table>
+
+
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px; border:2px dashed #555;">
+  <thead>
+    <tr style="text-align:left;">
+      <th style="padding:10px 12px; border:2px dashed #555; width:40%;">Hardware</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">Peak Throughput</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">Time to Train Llama-3 405B </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">NVIDIA H100 GPU</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">34 TFLOPS (FP32)</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">~35,400 Years</td>
+    </tr>
+    <tr>
+       <td style="padding:10px 12px; border:2px dashed #555;">High-End CPU</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">~5.36 TFLOPS</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">~224,400 Years</td>
     </tr>
   </tbody>
 </table>
