@@ -222,3 +222,56 @@ backward pass. Let's look at the equations behind it.
 </table>
 
 ## Memory Calculation:
+
+Now we have refreshed our memory on basic Pytoch training loop we are ready to proceed with our objective of the current section to understand the memory requiremets for training  a large language model. 
+
+While it is technically possible to train models on a CPU, it is an impediment to research. History shows us that GPUs are the "engines" of the AI revolution; since AlexNet's success on ImageNet, Machine Learning is an emperical study that requires conducting experiments by changing different parameters, a slight change in one of the parameters can significantly impact the model hence it is necessary to be able to train the modles faster
+
+However, a model is not just a single entity. When we call **model.to(device)**, we are moving a complex graph of Parameters connected to each other, Activations, Gradients, and Optimizer States into the limited VRAM of the GPU. From the original Transformer to modern frontier models, every architectural contributed to innovation—from RMSNorm and RoPE in Llama to Mixture of Experts (MoE) in Mixtral & MHA to MLA in DeepSeek — each change impacts the physical footprint of the model, few are important variables that impact the size of the model.
+
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; table-layout:fixed; border:2px dashed #555;">
+<thead>
+    <tr style="text-align:left;">
+      <th style="padding:8px 12px; border:2px dashed #555;">Parameters</th>
+    </tr>
+</thead>
+<tbody>
+    <tr>
+      <td style="padding:8px 12px; border:2px dashed #555;">Parameters(Weights & Biases)</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px; border:2px dashed #555;">Gradients($$\abla$$)</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px; border:2px dashed #555;">Optimizer States(m𝑡,v𝘵)</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px; border:2px dashed #555;">Activations</td>
+    </tr>
+     <tr>
+      <td style="padding:8px 12px; border:2px dashed #555;">Batch Size</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px; border:2px dashed #555;">Context Length</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px; border:2px dashed #555;">Vocabulary Size</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px; border:2px dashed #555;">Token Embedding Dimension</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px; border:2px dashed #555;">Number of Transformer Blocks</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px; border:2px dashed #555;">Type of Attention (MHA, GQA, MLA) </td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px; border:2px dashed #555;">FFN vs. MoE</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px; border:2px dashed #555;">Numerical Precision(Parameters, Gradients, Activations)</td>
+    </tr>
+  </tbody>
+</table>
+ 
