@@ -275,14 +275,14 @@ If we consider high-performing CPU (approx. 5.36 TFLOPS) the time taken to train
 Let's go back to that assumption we made earlier — that a 405B model could fit on a single GPU. To understand why that's a problem, we need to understand what a model actually is.
 
 A model isn't just its weights. When we call model.to(device), it is not just moving parameters onto the GPU we're moving an entire graph of interconnected components. Parameters required for forward pass, Gradients for every parameter, Optimizer States like Adam's m and v vectors, Activations from the forward pass that need to be held in memory for the backward pass and temporary buffers for intermediate calculations. All of that has 
-to live in VRAM simultaneously. Along with model ,input and output tensors need to sit on the same device as the model — so those eat into your memory budget too. When we add it all up, the memory required for a single training step is significantly more than just the model size alone.
+to live in VRAM simultaneously. Along with model ,input and output tensors need to sit on the same device as the model . When we add it all up, the memory required for a single training step is significantly more than just the model size alone.
 
 
 Below <a href="#llama-3-config" >table </a> from Llama-3 [paper](https://arxiv.org/pdf/2407.21783) clearly demonstrates how model architecture influence size of the models. the model configurations for 8B, 7B, 405B variants says everything, layers go from 32 to 126, 
 model dimension grows from 4,096 to 16,384, and FFN dimension jumps from 14,336 to 53,248. Every one of these numbers is a multiplier on your memory requirement. More layers means more weight matrices to store and more activations to hold in memory during the forward pass. Larger dimensions make each of those weight matrices bigger
 
 Deep Learning models are hungry — the more capable you want the model to be, the more 
-data it needs to see during training, which means longer training runs, more compute
+data it needs to see during training, looking at family of Llama models this is very evident Llama-2 was trained on 1.8 Trillion Tokens, subsequent models Llama-3 & Llama-4 was trained on 15 Trillion & 30 Trillion Tokens respectively which translates to increase in batch size, number of batches, longer training runs & more compute.
 
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; table-layout:fixed; border:2px dashed #555;">
 <thead>
