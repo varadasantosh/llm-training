@@ -227,7 +227,7 @@ Now that we have refreshed our memory on the basic PyTorch training loop, we are
 
 Technically, it is possible to train models using a CPU, but scaling laws does not for large-scale architectures like LLMs' CPU is no longer a viable choice. GPU architectures are purpose-built for performing the massive parallel mathematical computations required at scale. This became evident in the history of CNNs when researchers used GPUs to train AlexNet on the ImageNet dataset, drastically reducing training time. In research, time is the ultimate bottleneck; shorter training cycles open the window for more experiments, hyperparameter tuning, and architectural innovation.
 
-Inorder to establish this let us closely look at numbers from the [paper](https://arxiv.org/pdf/2407.21783) Llama-3 Herd of Models, the paper mentioned about **training budget used for  Llama 405B parameters - 3.8 ×10^25^ FLOPs**. Let us do some math to calculate how this translates to the time taken for traning **405B** model, in the paper it is mentioned that Llama-3 models are trained on **H100** GPU Clusters, peak performance of H100 GPU is 34 TFLOPS.
+Inorder to establish this let us closely look at concrete numbers from the [paper](https://arxiv.org/pdf/2407.21783) Llama-3 Herd of Models, the paper mentioned about **training budget used for  Llama 405B parameters - 3.8 ×10^25^ FLOPs** & **H100** GPU Architecture used for training model. Peak throughput of H100 GPU is 34 TFLOPS, with this information Let us do some math to calculate the time taken for traning **405B** model. 
 
         ```
            1 TFLOPS = 10^12^ FLOPS
