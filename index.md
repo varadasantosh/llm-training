@@ -225,7 +225,7 @@ backward pass. Let's look at the equations behind it.
 
 Now we have refreshed our memory on basic Pytoch training loop we are ready to proceed with our objective of the current section to understand the memory requiremets for training  a large language model. 
 
-While it is technically possible to train models on a CPU, it is an impediment to research. History shows us that GPUs are the "engines" of the AI revolution; since AlexNet's success on ImageNet, Machine Learning is an emperical study that requires conducting experiments by changing different parameters, a slight change in one of the parameters can significantly impact the model hence it is necessary to be able to train the modles faster
+While it is technically possible to train models on a CPU, it is an impediment to research. History shows us that GPUs are the "engines" of the AI revolution; since AlexNet's success on ImageNet GPU's become vital for training Deep Learning Models.Size and Adoption of large language models made GPU's role irreplacable. It is also important to understand that  Machine Learning is an emperical study that requires conducting multiple experiments to arrive at optimal model by changing different parameters involved, slight change in one of the hyper parameters can significantly impact the model hence it is necessary to be able to train the modles faster
 
 However, a model is not just a single entity. When we call **model.to(device)**, we are moving a complex graph of Parameters connected to each other, Activations, Gradients, and Optimizer States into the limited VRAM of the GPU. From the original Transformer to modern frontier models, every architectural contributed to innovation—from RMSNorm and RoPE in Llama to Mixture of Experts (MoE) in Mixtral & MHA to MLA in DeepSeek — each change impacts the physical footprint of the model, few are important variables that impact the size of the model.
 
@@ -240,7 +240,7 @@ However, a model is not just a single entity. When we call **model.to(device)**,
       <td style="padding:8px 12px; border:2px dashed #555;">Parameters(Weights & Biases)</td>
     </tr>
     <tr>
-      <td style="padding:8px 12px; border:2px dashed #555;">Gradients($$\abla$$)</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Gradients($\nabla$)</td>
     </tr>
     <tr>
       <td style="padding:8px 12px; border:2px dashed #555;">Optimizer States(m𝑡,v𝘵)</td>
