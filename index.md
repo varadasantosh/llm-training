@@ -292,7 +292,7 @@ data it needs to see during training, which means longer training runs, more com
 </thead>
 <tbody>
     <tr>
-      <td style="padding:8px 12px; border:2px dashed #555;">Parameters(Weights & Biases)</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Parameters($\nphi$)</td>
     </tr>
     <tr>
       <td style="padding:8px 12px; border:2px dashed #555;">Gradients($\nabla$)</td>
