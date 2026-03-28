@@ -221,13 +221,33 @@ backward pass. Let's look at the equations behind it.
   </tbody>
 </table>
 
-## Memory Calculation:
+## Dimensions of Model Training (Memory, Compute , Network) :
 
-Now we have refreshed our memory on basic Pytoch training loop we are ready to proceed with our objective of the current section to understand the memory requiremets for training  a large language model. 
+Now that we have refreshed our memory on the basic PyTorch training loop, we are ready to understand the memory requirements for training a large language model.
 
-While it is technically possible to train models on a CPU, it is an impediment to research. History shows us that GPUs are the "engines" of the AI revolution; since AlexNet's success on ImageNet GPU's become vital for training Deep Learning Models.Size and Adoption of large language models made GPU's role irreplacable. It is also important to understand that  Machine Learning is an emperical study that requires conducting multiple experiments to arrive at optimal model by changing different parameters involved, slight change in one of the hyper parameters can significantly impact the model hence it is necessary to be able to train the modles faster
+Technically, it is possible to train models using a CPU, but scaling laws does not for large-scale architectures like LLMs' CPU is no longer a viable choice. GPU architectures are purpose-built for performing the massive parallel mathematical computations required at scale. This became evident in the history of CNNs when researchers used GPUs to train AlexNet on the ImageNet dataset, drastically reducing training time. In research, time is the ultimate bottleneck; shorter training cycles open the window for more experiments, hyperparameter tuning, and architectural innovation.
 
-However, a model is not just a single entity. When we call **model.to(device)**, we are moving a complex graph of Parameters connected to each other, Activations, Gradients, and Optimizer States into the limited VRAM of the GPU. From the original Transformer to modern frontier models, every architectural contributed to innovation—from RMSNorm and RoPE in Llama to Mixture of Experts (MoE) in Mixtral & MHA to MLA in DeepSeek — each change impacts the physical footprint of the model, few are important variables that impact the size of the model.
+Inorder to establish this let us closely look at numbers from the [paper](https://arxiv.org/pdf/2407.21783) Llama-3 Herd of Models, the paper mentioned about **training budget used for  Llama 405B parameters - 3.8 ×10^25^ FLOPs**. Let us do some math to calculate how this translates to the time taken for traning **405B** model, in the paper it is mentioned that Llama-3 models are trained on **H100** GPU Clusters, peak performance of H100 GPU is 34 TFLOPS.
+
+        ```
+           1 TFLOPS = 10^12^ FLOPS
+           H100 Peak Peformace = 34 * 10 ^12^ FLOPS
+           Training Budget = 3.8 * 10^25^ FLOPS
+           Time taken for Training. = \frac{Training Budget(In FLOPS)}{ Peak Througput (FLOPS/Sec) }\
+                                    =  \frac{3.8 * 10^25^ FLOPS} {34 * 10 ^12^ FLOPS}\
+                                    = 1.12 * 10^12^ seconds          
+                                    = 1.12 * 10^12^ /3.156 * 10^7^ = 35,400 Years
+
+        ```
+
+ {% include figure.liquid path="assets/img/llm-training/section-3/Llama-3-config.png" class="img-medium" caption="Figure-1: Llama 3 Configurations" %}
+
+
+
+
+However, a model is not just a single entity. When we call **model.to(device)**, we are moving a complex graph of Parameters , Activations, Gradients, and Optimizer States into the limited VRAM of the GPU. From the original Transformer to modern frontier models, every architectural contributed to innovation—from RMSNorm and RoPE in Llama to Mixture of Experts (MoE) in Mixtral and MLA in DeepSeek — impacts this physical footprint of the memory required for model.
+
+Below is a summary of the variables that influence our "Memory Bill." We will categorize them into Static Model States (the size of the "factory") and Dynamic Training States (the size of the "workload").
 
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; table-layout:fixed; border:2px dashed #555;">
 <thead>
@@ -249,25 +269,25 @@ However, a model is not just a single entity. When we call **model.to(device)**,
       <td style="padding:8px 12px; border:2px dashed #555;">Activations</td>
     </tr>
      <tr>
-      <td style="padding:8px 12px; border:2px dashed #555;">Batch Size</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Batch Size(B)</td>
     </tr>
     <tr>
-      <td style="padding:8px 12px; border:2px dashed #555;">Context Length</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Context Length(S)</td>
     </tr>
     <tr>
-      <td style="padding:8px 12px; border:2px dashed #555;">Vocabulary Size</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Vocabulary Size(V)</td>
     </tr>
     <tr>
-      <td style="padding:8px 12px; border:2px dashed #555;">Token Embedding Dimension</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Token Embedding Dimension(H)</td>
     </tr>
     <tr>
-      <td style="padding:8px 12px; border:2px dashed #555;">Number of Transformer Blocks</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Number of Transformer Blocks(L)</td>
     </tr>
     <tr>
-      <td style="padding:8px 12px; border:2px dashed #555;">Type of Attention (MHA, GQA, MLA) </td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Type of Attention (MHA, GQA, MLA)</td>
     </tr>
     <tr>
-      <td style="padding:8px 12px; border:2px dashed #555;">FFN vs. MoE</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">FFN vs. MoE </td>
     </tr>
     <tr>
       <td style="padding:8px 12px; border:2px dashed #555;">Numerical Precision(Parameters, Gradients, Activations)</td>
