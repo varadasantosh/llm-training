@@ -90,7 +90,7 @@ The PyTorch training loop is something most of us know well. But before diving i
   </tbody>
 </table>
 
-{% include figure.liquid path="assets/img/llm-training/section-2/forward-pass.svg" class="img-medium" caption="Figure-1: Forward Pass" %}
+{% include figure.liquid path="assets/img/llm-training/section-2/forward-pass.svg" class="img-medium" caption="Figure-2: Forward Pass" %}
 
 **Backward Pass:** Once **loss_fn** gives us the loss, it acts as a compass — telling the model 
 how wrong it was, which direction to correct itself. The backward pass uses this signal to update the parameters of every layer in the network.
@@ -177,7 +177,7 @@ backward pass. Let's look at the equations behind it.
 </table>
 
 
-{% include figure.liquid path="assets/img/llm-training/section-2/backward-pass.svg" class="img-medium" caption="Figure-2: Backward Pass" %}
+{% include figure.liquid path="assets/img/llm-training/section-2/backward-pass.svg" class="img-medium" caption="Figure-3: Backward Pass" %}
 
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; table-layout:fixed; border:2px dashed #555;">
   <colgroup>
@@ -233,71 +233,30 @@ If we consider high-performing CPU (approx. 5.36 TFLOPS) the time taken to train
 
 
 
-<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px; border:2px dashed #555;">
-  <thead>
-    <tr style="text-align:left;">
-      <th style="padding:10px 12px; border:2px dashed #555; width:40%;">Metric</th>
-      <th style="padding:10px 12px; border:2px dashed #555;">Value</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;">1 TFLOPS</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$10^{12}$ FLOPS</td>
-    </tr>
-    <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;">H100 Peak Performance</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$34 \times 10^{12}$ FLOPS</td>
-    </tr>
-     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;">Peak Performance of High Performing CPU</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$5.6 \times 10^{12}$ FLOPS</td>
-    </tr>
-    <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;">Training Budget (Llama 405B)</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$3.8 \times 10^{25}$ FLOPS</td>
-    </tr>
-  </tbody>
-</table>
-
-<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px; border:2px dashed #555;">
-  <thead>
-    <tr style="text-align:left;">
-      <th style="padding:10px 12px; border:2px dashed #555; width:40%;">Step</th>
-      <th style="padding:10px 12px; border:2px dashed #555;">Calculation</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;">Time (seconds)</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$T = \frac{\text{Training Budget}}{\text{Peak Throughput}} = \frac{3.8 \times 10^{25}}{34 \times 10^{12}} = 1.12 \times 10^{12} \text{ seconds}$</td>
-    </tr>
-    <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;">Time (years)</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$T = \frac{1.12 \times 10^{12}}{3.156 \times 10^{7}} \approx \textbf{35,400 Years}$</td>
-    </tr>
-  </tbody>
-</table>
-
-
 <table id="table-gpu-vs-cpu" style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px; border:2px dashed #555;">
   <thead>
     <tr style="text-align:left;">
-      <th style="padding:10px 12px; border:2px dashed #555; width:40%;">Hardware</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">Hardware</th>
       <th style="padding:10px 12px; border:2px dashed #555;">Peak Throughput</th>
-      <th style="padding:10px 12px; border:2px dashed #555;">Time to Train Llama-3 405B </th>
+      <th style="padding:10px 12px; border:2px dashed #555;">Time Calculation</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">Time to Train Llama-3 405B</th>
     </tr>
   </thead>
   <tbody>
-    <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;">NVIDIA H100 GPU</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">34 TFLOPS (FP32)</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">~35,400 Years</td>
+    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+      <td style="padding:10px 12px; border:2px dashed #555;" colspan="4"><strong>Training Budget:</strong> $3.8 \times 10^{25}$ FLOPs &nbsp;|&nbsp; <strong>Formula:</strong> $T = \frac{\text{Training Budget}}{\text{Peak Throughput}}$</td>
     </tr>
     <tr>
-       <td style="padding:10px 12px; border:2px dashed #555;">High-End CPU</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">~5.36 TFLOPS</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">~224,400 Years</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">NVIDIA H100 GPU</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">34 TFLOPS ($34 \times 10^{12}$ FLOPS)</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$\frac{3.8 \times 10^{25}}{34 \times 10^{12}} = 1.12 \times 10^{12}$ sec</td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>~35,400 Years</strong></td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">High-End CPU</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">~5.36 TFLOPS ($5.36 \times 10^{12}$ FLOPS)</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$\frac{3.8 \times 10^{25}}{5.36 \times 10^{12}} = 7.09 \times 10^{12}$ sec</td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>~224,400 Years</strong></td>
     </tr>
   </tbody>
 </table>
