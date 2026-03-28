@@ -225,9 +225,13 @@ backward pass. Let's look at the equations behind it.
 
 Now that we have refreshed our memory on the basic PyTorch training loop, we are ready to understand the memory requirements for training a large language model.
 
-Technically, it is possible to train models using a CPU, but scaling laws does not for large-scale architectures like LLMs' CPU is no longer a viable choice. GPU architectures are purpose-built for performing the massive parallel mathematical computations required at scale. This became evident in the history of CNNs when researchers used GPUs to train AlexNet on the ImageNet dataset, drastically reducing training time. In research, time is the ultimate bottleneck; shorter training cycles open the window for more experiments, hyperparameter tuning, and architectural innovation.
+Scaling laws dictate that for architectures of this magnitude, CPUs are an impossible bottleneck. GPUs are purpose-built for the massive parallel mathematical computations required at scale. However, even with modern hardware, the sheer volume of work is difficult to comprehend.
 
-Inorder to establish this let us closely look at concrete numbers from the [paper](https://arxiv.org/pdf/2407.21783) Llama-3 Herd of Models, the paper mentioned about **training budget used for  Llama 405B parameters - 3.8 ×10^25^ FLOPs** & **H100** GPU Architecture used for training model. Peak throughput of H100 GPU is 34 TFLOPS, with this information Let us do some math to calculate the time taken for traning **405B** model, considering a single H100 GPU it takes 35,400 Years. If we compare this with high performing CPU with Peak Throughput of **5.36 TFLOPS** it takes 2,24,000 years which is 6.3* slower than GPU, we are assuming that training process will be able to utilize peak throughput of GPU , this is in ideal scenario , the biggest challenge in Model training arena is to keep GPU's busy (we will see this when we move to further sections), to accomplish this we need optimizations at every layer of the infrastructure - compute, memory, network & GPU Kernels crafted engineered to achieve the peak throughput, this is where the Flash Attention Kernels shine.
+To put this in perspective, let’s look at the concrete numbers for Llama 3 405B. According to the training budget mentioned in the "Llama 3 Herd of Models" [paper](https://arxiv.org/pdf/2407.21783), the model required roughly $3.8 \times 10^{25}$ FLOPs.
+
+If we consider high-performing CPU (approx. 5.36 TFLOPS) the time taken to train a model would arrive at 224,000 years  Even with a high-performing GPU a single high-performance NVIDIA H100 GPU (mentioned in Llama-3 paper) with peak throughput of 34 TFLOPS (FP32) time required to train **405B** model is **35,400 Years**, here we made multiple assumption first one being that **405B** model fits entirely on single GPU which is against scaling laws, second that we will be able to utilize peak throughput in theory it is possible but in practice achieving peak throughput is far from possible but wtih optimizations at every layer of infrastructure: compute,memory,network and hand-crafted GPU kernels like FlashAttention we can come close to Peak throughput. bur for now let us proceed with these assumptions, by looking at math for time taken to training model , we have enough motivation to consider multiple GPUs' to parallelize training. Refer to below table for the math
+
+
 
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px; border:2px dashed #555;">
   <thead>
@@ -270,7 +274,6 @@ Inorder to establish this let us closely look at concrete numbers from the [pape
     </tr>
   </tbody>
 </table>
-
 
 
 However, a model is not just a single entity. When we call **model.to(device)**, we are moving a complex graph of Parameters , Activations, Gradients, and Optimizer States into the limited VRAM of the GPU. From the original Transformer to modern frontier models, every architectural contributed to innovation—from RMSNorm and RoPE in Llama to Mixture of Experts (MoE) in Mixtral and MLA in DeepSeek — impacts this physical footprint of the memory required for model.
