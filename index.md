@@ -339,8 +339,8 @@ Training memory breaks down into these components — each of them competing for
 
 ### How model architecture amplifies the problem
 
-Below <a href="#llama-3-config" >table </a> from Llama-3 [paper](https://arxiv.org/pdf/2407.21783) clearly demonstrates how model architecture influence size of the models. the model configurations for 8B, 70B, 405B variants says everything, layers go from 32 to 126, 
-model dimension grows from 4,096 to 16,384, and FFN dimension jumps from 14,336 to 53,248. Every one of these numbers is a multiplier on your memory requirement. More layers means more weight matrices to store and more activations to hold in memory during the forward pass. Larger dimensions make each of those weight matrices bigger each configuration directly or indirectly influence the memory required for training model
+Below <a href="#llama-3-config" >table </a> from Llama-3 [paper](https://arxiv.org/pdf/2407.21783) clearly demonstrates how model architecture influence size of the models & how these  configurations change across models of different sizes: layers go from 32 to 126, 
+model dimension grows from 4,096 to 16,384, and FFN dimension jumps from 14,336 to 53,248. Every one of these numbers is a multiplier on your memory requirement. More layers means more weight matrices to store and more activations to hold in memory during the forward pass. Larger dimensions make each of those weight matrices bigger Every configuration here directly or indirectly influences the memory required for training — and together they compound fast
 
  
 <figure id="llama-3-config">
@@ -349,7 +349,7 @@ model dimension grows from 4,096 to 16,384, and FFN dimension jumps from 14,336 
 
 ### How Much Memory Are We Actually Talking About?
 
-Before we calculate total training memory, it helps to understand what we're working with. Training uses mixed precision — FP32 and BF16 — and once training is complete, models are typically served in BF16. Models also support INT8 and INT4 quantization[ref](https://huggingface.co/meta-llama/Llama-3.1-70B-Instruct#use-with-bitsandbytes) for 
+Before we calculate total training memory, it helps to understand what we're working with. Training uses mixed precision — FP32 and BF16 — and once training is complete, models are typically served in BF16. Models also support INT8 and INT4 quantization [ref](https://huggingface.co/meta-llama/Llama-3.1-70B-Instruct#use-with-bitsandbytes) for 
 inference, which trades some accuracy for significant memory savings.
 
 The H100 GPU has 80GB of HBM memory. Let's <a href="#table-params-memory">see</a> how the Llama-3 model variants stack up against that — for Parameters alone, across different precision types.
@@ -394,8 +394,10 @@ The H100 GPU has 80GB of HBM memory. Let's <a href="#table-params-memory">see</a
 </figure>
 
 The 70B model needs 140GB just for Parameters — nearly double the H100's entire 80GB. The 
-405B model needs 810GB in BF16 and 1620GB in FP32,this is only for Parameters(Weights, Biases) , training model needs multiple forward & backward pass which requires memory for **Gradients**, **Activations**, **Optimizer States** and additional memory buffers for staging intermediate calculations. Only an 8B model can fit on GPU with quantization to INT4/INT8, since this only contains Parameters this only works for inference but training 8B model using single GPU is not possible. This is because of distinction between inference & training. inference only needs Parameters, Activations, and KV Cache to 
-complete a forward pass. Training needs all of that plus Gradients and Optimizer States — which is why training memory requirements are significantly heavier than inference. 
+405B model needs 810GB in BF16 and 1620GB in FP32,this is only for Parameters(Weights, Biases) .
+
+Training model needs multiple forward & backward pass which requires memory for **Gradients**, **Activations**, **Optimizer States** and additional memory buffers for staging intermediate calculations. <a href="#table-params-memory">table</a> only captures memory required for Parameters this only works for inference . Of all the model 
+sizes here, Only an 8B model can fit on GPU with quantization to INT4/INT8. This is because of distinction between inference & training. inference only needs Parameters, Activations, and KV Cache to complete a forward pass. Training needs all of that plus Gradients and Optimizer States — which is why training memory requirements are significantly heavier than inference. 
 
 ### The Data Side of the Problem
 Beyond model architecture and Parameters required, memory requirements are directly influenced by data used for training. Deep Learning models are hungry — the more capable you want the model to be, the more data it needs to see during training, Llama models made this trend clear , Llama-2 was trained on 1.8 Trillion Tokens, subsequent models Llama-3 & Llama-4 was trained on 15 Trillion & 30 Trillion Tokens respectively which translates to increase in batch size, number of batches, longer training runs & more compute.
