@@ -338,12 +338,16 @@ model dimension grows from 4,096 to 16,384, and FFN dimension jumps from 14,336 
   {% include figure.liquid path="assets/img/llm-training/section-3/Llama-3-config.png" class="img-medium" caption="Figure-4: Llama 3 Configurations" %}
 </figure>
 
+### How Much Memory Are We Actually Talking About?
 
-The ultimate objective of training a models is to be used across globe, computation and scaling requirements for training and inference largely remains same except few differences but this is a topic for another day, current discussion requires us to be aware that inference requires only **Parameters** & **Activations** to complete <a href="#fig-forward-pass">forward pass</a>, along with this we also need to consider additional memory required for temporary buffers. considering the Llama-3 model variants 8B,70B, 405B. as earlier Llama-3 Herd of models were trained using H100 GPU, the HBM memory available on H100 is 80GB. let us do some math to calculate the memory required for Parameters alone with different precision types, Like many other models Llama models use mixed precision for training (**FP32** & **BF16**) , once the training  is finished we get access to parameters in **BF16** [ref](https://huggingface.co/meta-llama/Llama-3.1-70B-Instruct/blob/main/config.json#L34), models also support **INT8** and **INT4** quantization, numbers from below tables gives clear indication that only models of size 8B can fit on single H100 GPU while the 32GB mentioned is only for Parameters we still required memory for Activations & KVCache , rest of the models require multiple GPU's to even hold Parameters
+Before we calculate total training memory, it helps to understand what we're working with. Training uses mixed precision — FP32 and BF16 — and once training is complete, models are typically served in BF16. Models also support INT8 and INT4 quantization[ref](https://huggingface.co/meta-llama/Llama-3.1-70B-Instruct#use-with-bitsandbytes) for 
+inference, which trades some accuracy for significant memory savings.
+
+The H100 GPU has 80GB of HBM memory. Let's <a href="#table-params-memory">see</a> how the Llama-3 model variants stack up against that — for Parameters alone, across different precision types.
 
 
 <figure>
-<table id="table-params-fp32-bf16" style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px; border:2px dashed #555;">
+<table id="table-params-memory" style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px; border:2px dashed #555;">
   <thead>
     <tr style="text-align:left;">
       <th style="padding:10px 12px; border:2px dashed #555;">Model Size (No. Parameters)</th>
@@ -358,21 +362,21 @@ The ultimate objective of training a models is to be used across globe, computat
       <td style="padding:10px 12px; border:2px dashed #555;">8B</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$8B * 4 Bytes = 32 GB$</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$8B * 2 Bytes = 16 GB$</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$8B * 1 Bytes = 8 GB$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$8B * 1 Byte = 8 GB$</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$8B * 4 Bits  = 4 GB$</td>
     </tr>
     <tr>
       <td style="padding:10px 12px; border:2px dashed #555;">70B</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$70B * 4 Bytes = 280 GB$</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$70B * 2 Bytes = 140 GB$</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$70B * 1 Bytes = 70 GB$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$70B * 1 Byte = 70 GB$</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$70B * 4 Bits  = 35 GB$</td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;">405BB</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">405B</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$405B * 4 Bytes = 1620 GB$</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$405B * 2 Bytes = 810 GB$</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$405B * 1 Bytes = 405 GB$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$405B * 1 Byte = 405 GB$</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$405B * 4 Bits  = 202.5 GB$</td>
     </tr>
   </tbody>
@@ -380,9 +384,12 @@ The ultimate objective of training a models is to be used across globe, computat
 <figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 1: GPU vs CPU Training Time Comparison for Llama-3 405B</figcaption>
 </figure>
 
+The 70B model needs 140GB just for Parameters — nearly double the H100's entire 80GB. The 
+405B model needs 810GB in BF16 and 1620GB in FP32,this is only for Parameters(Weights, Biases) , training model needs multiple forward & backward pass which requires memory for **Gradients**, **Activations**, **Optimizer States** and additional memory buffers for staging intermediate calculations. Only an 8B model can fit on GPU with adjustments on other 
+aspects of model , since this only contains Parameters this only fit for inference but training 8B model using single GPU is not possible. This is because of distinction between inference & training. inference only needs Parameters, Activations, and KV Cache to 
+complete a forward pass. Training needs all of that plus Gradients and Optimizer States — which is why training memory requirements are significantly heavier than inference. We will observe this in next sections
 
+### The Data Side of the Problem
+Along with Model Components mentioned earlier, memory requirements are directly influenced by data used for training, Deep Learning models are hungry — the more capable you want the model to be, the more data it needs to see during training, Llama models made this trend clear , Llama-2 was trained on 1.8 Trillion Tokens, subsequent models Llama-3 & Llama-4 was trained on 15 Trillion & 30 Trillion Tokens respectively which translates to increase in batch size (or) number of batches, longer training runs & more compute.
 
-Deep Learning models are hungry — the more capable you want the model to be, the more 
-data it needs to see during training, looking at family of Llama models this is very evident Llama-2 was trained on 1.8 Trillion Tokens, subsequent models Llama-3 & Llama-4 was trained on 15 Trillion & 30 Trillion Tokens respectively which translates to increase in batch size, number of batches, longer training runs & more compute.
-
-The time constraint and the memory constraint together make one thing clear — we need to distribute this problem across many GPUs working together. That coordination is exactly what Parallelism techniques are designed to solve, and that's what the rest of this blog is about.
+We looked at the training budget and time it would have taken to train a model using single GPU and memory required for storing the data and model components on single GPU , together they strengthens requirement for distributing the model and data across multiple GPU's. Parallelism techniques are all about resolving the trade-offs that exist at different layers
