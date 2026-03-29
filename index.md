@@ -71,6 +71,7 @@ The PyTorch training loop is something most of us know well. But before diving i
 
 **Forward Pass** : input X enters Layer 1, gets multiplied with that layer's weights, a bias is added, and the result becomes activation A₁. That activation becomes the input to Layer 2, where the same operation happens again, giving us our final prediction Ŷ. This pattern holds for any number of layers — the output of layer n-1 is always the input to layer n. To complete a forward pass, each layer only needs two things: its Parameters (w, b) and the incoming Activations.
 
+<figure>
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px; border:2px dashed #555;">
   <thead>
     <tr style="text-align:left;">
@@ -89,9 +90,12 @@ The PyTorch training loop is something most of us know well. But before diving i
     </tr>
   </tbody>
 </table>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 1: Forward Pass: Equations</figcaption>
+</figure>
 
 <figure id="fig-forward-pass">
 {% include figure.liquid path="assets/img/llm-training/section-2/forward-pass.svg" class="img-medium" caption="Figure-2: Forward Pass" %}
+
 </figure>
 **Backward Pass:** Once **loss_fn** gives us the loss, it acts as a compass — telling the model 
 how wrong it was, which direction to correct itself. The backward pass uses this signal to update the parameters of every layer in the network.
@@ -186,7 +190,7 @@ backward pass. Let's look at the equations behind it.
 
 
 
-
+<figure>
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; table-layout:fixed; border:2px dashed #555;">
   <colgroup>
     <col style="width:35%;">
@@ -228,6 +232,8 @@ backward pass. Let's look at the equations behind it.
     </tr>
   </tbody>
 </table>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 3: Pytorch Training Loop Steps </figcaption>
+</figure>
 
 ## Why One GPU is Never Enough
 
@@ -235,7 +241,7 @@ Now that we have refreshed our memory on the basic PyTorch training loop, we are
 
 To understand why, let's start with something concrete. According to the "Llama 3 Herd of Models" [paper](https://arxiv.org/pdf/2407.21783), Llama 3 405B  had a training budget of $3.8 \times 10^{25}$ FLOPs.
 
-If we tried to train this model on a high-end CPU running at 11.37 TFLOPS, it would take approximately 105,900 years (see <a href="#table-gpu-vs-cpu">Table 1</a>).Even on a single 
+If we tried to train this model on a high-end CPU running at 11.37 TFLOPS, it would take approximately 105,900 years (see <a href="#table-gpu-vs-cpu">Table 4</a>).Even on a single 
 NVIDIA H100 GPU — one of the most powerful GPUs available at the time of training Llama-3  running at 67 TFLOPS (FP32), the time comes down to around 17,972 years. We are making two major assumptions here that a 405B model could even fit on a single GPU (it can't) and that we could achieve 100% of the peak throughput. In practice, achieving peak throughput is nearly impossible with hand-crafted kernels like FlashAttention and meticulous infrastructure planning achieving 40 - 50% of Peak Throughput is considered successful. 
 
 This is why Scaling laws dictate that for architectures of this magnitude, CPUs are no longer a viable choice. GPU architectures are purpose-built for the massive, parallel mathematical computations required at scale. This became evident in the history of CNNs when researchers used GPUs to train AlexNet; today, for LLMs, the GPU's role is irreplaceable.
@@ -268,7 +274,7 @@ This is why Scaling laws dictate that for architectures of this magnitude, CPUs 
     </tr>
   </tbody>
 </table>
-<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 1: GPU vs CPU Training Time Comparison for Llama-3 405B</figcaption>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 4: GPU vs CPU Training Time Comparison for Llama-3 405B</figcaption>
 <figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;"> Training Budget: 3.8 × 10²⁵ FLOPs | Formula: T = Training Budget / Peak Throughput</figcaption>
 </figure>
 
@@ -281,6 +287,7 @@ to live in VRAM simultaneously. Along with model ,input and output tensors need 
 
 Training memory breaks down into these components — each of them competing for same VRAM or Off-chip RAM.
 
+<figure>
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; table-layout:fixed; border:2px dashed #555;">
 <thead>
     <tr style="text-align:left;">
@@ -326,6 +333,8 @@ Training memory breaks down into these components — each of them competing for
     </tr>
   </tbody>
 </table>
+</figcaption>style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 5: Configurations Influencing Model Size</figcaption>
+</figure>
 
 
 ### How model architecture amplifies the problem
@@ -381,15 +390,14 @@ The H100 GPU has 80GB of HBM memory. Let's <a href="#table-params-memory">see</a
     </tr>
   </tbody>
 </table>
-<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 1: GPU vs CPU Training Time Comparison for Llama-3 405B</figcaption>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 6: Memory Required for Parameters across Precision Types</figcaption>
 </figure>
 
 The 70B model needs 140GB just for Parameters — nearly double the H100's entire 80GB. The 
-405B model needs 810GB in BF16 and 1620GB in FP32,this is only for Parameters(Weights, Biases) , training model needs multiple forward & backward pass which requires memory for **Gradients**, **Activations**, **Optimizer States** and additional memory buffers for staging intermediate calculations. Only an 8B model can fit on GPU with adjustments on other 
-aspects of model , since this only contains Parameters this only fit for inference but training 8B model using single GPU is not possible. This is because of distinction between inference & training. inference only needs Parameters, Activations, and KV Cache to 
-complete a forward pass. Training needs all of that plus Gradients and Optimizer States — which is why training memory requirements are significantly heavier than inference. We will observe this in next sections
+405B model needs 810GB in BF16 and 1620GB in FP32,this is only for Parameters(Weights, Biases) , training model needs multiple forward & backward pass which requires memory for **Gradients**, **Activations**, **Optimizer States** and additional memory buffers for staging intermediate calculations. Only an 8B model can fit on GPU with quantization to INT4/INT8, since this only contains Parameters this only works for inference but training 8B model using single GPU is not possible. This is because of distinction between inference & training. inference only needs Parameters, Activations, and KV Cache to 
+complete a forward pass. Training needs all of that plus Gradients and Optimizer States — which is why training memory requirements are significantly heavier than inference. 
 
 ### The Data Side of the Problem
-Along with Model Components mentioned earlier, memory requirements are directly influenced by data used for training, Deep Learning models are hungry — the more capable you want the model to be, the more data it needs to see during training, Llama models made this trend clear , Llama-2 was trained on 1.8 Trillion Tokens, subsequent models Llama-3 & Llama-4 was trained on 15 Trillion & 30 Trillion Tokens respectively which translates to increase in batch size (or) number of batches, longer training runs & more compute.
+Beyond model architecture and Parameters required, memory requirements are directly influenced by data used for training. Deep Learning models are hungry — the more capable you want the model to be, the more data it needs to see during training, Llama models made this trend clear , Llama-2 was trained on 1.8 Trillion Tokens, subsequent models Llama-3 & Llama-4 was trained on 15 Trillion & 30 Trillion Tokens respectively which translates to increase in batch size, number of batches, longer training runs & more compute.
 
-We looked at the training budget and time it would have taken to train a model using single GPU and memory required for storing the data and model components on single GPU , together they strengthens requirement for distributing the model and data across multiple GPU's. Parallelism techniques are all about resolving the trade-offs that exist at different layers
+We looked at the training budget and time it would have taken to train a model using single GPU and memory required for storing the data and model components on single GPU , together they strengthens requirement for distributing the model and data across multiple GPU's. Parallelism techniques are all about resolving the constraints by distributing the model, data, and computation across multiple GPUs working together.
