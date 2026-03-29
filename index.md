@@ -340,7 +340,7 @@ Training memory breaks down into these components — each of them competing for
 ### How model architecture amplifies the problem
 
 Below <a href="#llama-3-config" >table </a> from Llama-3 [paper](https://arxiv.org/pdf/2407.21783) clearly demonstrates how model architecture influence size of the models. the model configurations for 8B, 70B, 405B variants says everything, layers go from 32 to 126, 
-model dimension grows from 4,096 to 16,384, and FFN dimension jumps from 14,336 to 53,248. Every one of these numbers is a multiplier on your memory requirement. More layers means more weight matrices to store and more activations to hold in memory during the forward pass. Larger dimensions make each of those weight matrices bigger
+model dimension grows from 4,096 to 16,384, and FFN dimension jumps from 14,336 to 53,248. Every one of these numbers is a multiplier on your memory requirement. More layers means more weight matrices to store and more activations to hold in memory during the forward pass. Larger dimensions make each of those weight matrices bigger each configuration directly or indirectly influence the memory required for training model
 
  
 <figure id="llama-3-config">
