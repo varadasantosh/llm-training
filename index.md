@@ -90,8 +90,9 @@ The PyTorch training loop is something most of us know well. But before diving i
   </tbody>
 </table>
 
+<figure id="fig-forward-pass">
 {% include figure.liquid path="assets/img/llm-training/section-2/forward-pass.svg" class="img-medium" caption="Figure-2: Forward Pass" %}
-
+</figure>
 **Backward Pass:** Once **loss_fn** gives us the loss, it acts as a compass — telling the model 
 how wrong it was, which direction to correct itself. The backward pass uses this signal to update the parameters of every layer in the network.
 
@@ -337,7 +338,49 @@ model dimension grows from 4,096 to 16,384, and FFN dimension jumps from 14,336 
   {% include figure.liquid path="assets/img/llm-training/section-3/Llama-3-config.png" class="img-medium" caption="Figure-4: Llama 3 Configurations" %}
 </figure>
 
-In order to place the model on GPU for inference which only requires forward pass
+
+The ultimate objective of training a models is to be used across globe, computation and scaling requirements for training and inference largely remains same except few differences but this is a topic for another day, current discussion requires us to be aware that inference requires only **Parameters** & **Activations** to complete <a href="#fig-forward-pass">forward pass</a>, along with this we also need to consider additional memory required for temporary buffers. considering the Llama-3 model variants 8B,70B, 405B. as earlier Llama-3 Herd of models were trained using H100 GPU, the HBM memory available on H100 is 80GB. let us do some math to calculate the memory required for Parameters alone with different precision types, Like many other models Llama models use mixed precision for training (**FP32** & **BF16**) , once the training  is finished we get access to parameters in **BF16** [ref](https://huggingface.co/meta-llama/Llama-3.1-70B-Instruct/blob/main/config.json#L34), models also support **INT8** and **INT4** quantization, numbers from below tables gives clear indication that only models of size 8B can fit on single H100 GPU while the 32GB mentioned is only for Parameters we still required memory for Activations & KVCache , rest of the models require multiple GPU's to even hold Parameters
+
+
+<figure>
+<table id="table-params-fp32-bf16" style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px; border:2px dashed #555;">
+  <thead>
+    <tr style="text-align:left;">
+      <th style="padding:10px 12px; border:2px dashed #555;">Model Size (No. Parameters)</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">FP32</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">BF16</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">INT8</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">INT4</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">8B</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$8B * 4 Bytes = 32 GB$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$8B * 2 Bytes = 16 GB$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$8B * 1 Bytes = 8 GB$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$8B * 4 Bits  = 4 GB$</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">70B</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$70B * 4 Bytes = 280 GB$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$70B * 2 Bytes = 140 GB$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$70B * 1 Bytes = 70 GB$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$70B * 4 Bits  = 35 GB$</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">405BB</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$405B * 4 Bytes = 1620 GB$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$405B * 2 Bytes = 810 GB$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$405B * 1 Bytes = 405 GB$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$405B * 4 Bits  = 202.5 GB$</td>
+    </tr>
+  </tbody>
+</table>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 1: GPU vs CPU Training Time Comparison for Llama-3 405B</figcaption>
+</figure>
+
+
 
 Deep Learning models are hungry — the more capable you want the model to be, the more 
 data it needs to see during training, looking at family of Llama models this is very evident Llama-2 was trained on 1.8 Trillion Tokens, subsequent models Llama-3 & Llama-4 was trained on 15 Trillion & 30 Trillion Tokens respectively which translates to increase in batch size, number of batches, longer training runs & more compute.
