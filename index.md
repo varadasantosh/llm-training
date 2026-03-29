@@ -333,7 +333,7 @@ Training memory breaks down into these components — each of them competing for
     </tr>
   </tbody>
 </table>
-</figcaption>style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 5: Configurations Influencing Model Size</figcaption>
+</figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 5: Configurations Influencing Model Size</figcaption>
 </figure>
 
 
