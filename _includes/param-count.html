@@ -1,0 +1,654 @@
+<!--
+  ================================================================
+  Parameter count table — Classic Transformer vs Llama 3
+  For al-folio distill theme.
+
+  USAGE
+  -----
+  1. Paste this block wherever you want the table in your post.
+  2. Move the <style> block to _sass/_custom.scss (remove the tags).
+  3. Math uses KaTeX inline delimiters \(...\) — rendered automatically
+     by al-folio's built-in KaTeX loader.
+  4. The model-switcher JS is self-contained; no extra dependencies.
+  ================================================================
+-->
+
+<!-- ── STYLES ─────────────────────────────────────────────────── -->
+<style>
+/* Wrapper: break out of the narrow l-body column */
+.pt-wrap {
+  margin: 2rem 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+/* Model switcher */
+.pt-switcher {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.pt-switcher label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--global-text-color-light, #888);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 0;
+}
+.pt-switcher button {
+  padding: 3px 12px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid #ccc;
+  background: transparent;
+  color: var(--global-text-color-light, #888);
+  transition: all 0.15s;
+  line-height: 1.6;
+}
+.pt-switcher button.active {
+  background: var(--global-theme-color, #4b6fff);
+  color: #fff;
+  border-color: var(--global-theme-color, #4b6fff);
+}
+
+/* Table shell */
+.param-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  table-layout: fixed;
+}
+
+/* Column widths */
+.param-table col.c-name   { width: 11%; }
+.param-table col.c-cform  { width: 21%; }
+.param-table col.c-cval   { width: 9%; }
+.param-table col.c-lform  { width: 24%; }
+.param-table col.c-lval   { width: 9%; }
+
+/* ── Header rows ── */
+.param-table thead tr:first-child th {
+  padding: 7px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-bottom: 1px solid #e0e0e0;
+}
+.param-table thead tr:first-child th:first-child {
+  background: #f7f7f7;
+}
+.th-classic {
+  background: #EEEDFE;
+  color: #3C3489;
+  text-align: center;
+}
+.th-llama {
+  background: #E1F5EE;
+  color: #085041;
+  text-align: center;
+}
+.param-table thead tr:last-child th {
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #999;
+  border-bottom: 2px solid #e0e0e0;
+  background: #fafafa;
+}
+.param-table thead tr:last-child th.sub-classic {
+  background: #F7F6FE;
+  color: #534AB7;
+}
+.param-table thead tr:last-child th.sub-llama {
+  background: #F0FAF6;
+  color: #0F6E56;
+}
+
+/* ── Section header rows ── */
+.param-table tr.sec-hdr td {
+  padding: 6px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  background: #f0f0f0;
+  color: #555;
+  border-top: 1px solid #d8d8d8;
+  border-bottom: 1px solid #d8d8d8;
+}
+.param-table tr.sec-hdr td .badge {
+  float: right;
+  font-size: 0.65rem;
+  font-weight: 500;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #ccc;
+  color: #777;
+  letter-spacing: 0;
+}
+
+/* ── Block container: transformer block ── */
+.param-table tr.block-hdr td {
+  padding: 7px 10px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  background: #f9f5ff;
+  color: #3C3489;
+  border-top: 2px solid #AFA9EC;
+  border-bottom: 1px solid #d8d8d8;
+}
+.param-table tr.block-hdr td .badge {
+  float: right;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: #EEEDFE;
+  border: 1px solid #AFA9EC;
+  color: #534AB7;
+  letter-spacing: 0;
+}
+
+/* ── Sub-group headers inside transformer block ── */
+.param-table tr.subgroup-hdr td {
+  padding: 4px 10px 4px 18px;
+  font-size: 0.69rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #999;
+  background: #fafafa;
+  border-top: 1px solid #ebebeb;
+  border-bottom: 1px solid #ebebeb;
+}
+.param-table tr.subgroup-hdr td::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 7px;
+  vertical-align: middle;
+  margin-bottom: 1px;
+}
+.param-table tr.subgroup-hdr.sg-norm  td::before { background: #EF9F27; }
+.param-table tr.subgroup-hdr.sg-attn  td::before { background: #534AB7; }
+.param-table tr.subgroup-hdr.sg-mlp   td::before { background: #D85A30; }
+
+/* ── Data rows ── */
+.param-table tr.data-row td {
+  padding: 5px 10px;
+  vertical-align: top;
+  border-bottom: 1px solid #f0f0f0;
+  color: var(--global-text-color, #333);
+}
+.param-table tr.data-row:last-child td {
+  border-bottom: none;
+}
+.param-table tr.data-row td:first-child {
+  font-weight: 600;
+  font-family: var(--global-code-font, monospace);
+  font-size: 0.72rem;
+  background: #fafafa;
+  color: #555;
+  border-right: 1px solid #ebebeb;
+}
+.param-table tr.data-row td.f-classic {
+  font-family: var(--global-code-font, monospace);
+  font-size: 0.72rem;
+  color: #3C3489;
+  border-right: 1px solid #f0f0f0;
+}
+.param-table tr.data-row td.v-classic {
+  font-family: var(--global-code-font, monospace);
+  font-size: 0.72rem;
+  text-align: right;
+  color: #666;
+  border-right: 2px solid #d8d8d8;
+}
+.param-table tr.data-row td.f-llama {
+  font-family: var(--global-code-font, monospace);
+  font-size: 0.72rem;
+  color: #085041;
+  border-right: 1px solid #f0f0f0;
+}
+.param-table tr.data-row td.v-llama {
+  font-family: var(--global-code-font, monospace);
+  font-size: 0.72rem;
+  text-align: right;
+}
+.param-table tr.data-row td .note {
+  display: block;
+  font-size: 0.65rem;
+  color: #aaa;
+  margin-top: 2px;
+  font-family: var(--global-font-family, sans-serif);
+}
+.param-table td.absent {
+  color: #ccc !important;
+  font-style: italic;
+}
+/* Value coloring */
+.val-saving  { color: #0F6E56 !important; font-weight: 600; }
+.val-extra   { color: #993C1D !important; font-weight: 600; }
+
+/* ── Subtotal rows ── */
+.param-table tr.sub-row td {
+  padding: 5px 10px;
+  font-size: 0.71rem;
+  font-style: italic;
+  background: #f7f7f7;
+  border-top: 1px solid #e0e0e0;
+  border-bottom: 1px solid #e0e0e0;
+  color: #666;
+}
+.param-table tr.sub-row td:first-child {
+  font-weight: 500;
+  font-style: normal;
+}
+.param-table tr.sub-row td.v-classic,
+.param-table tr.sub-row td.v-llama {
+  font-weight: 600;
+  font-style: normal;
+  text-align: right;
+}
+.param-table tr.sub-row td.v-classic { color: #3C3489; }
+.param-table tr.sub-row td.v-llama   { color: #085041; }
+
+/* ── Total row ── */
+.param-table tr.total-row td {
+  padding: 7px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: #f0f0f0;
+  border-top: 2px solid #ccc;
+}
+.param-table tr.total-row td.f-classic { color: #3C3489; font-style: italic; }
+.param-table tr.total-row td.f-llama   { color: #085041; font-style: italic; }
+.param-table tr.total-row td.v-classic { color: #3C3489; font-size: 0.82rem; text-align: right; }
+.param-table tr.total-row td.v-llama   { color: #085041; font-size: 0.82rem; text-align: right; }
+
+/* ── Caption ── */
+.pt-caption {
+  margin-top: 0.6rem;
+  font-size: 0.72rem;
+  color: #999;
+  text-align: center;
+}
+</style>
+
+<!-- ── MARKUP ──────────────────────────────────────────────────── -->
+<div class="pt-wrap l-page">
+
+  <!-- Model switcher -->
+  <div class="pt-switcher">
+    <label>Model</label>
+    <button class="active" onclick="ptSet('8b',this)">Llama 3 8B</button>
+    <button onclick="ptSet('70b',this)">Llama 3 70B</button>
+    <button onclick="ptSet('405b',this)">Llama 3 405B</button>
+  </div>
+
+  <table class="param-table" aria-label="Parameter count: Classic Transformer vs Llama 3">
+    <colgroup>
+      <col class="c-name">
+      <col class="c-cform">
+      <col class="c-cval">
+      <col class="c-lform">
+      <col class="c-lval">
+    </colgroup>
+
+    <!-- ── COLUMN HEADERS ── -->
+    <thead>
+      <tr>
+        <th></th>
+        <th colspan="2" class="th-classic">
+          Classic Transformer
+          <div style="font-size:0.65rem;font-weight:400;opacity:0.8">MHA · FFN · LayerNorm · bias</div>
+        </th>
+        <th colspan="2" class="th-llama">
+          Llama 3
+          <div style="font-size:0.65rem;font-weight:400;opacity:0.8">GQA · SwiGLU · RMSNorm · no bias</div>
+        </th>
+      </tr>
+      <tr>
+        <th>Component</th>
+        <th class="sub-classic">Formula</th>
+        <th class="sub-classic" style="text-align:right">Count</th>
+        <th class="sub-llama">Formula</th>
+        <th class="sub-llama" style="text-align:right">Count</th>
+      </tr>
+    </thead>
+
+    <tbody>
+
+      <!-- ════════════════════════════════════
+           TOKEN EMBEDDING  (once)
+      ════════════════════════════════════ -->
+      <tr class="sec-hdr">
+        <td colspan="5">Token embedding &amp; positional encoding
+          <span class="badge">once</span>
+        </td>
+      </tr>
+
+      <tr class="data-row">
+        <td>\(W_E\)</td>
+        <td class="f-classic">\(V \times H\)</td>
+        <td class="v-classic" id="c-emb">—</td>
+        <td class="f-llama">\(V \times H\)</td>
+        <td class="v-llama" id="l-emb">—</td>
+      </tr>
+
+      <tr class="data-row">
+        <td>Position</td>
+        <td class="f-classic">Sinusoidal
+          <span class="note">fixed · 0 params</span>
+        </td>
+        <td class="v-classic">0</td>
+        <td class="f-llama">RoPE
+          <span class="note">rotation on Q,K · 0 params</span>
+        </td>
+        <td class="v-llama">0</td>
+      </tr>
+
+      <!-- ════════════════════════════════════
+           TRANSFORMER BLOCK  (× L)
+      ════════════════════════════════════ -->
+      <tr class="block-hdr">
+        <td colspan="5">Transformer block
+          <span class="badge" id="blk-badge">× L layers</span>
+        </td>
+      </tr>
+
+      <!-- ── Normalisation (pre-attn) ── -->
+      <tr class="subgroup-hdr sg-norm">
+        <td colspan="5">Normalisation — pre-attention</td>
+      </tr>
+
+      <tr class="data-row">
+        <td>Norm</td>
+        <td class="f-classic">LayerNorm \(2H\)
+          <span class="note">scale \(\gamma\) + bias \(\beta\) · post-norm</span>
+        </td>
+        <td class="v-classic" id="c-ln1">—</td>
+        <td class="f-llama">RMSNorm \(H\)
+          <span class="note">scale \(\gamma\) only · pre-norm</span>
+        </td>
+        <td class="v-llama" id="l-rms1">—</td>
+      </tr>
+
+      <!-- ── Attention ── -->
+      <tr class="subgroup-hdr sg-attn">
+        <td colspan="5">Attention</td>
+      </tr>
+
+      <tr class="data-row">
+        <td>\(W_Q\)</td>
+        <td class="f-classic">\(H \times H + H\)
+          <span class="note">all \(n\) heads · with bias</span>
+        </td>
+        <td class="v-classic" id="c-wq">—</td>
+        <td class="f-llama">\(H \times H\)
+          <span class="note">all \(n\) heads · no bias</span>
+        </td>
+        <td class="v-llama" id="l-wq">—</td>
+      </tr>
+
+      <tr class="data-row">
+        <td>\(W_K\)</td>
+        <td class="f-classic">\(H \times H + H\)
+          <span class="note">MHA: full \(H \times H\)</span>
+        </td>
+        <td class="v-classic" id="c-wk">—</td>
+        <td class="f-llama">\(H \times (g \cdot d)\)
+          <span class="note" id="l-wk-note">GQA: &frac14; of MHA size</span>
+        </td>
+        <td class="v-llama val-saving" id="l-wk">—</td>
+      </tr>
+
+      <tr class="data-row">
+        <td>\(W_V\)</td>
+        <td class="f-classic">\(H \times H + H\)
+          <span class="note">MHA: full \(H \times H\)</span>
+        </td>
+        <td class="v-classic" id="c-wv">—</td>
+        <td class="f-llama">\(H \times (g \cdot d)\)
+          <span class="note" id="l-wv-note">GQA: &frac14; of MHA size</span>
+        </td>
+        <td class="v-llama val-saving" id="l-wv">—</td>
+      </tr>
+
+      <tr class="data-row">
+        <td>\(W_O\)</td>
+        <td class="f-classic">\(H \times H + H\)
+          <span class="note">output proj · with bias</span>
+        </td>
+        <td class="v-classic" id="c-wo">—</td>
+        <td class="f-llama">\(H \times H\)
+          <span class="note">output proj · no bias</span>
+        </td>
+        <td class="v-llama" id="l-wo">—</td>
+      </tr>
+
+      <!-- ── Normalisation (pre-MLP) ── -->
+      <tr class="subgroup-hdr sg-norm">
+        <td colspan="5">Normalisation — pre-MLP</td>
+      </tr>
+
+      <tr class="data-row">
+        <td>Norm</td>
+        <td class="f-classic">LayerNorm \(2H\)
+          <span class="note">scale \(\gamma\) + bias \(\beta\) · post-norm</span>
+        </td>
+        <td class="v-classic" id="c-ln2">—</td>
+        <td class="f-llama">RMSNorm \(H\)
+          <span class="note">scale \(\gamma\) only · pre-norm</span>
+        </td>
+        <td class="v-llama" id="l-rms2">—</td>
+      </tr>
+
+      <!-- ── MLP ── -->
+      <tr class="subgroup-hdr sg-mlp">
+        <td colspan="5">MLP</td>
+      </tr>
+
+      <tr class="data-row">
+        <td>\(W_{\text{gate}}\)</td>
+        <td class="f-classic absent">—
+          <span class="note">not present in standard FFN</span>
+        </td>
+        <td class="v-classic absent">—</td>
+        <td class="f-llama">\(H \times f\)
+          <span class="note" id="l-wg-note">SwiGLU gate · \(f \approx \frac{8}{3}H\)</span>
+        </td>
+        <td class="v-llama val-extra" id="l-wgate">—</td>
+      </tr>
+
+      <tr class="data-row">
+        <td>\(W_{\text{up}}\)</td>
+        <td class="f-classic">\(H \times 4H + 4H\)
+          <span class="note">\(f = 4H\)</span>
+        </td>
+        <td class="v-classic" id="c-wup">—</td>
+        <td class="f-llama">\(H \times f\)
+          <span class="note" id="l-wu-note">\(f \approx \frac{8}{3}H\)</span>
+        </td>
+        <td class="v-llama" id="l-wup">—</td>
+      </tr>
+
+      <tr class="data-row">
+        <td>\(W_{\text{down}}\)</td>
+        <td class="f-classic">\(4H \times H + H\)
+          <span class="note">\(f = 4H\)</span>
+        </td>
+        <td class="v-classic" id="c-wdn">—</td>
+        <td class="f-llama">\(f \times H\)
+          <span class="note" id="l-wd-note">\(f \approx \frac{8}{3}H\)</span>
+        </td>
+        <td class="v-llama" id="l-wdn">—</td>
+      </tr>
+
+      <!-- ── Per-layer subtotal ── -->
+      <tr class="sub-row">
+        <td>Per layer</td>
+        <td class="f-classic">\(12H^2 + 13H\)</td>
+        <td class="v-classic" id="c-layer">—</td>
+        <td class="f-llama">\(\!\left(2 + \tfrac{2g}{n}\right)\!H^2 + 3Hf + 2H\)</td>
+        <td class="v-llama" id="l-layer">—</td>
+      </tr>
+
+      <!-- ── All layers ── -->
+      <tr class="sub-row">
+        <td id="all-label">All layers</td>
+        <td class="f-classic">\(L \cdot (12H^2 + 13H)\)</td>
+        <td class="v-classic" id="c-alllayers">—</td>
+        <td class="f-llama">\(L \cdot \left[\!\left(2 + \tfrac{2g}{n}\right)\!H^2 + 3Hf + 2H\right]\)</td>
+        <td class="v-llama" id="l-alllayers">—</td>
+      </tr>
+
+      <!-- ════════════════════════════════════
+           OUTPUT  (once)
+      ════════════════════════════════════ -->
+      <tr class="sec-hdr">
+        <td colspan="5">Output
+          <span class="badge">once</span>
+        </td>
+      </tr>
+
+      <tr class="data-row">
+        <td>Final norm</td>
+        <td class="f-classic">LayerNorm \(2H\)</td>
+        <td class="v-classic" id="c-fn">—</td>
+        <td class="f-llama">RMSNorm \(H\)</td>
+        <td class="v-llama" id="l-fn">—</td>
+      </tr>
+
+      <tr class="data-row">
+        <td>\(W_{\text{out}}\)</td>
+        <td class="f-classic">tied to \(W_E\)
+          <span class="note">weight tying · 0 extra params</span>
+        </td>
+        <td class="v-classic">0</td>
+        <td class="f-llama">\(H \times V\)
+          <span class="note">separate matrix · not tied</span>
+        </td>
+        <td class="v-llama val-extra" id="l-head">—</td>
+      </tr>
+
+      <!-- ════════════════════════════════════
+           GRAND TOTAL
+      ════════════════════════════════════ -->
+      <tr class="total-row">
+        <td>Total</td>
+        <td class="f-classic">\(VH + L(12H^2\!+\!13H) + 2H\)</td>
+        <td class="v-classic" id="c-total">—</td>
+        <td class="f-llama">\(VH + L\!\left[\!\left(2\!+\!\tfrac{2g}{n}\right)\!H^2\!+\!3Hf\!+\!2H\right] + H + VH\)</td>
+        <td class="v-llama" id="l-total">—</td>
+      </tr>
+
+    </tbody>
+  </table>
+
+  <p class="pt-caption">
+    Table: Parameter count for Classic Transformer (decoder-only view) vs Llama 3.
+    \(H\)=hidden dim, \(V\)=vocab, \(L\)=layers, \(n\)=Q heads, \(g\)=KV groups,
+    \(d=H/n\)=head dim, \(f\)=FFN intermediate dim.
+    Counts shown for the selected Llama 3 variant; Classic counts use the same \(H, V, L\).
+  </p>
+
+</div><!-- .pt-wrap -->
+
+<!-- ── JAVASCRIPT ──────────────────────────────────────────────── -->
+<script>
+(function () {
+  var CFG = {
+    '8b':  { label: '8B',  V: 128000, H: 4096,  L: 32,  n: 32,  g: 8, f: 14336 },
+    '70b': { label: '70B', V: 128000, H: 8192,  L: 80,  n: 64,  g: 8, f: 28672 },
+    '405b':{ label: '405B',V: 128000, H: 16384, L: 126, n: 128, g: 8, f: 53248 },
+  };
+
+  function fmt(n) {
+    if (n === 0) return '0';
+    if (n >= 1e9) return (n / 1e9).toFixed(3) + 'B';
+    if (n >= 1e6) return (n / 1e6).toFixed(0)  + 'M';
+    if (n >= 1e3) return (n / 1e3).toFixed(0)  + 'K';
+    return '' + n;
+  }
+
+  function set(id, val) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = fmt(val);
+  }
+
+  function setHTML(id, html) {
+    var el = document.getElementById(id);
+    if (el) el.innerHTML = html;
+  }
+
+  function render(key) {
+    var p = CFG[key];
+    var V = p.V, H = p.H, L = p.L, n = p.n, g = p.g, f = p.f;
+    var d = H / n, gd = g * d;
+
+    /* Classic */
+    var cEmb  = V * H;
+    var cLN   = 2 * H;
+    var cWQ   = H*H + H, cWK = H*H + H, cWV = H*H + H, cWO = H*H + H;
+    var cWup  = 4*H*H + 4*H, cWdn = 4*H*H + H;
+    var cFN   = 2 * H;
+    var cLayer  = 2*cLN + (cWQ+cWK+cWV+cWO) + (cWup+cWdn);
+    var cTotal  = cEmb + L*cLayer + cFN;
+
+    /* Llama */
+    var lEmb  = V * H;
+    var lRMS  = H;
+    var lWQ   = H*H, lWK = H*gd, lWV = H*gd, lWO = H*H;
+    var lWgate = H*f, lWup = H*f, lWdn = f*H;
+    var lFN   = H, lHead = H * V;
+    var lLayer  = 2*lRMS + (lWQ+lWK+lWV+lWO) + (lWgate+lWup+lWdn);
+    var lTotal  = lEmb + L*lLayer + lFN + lHead;
+
+    /* Populate */
+    set('c-emb',      cEmb);     set('l-emb',    lEmb);
+    set('c-ln1',      cLN);      set('l-rms1',   lRMS);
+    set('c-wq',       cWQ);      set('l-wq',     lWQ);
+    set('c-wk',       cWK);      set('l-wk',     lWK);
+    set('c-wv',       cWV);      set('l-wv',     lWV);
+    set('c-wo',       cWO);      set('l-wo',     lWO);
+    set('c-ln2',      cLN);      set('l-rms2',   lRMS);
+    set('c-wup',      cWup);     set('l-wgate',  lWgate);
+    set('c-wdn',      cWdn);     set('l-wup',    lWup);
+                                  set('l-wdn',    lWdn);
+    set('c-layer',    cLayer);   set('l-layer',  lLayer);
+    set('c-alllayers',L*cLayer); set('l-alllayers', L*lLayer);
+    set('c-fn',       cFN);      set('l-fn',     lFN);
+                                  set('l-head',   lHead);
+    set('c-total',    cTotal);   set('l-total',  lTotal);
+
+    /* Dynamic notes */
+    var ratio = (g/n).toFixed(2);
+    var savings = Math.round((1 - lWK/cWK) * 100);
+    setHTML('l-wk-note', 'GQA: g=' + g + ', d=' + d + ' &rarr; ' + savings + '% smaller');
+    setHTML('l-wv-note', 'GQA: g=' + g + ', d=' + d + ' &rarr; ' + savings + '% smaller');
+    setHTML('l-wg-note', 'SwiGLU gate &middot; f=' + f.toLocaleString());
+    setHTML('l-wu-note', 'f=' + f.toLocaleString() + ' &asymp; ' + (f/H).toFixed(1) + 'H');
+    setHTML('l-wd-note', 'f=' + f.toLocaleString() + ' &asymp; ' + (f/H).toFixed(1) + 'H');
+    document.getElementById('blk-badge').textContent = '\u00d7 ' + L + ' layers';
+    document.getElementById('all-label').textContent = '\u00d7' + L + ' layers';
+  }
+
+  window.ptSet = function(key, btn) {
+    document.querySelectorAll('.pt-switcher button')
+      .forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    render(key);
+  };
+
+  render('8b');
+})();
+</script>
