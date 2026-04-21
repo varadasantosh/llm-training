@@ -359,167 +359,146 @@ Steps common to both architectures
 - $$L \times$$ Transformer Block — the core repeated unit.
 - Final normalisation.
 - LM Head — projects the hidden state of the last token back to vocabulary logits.
-
 <style>
-    .arch-compare-container {
-        margin: 2rem 0;
-        background-color: var(--global-bg-color);
-        color: var(--global-text-color);
+    .architecture-comparison-wrapper {
+        margin: 2.5rem 0;
         border: 1px solid var(--global-divider-color);
-        border-radius: 8px;
-        padding: 15px;
+        border-radius: 12px;
+        overflow: hidden;
+        background-color: var(--global-bg-color);
     }
-    table.compare-table {
+    
+    table.arch-table {
         width: 100%;
         border-collapse: collapse;
-        font-family: 'JetBrains Mono', monospace; /* al-folio default mono */
-        font-size: 0.85rem;
+        font-family: 'JetBrains Mono', 'Courier New', monospace;
+        font-size: 0.82rem;
+        line-height: 1.4;
     }
-    table.compare-table th, table.compare-table td {
+
+    table.arch-table th {
+        padding: 18px 10px;
+        background-color: var(--global-card-bg-color);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    table.arch-table td {
+        padding: 12px 10px;
         border-bottom: 1px solid var(--global-divider-color);
-        padding: 12px 8px;
         vertical-align: middle;
     }
-    /* Header Colors */
-    .header-classic {
-        color: #b388ff !important; /* Lighter purple for dark/light mode compatibility */
-        border-top: 3px solid #7c4dff;
-        text-align: center;
-    }
-    .header-llama {
-        color: #0084ff !important; /* Meta Blue */
-        border-top: 3px solid #0084ff;
-        text-align: center;
-    }
-    /* Highlighting */
-    .highlight-classic { background-color: rgba(124, 77, 255, 0.08); }
-    .highlight-llama { background-color: rgba(0, 132, 255, 0.08); }
-    
-    .label-cat {
+
+    /* Column Themes */
+    .col-classic { color: #7c4dff !important; border-top: 4px solid #7c4dff; }
+    .col-llama { color: #0084ff !important; border-top: 4px solid #0084ff; }
+
+    /* Section Dividers */
+    .section-row {
+        background-color: var(--global-code-bg-color);
         font-weight: bold;
-        text-transform: uppercase;
         font-size: 0.75rem;
         color: var(--global-theme-color);
-        background-color: var(--global-code-bg-color);
     }
-    .sub-info {
-        display: block;
-        font-size: 0.75rem;
-        opacity: 0.7;
-        font-style: italic;
+
+    /* Logic Highlights */
+    .logic-classic { background-color: rgba(124, 77, 255, 0.04); }
+    .logic-llama { background-color: rgba(0, 132, 255, 0.04); }
+
+    .formula-text { font-weight: 600; font-size: 0.9rem; }
+    .sub-calc { display: block; font-size: 0.72rem; opacity: 0.7; margin-top: 4px; }
+    
+    .bias-box { 
+        border: 1px dashed rgba(124, 77, 255, 0.3); 
+        padding: 1px 3px;
+        border-radius: 3px;
     }
-    .formula { font-weight: 600; }
 </style>
 
-<div class="arch-compare-container table-responsive">
-    <table class="compare-table">
+<div class="architecture-comparison-wrapper table-responsive">
+    <table class="arch-table">
         <thead>
             <tr>
-                <th style="border-top: none;"></th>
-                <th class="header-classic">Classic Transformer<br><span class="sub-info">MHA · FFN · LayerNorm · with bias</span></th>
-                <th class="header-llama">Llama 3<br><span class="sub-info">GQA · SwiGLU · RMSNorm · no bias</span></th>
+                <th style="width: 20%;">Component</th>
+                <th class="col-classic">Classic Transformer<br><span class="sub-calc">MHA · FFN · LayerNorm · with bias</span></th>
+                <th class="col-llama">Llama 3<br><span class="sub-calc">GQA · SwiGLU · RMSNorm · no bias</span></th>
             </tr>
         </thead>
         <tbody>
-            <tr class="label-cat"><td colspan="3">Embedding Layer</td></tr>
+            <tr class="section-row"><td colspan="3">EMBEDDING · ONCE</td></tr>
             <tr>
                 <td><strong>W_E</strong></td>
-                <td class="text-center formula">V × H</td>
-                <td class="text-center formula">V × H</td>
+                <td class="text-center formula-text">V × H</td>
+                <td class="text-center formula-text">V × H</td>
             </tr>
             <tr>
                 <td><strong>Position</strong></td>
-                <td class="text-center">Sinusoidal<br><span class="sub-info">0 params · pre-block</span></td>
-                <td class="text-center">RoPE<br><span class="sub-info">0 params · inside attn</span></td>
+                <td class="text-center">Sinusoidal<br><span class="sub-calc">0 params · pre-block</span></td>
+                <td class="text-center">RoPE<br><span class="sub-calc">0 params · inside attention</span></td>
             </tr>
-            <tr class="label-cat"><td colspan="3">Transformer Block (× L)</td></tr>
+
+            <tr class="section-row"><td colspan="3">PER TRANSFORMER LAYER (× L)</td></tr>
             <tr>
-                <td><strong>Norm 1</strong></td>
-                <td class="text-center highlight-classic">LayerNorm: 2H<br><span class="sub-info">scale + bias</span></td>
-                <td class="text-center highlight-llama">RMSNorm: H<br><span class="sub-info">scale only</span></td>
+                <td><strong>Norm</strong> <span class="sub-calc">pre-attention</span></td>
+                <td class="text-center logic-classic">LayerNorm 2H<br><span class="sub-calc">scale γ + bias β · post-norm</span></td>
+                <td class="text-center logic-llama">RMSNorm H<br><span class="sub-calc">scale γ only · pre-norm</span></td>
             </tr>
             <tr>
-                <td><strong>Q, K, V</strong></td>
-                <td class="text-center formula">3 × (H² + H)</td>
-                <td class="text-center highlight-llama">
-                    <span class="formula">H² + 2(H × H/4)</span><br>
-                    <span class="sub-info">GQA: KV is 4x smaller</span>
+                <td><strong>W_Q</strong></td>
+                <td class="text-center formula-text"><span class="bias-box">H × H + H</span></td>
+                <td class="text-center formula-text">H × H</td>
+            </tr>
+            <tr>
+                <td><strong>W_K, W_V</strong></td>
+                <td class="text-center logic-classic">
+                    <span class="formula-text"><span class="bias-box">2 × (H × H + H)</span></span>
+                </td>
+                <td class="text-center logic-llama">
+                    <span class="formula-text">2 × [H × (g/n)H]</span><br>
+                    <span class="sub-calc">= 2 × H² (1/4 size if 8B)</span>
                 </td>
             </tr>
             <tr>
                 <td><strong>W_O</strong></td>
-                <td class="text-center formula">H² + H</td>
-                <td class="text-center formula">H²</td>
+                <td class="text-center formula-text"><span class="bias-box">H × H + H</span></td>
+                <td class="text-center formula-text">H × H</td>
             </tr>
             <tr>
-                <td><strong>Norm 2</strong></td>
-                <td class="text-center highlight-classic">LayerNorm: 2H</td>
-                <td class="text-center highlight-llama">RMSNorm: H</td>
+                <td><strong>Norm</strong> <span class="sub-calc">pre-MLP</span></td>
+                <td class="text-center logic-classic">LayerNorm 2H</td>
+                <td class="text-center logic-llama">RMSNorm H</td>
             </tr>
             <tr>
-                <td><strong>MLP</strong></td>
+                <td><strong>MLP / FFN</strong></td>
                 <td class="text-center">
-                    <span class="formula">2 × (H × 4H)</span><br>
-                    <span class="sub-info">Standard FFN</span>
+                    <span class="formula-text"><span class="bias-box">2 × (H × 4H + 4H)</span></span><br>
+                    <span class="sub-calc">Standard Up/Down Projection</span>
                 </td>
-                <td class="text-center highlight-llama">
-                    <span class="formula">3 × (H × 3.5H)</span><br>
-                    <span class="sub-info">SwiGLU: Added Gate Matrix</span>
+                <td class="text-center logic-llama">
+                    <span class="formula-text">3 × (H × f)</span><br>
+                    <span class="sub-calc">f ≈ 3.5H (SwiGLU Gate/Up/Down)</span>
                 </td>
             </tr>
-            <tr class="label-cat"><td colspan="3">Output</td></tr>
+
+            <tr class="section-row"><td colspan="3">OUTPUT · ONCE</td></tr>
+            <tr>
+                <td><strong>Final Norm</strong></td>
+                <td class="text-center logic-classic">LayerNorm 2H</td>
+                <td class="text-center logic-llama">RMSNorm H</td>
+            </tr>
             <tr>
                 <td><strong>LM Head</strong></td>
-                <td class="text-center sub-info">Tied to W_E</td>
-                <td class="text-center formula">H × V</td>
+                <td class="text-center">Tied to W_E<br><span class="sub-calc">0 extra params</span></td>
+                <td class="text-center formula-text">H × V<br><span class="sub-calc">Separate matrix</span></td>
             </tr>
-            <tr style="background-color: var(--global-footer-bg-color);">
-                <td><strong>Total</strong></td>
-                <td class="text-center"><strong>~6.97B</strong></td>
-                <td class="text-center"><strong>~8.03B</strong></td>
+            <tr style="background-color: var(--global-card-bg-color); font-weight: bold;">
+                <td>TOTAL ESTIMATE</td>
+                <td class="text-center">VH + L(12H² + 13H) + 2H<br><strong>≈ 6.97B</strong></td>
+                <td class="text-center">VH + L[(2+2g/n)H² + 3Hf + 2H] + H + VH<br><strong>≈ 8.03B</strong></td>
             </tr>
         </tbody>
     </table>
 </div>
-
-#### Transformer Architecture 
-
-1. Token Embeddings - V*H
-2. Positional Embeddings (Sinusoidal) - No Parameters
-3. Layer Norm - 2*H 
-4. Attention  
-    Projecting: Q,K,V,O
-    Q: H*H (Weights) , H (Bias)  
-    K: H*H (Weights) , H (Bias)
-    V: H*H (Weights) , H (Bias)
-    O: H*H (Weights) , H (Bias)
-5. Layer Norm - 2*H 
-6. MLP
-    Up Projection:   H * 4H (Weights) , 4H (Bias)
-    Down Projection: 4H*H (Weights), H(Bias)
-7. Final Norm - 2*H    
-8. Convert Ebeddings to Token & Vocabulary = H*V 
-
-Total: 
-
-#### Llama3 Architecture
-
-1. Token Embeddings - V*H
-2. RMS Norm - H
-3. Attention  
-    Projecting: Q,K,V,O
-    Q: H*H (Weights) , H (Bias)  
-    K: H*H/N_q (Weights) , H (Bias)
-    V: H*H/N_q (Weights) , H (Bias)
-    O: H*H (Weights) , H (Bias)
-4. RMS Norm - H
-5. MLP(with SwigLU) 
-        Up Projection:   H * 4H (Weights) , 4H (Bias)
-        Gated Projection: 
-        Down Projection: 4H*H (Weights), H(Bias)
-6. Final RMS Norm - H
-7. Convert Ebeddings to Token & Vocabulary = H*V       
-    
 
 ### How model architecture amplifies the problem
 
