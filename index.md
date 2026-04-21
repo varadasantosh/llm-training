@@ -448,7 +448,7 @@ Steps common to both architectures
                 <td><strong>W_Q</strong></td>
                 <td class="text-center formula-text"><span class="bias-box">H × H + H </span>
                  <span class="sub-calc"> Weights: H*H </span>
-                 <span class="sub-calc"> Bias: H </span>
+                 <span class="sub-calc"> Bias: H </span> </td>
                 <td class="text-center formula-text">H × H (Weights) </span> < /td>
             </tr>
             <tr>
