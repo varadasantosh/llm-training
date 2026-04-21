@@ -521,6 +521,177 @@ Steps common to both architectures
     </table>
 </div>
 
+
+
+#### Worked example — Llama 3 8B
+
+We use the published configuration from HuggingFace
+([config.json](https://huggingface.co/meta-llama/Meta-Llama-3-8B/blob/main/config.json),
+[params.json](https://huggingface.co/meta-llama/Meta-Llama-3-8B/blob/main/original/params.json)).
+
+```
+V = 128,256   (vocab_size)
+H = 4,096     (hidden_size)
+L = 32        (num_hidden_layers)
+n = 32        (num_attention_heads)
+g = 8         (num_key_value_heads)
+f = 14,336    (intermediate_size)
+d = H/n = 128 (per-head dimension)
+```
+
+<aside>
+  <strong>Why f = 14,336?</strong><br>
+  Llama 3 derives the FFN width as
+  int(ffn_dim_multiplier × int(2H/3)) rounded up to the nearest
+  multiple_of = 1,024. With ffn_dim_multiplier = 1.3 this gives
+  int(1.3 × 2,730) = 3,549, × 4 = 14,196, rounded up → <strong>14,336</strong>.
+</aside>
+
+##### Token embedding
+
+$$
+W_E = V \times H = 128{,}256 \times 4{,}096 = \mathbf{525{,}336{,}576}
+\approx 525\text{ M}
+$$
+
+##### Per transformer layer  (repeated × 32)
+
+**Pre-attention RMSNorm**
+
+$$
+\text{RMSNorm} = H = 4{,}096
+$$
+
+**Attention**
+
+$$
+\begin{aligned}
+W_Q &= H \times H &&= 4{,}096 \times 4{,}096 &&= 16{,}777{,}216 \\
+W_K &= H \times (g \cdot d) &&= 4{,}096 \times (8 \times 128) &&= 4{,}194{,}304 \\
+W_V &= H \times (g \cdot d) &&= 4{,}096 \times 1{,}024 &&= 4{,}194{,}304 \\
+W_O &= H \times H &&= 4{,}096 \times 4{,}096 &&= 16{,}777{,}216 \\
+\end{aligned}
+$$
+
+$$
+\text{Attention subtotal} = 41{,}943{,}040 \approx 41.9\text{ M}
+$$
+
+> **GQA saving:** W_K and W_V are each $$4{,}194{,}304$$ vs
+> $$16{,}777{,}216$$ in MHA — exactly **4× smaller**, because $$g/n = 8/32 = 1/4$$.
+
+**Pre-MLP RMSNorm**
+
+$$
+\text{RMSNorm} = H = 4{,}096
+$$
+
+**SwiGLU MLP**
+
+$$
+\begin{aligned}
+W_{\text{gate}} &= H \times f &&= 4{,}096 \times 14{,}336 &&= 58{,}720{,}256 \\
+W_{\text{up}}   &= H \times f &&= 4{,}096 \times 14{,}336 &&= 58{,}720{,}256 \\
+W_{\text{down}} &= f \times H &&= 14{,}336 \times 4{,}096 &&= 58{,}720{,}256 \\
+\end{aligned}
+$$
+
+$$
+\text{MLP subtotal} = 3 \times 58{,}720{,}256 = 176{,}160{,}768 \approx 176.2\text{ M}
+$$
+
+**Per-layer total**
+
+$$
+\underbrace{8{,}192}_{\text{2× RMSNorm}}
++ \underbrace{41{,}943{,}040}_{\text{attention}}
++ \underbrace{176{,}160{,}768}_{\text{MLP}}
+= \mathbf{218{,}112{,}000} \approx 218\text{ M}
+$$
+
+**All 32 layers**
+
+$$
+32 \times 218{,}112{,}000 = 6{,}979{,}584{,}000 \approx 6.98\text{ B}
+$$
+
+##### Output (once)
+
+$$
+\text{Final RMSNorm} = H = 4{,}096
+$$
+
+$$
+W_{\text{out}} = H \times V = 4{,}096 \times 128{,}256 = 525{,}336{,}576 \approx 525\text{ M}
+$$
+
+<aside>
+  W_out is <em>not</em> weight-tied to W_E in Llama 3 (unlike the
+  original Transformer). Both tables contribute separately.
+</aside>
+
+---
+
+#### Total parameter count
+
+$$
+\begin{aligned}
+W_E                &= 525{,}336{,}576 \\
+32 \times \text{layer} &= 6{,}979{,}584{,}000 \\
+\text{Final norm}  &= 4{,}096 \\
+W_{\text{out}}     &= 525{,}336{,}576 \\
+\hline
+\textbf{Total}     &= \mathbf{8{,}030{,}261{,}248} \approx \mathbf{8.03\text{ B}}
+\end{aligned}
+$$
+
+The official "8B" label is rounded. The true count from the config is
+**8.03 B** — which is why model cards sometimes report 8.03B and
+memory calculators that use 8.00B are slightly off.
+
+Now that we have $$P \approx 8.03\text{ B}$$, we can calculate the
+exact memory cost for each training component. Parameters stored in
+fp32 occupy $$4P$$ bytes; in bf16/fp16 they occupy $$2P$$ bytes.
+We cover this in the next section.
+
+
+Applying the above formulae for calculating Llama 8B model to calculate number of parameters, we will refer to the [configurations](https://huggingface.co/meta-llama/Meta-Llama-3-8B/blob/main/config.json) and [parameters](https://huggingface.co/meta-llama/Meta-Llama-3-8B/blob/main/original/params.json) from hugging face 
+
+V = 128256
+H = 4096
+N = 32 (Number of Q heads)
+g = 8 (Number of KV heads)
+f = 3.5*H
+
+V*H = 128256 * 4096 = 52,53,36,576
+
+RMS Norm = 4096
+Attention:
+  W_Q = H*H = 4096 * 4096 = 167,77,216
+  W_K = H*(g/n*H) = 4096 * (1/4*4096)=41,94,304
+  W_V = H*(g/n*H) = 4096 * (1/4*4096)=41,94,304
+  W_O = H*H = 4096 * 4096 = 167,77,216
+MLP (SwiGLU):
+  hidden_dim = int(2 * hidden_dim / 3) = 2730*4 = 10920
+  multiple_of = 1024
+  hidden_dim = int(ffn_dim_multiplier * hidden_dim) = 1.3*10920     = 14196
+  hidden_dim = multiple_of * ((hidden_dim + multiple_of - 1) // multiple_of)
+
+  Gate Proj:  H* 8/3*H = 4096 *  (8/3*1.3*4096) = 6,23,37,024
+  Up Proj:  H* 8/3*H = 4096 *  (8/3*1.3*4096) = 6,23,37,024
+  Down Proj: H* 8/3*H = 4096 *  (8/3*1.3*4096) = 6,23,37,024  
+
+  Parameters per Block = 22,89,62,304
+  L= 32
+  L * Parameters per Block = 7,32,67,93,728
+
+
+RMS Norm = 4096
+V*H = 128256 * 4096 =  52,53,36,576
+
+Total. = 52,53,36,576 + 7,32,67,93,728 + 4096 + 52,53,36,576 = 8,37,74,70,976
+
+
 ### How model architecture amplifies the problem
 
 Below <a href="#llama-3-config" >table </a> from Llama-3 [paper](https://arxiv.org/pdf/2407.21783) clearly demonstrates how model architecture influence size of the models & how these  configurations change across models of different sizes: layers go from 32 to 126, 
