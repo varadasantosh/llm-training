@@ -456,7 +456,8 @@ Steps common to both architectures
                 </td>
                 <td class="text-center logic-llama">
                     <span class="formula-text">2 × [H × (g/n)H]</span><br>
-                    <span class="sub-calc">= n=number of Q heads, g= number of KV heads </span>
+                    <span class="sub-calc">n=number of Q heads</span>
+                    <span class="sub-calc"> g= number of KV heads </span>
                 </td>
             </tr>
             <tr>
