@@ -474,7 +474,8 @@ Steps common to both architectures
                 <td><strong>MLP / FFN</strong></td>
                 <td class="text-center">
                     <span class="formula-text"><span class="bias-box">2 × (H × 4H + 4H)</span></span><br>
-                    <span class="sub-calc">Standard Up/Down Projection</span>
+                    <span class="sub-calc"> Up Projection: h => 4h (weights: h*4h, bias: 4h)</span>
+                    <span class="sub-calc"> Down Projection 4h => h (weights: 4h*h , bias: h)</span>
                 </td>
                 <td class="text-center logic-llama">
                     <span class="formula-text">3 × (H × f)</span><br>
