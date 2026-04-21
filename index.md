@@ -450,12 +450,12 @@ Steps common to both architectures
                 <td class="text-center formula-text">H × H (Weights) </span> < /td>
             </tr>
             <tr>
-                <td><strong>W_K, W_V</strong>
-                  <span class="sub-calc"> Weights: H * H </span>
-                  <span class="sub-calc"> Bias: H  </span>
-                </td>
+                <td><strong>W_K, W_V</strong></td>
                 <td class="text-center logic-classic">
-                    <span class="formula-text"><span class="bias-box">2 × (H × H + H)</span></span>
+                    <span class="formula-text">
+                    <span class="bias-box">2 × (H × H + H)</span></span>
+                    <span class="sub-calc"> Weights: H * H </span>
+                    <span class="sub-calc"> Bias: H  </span>
                 </td>
                 <td class="text-center logic-llama">
                     <span class="formula-text">2 × [H × (g/n)H]</span><br>
