@@ -493,6 +493,7 @@ Steps common to both architectures
                 </td>
                 <td class="text-center logic-llama">
                     <span class="formula-text">3 × (H × f)</span><br>
+                    <span class="sub-calc">$\text{MLP}(x) = ( \text{SiLU}(xW_g) \cdot xW_u ) W_d$</span>
                     <span class="sub-calc">f ≈ 3.5H (SwiGLU Gate/Up/Down)</span>
                 </td>
             </tr>
