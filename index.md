@@ -441,7 +441,7 @@ Steps common to both architectures
             <tr class="section-row"><td colspan="3">PER TRANSFORMER LAYER (× L)</td></tr>
             <tr>
                 <td><strong>Norm</strong> <span class="sub-calc">pre-attention</span></td>
-                <td class="text-center logic-classic">LayerNorm 2H<br><span class="sub-calc">scale γ + bias β · post-norm</span></td>
+                <td class="text-center logic-classic">LayerNorm 2H<br><span class="sub-calc">scale γ + shift β · post-norm</span></td>
                 <td class="text-center logic-llama">RMSNorm H<br><span class="sub-calc">scale γ only · pre-norm</span></td>
             </tr>
             <tr>
@@ -470,8 +470,14 @@ Steps common to both architectures
             </tr>
             <tr>
                 <td><strong>W_O</strong></td>
-                <td class="text-center formula-text"><span class="bias-box">H × H + H</span></td>
-                <td class="text-center formula-text">H × H</td>
+                <td class="text-center formula-text"><span class="bias-box">H × H + H</span>
+                    <span class="sub-calc"> Weights: H * H </span>
+                    <span class="sub-calc"> Bias: H  </span>
+                </td>
+                <td class="text-center formula-text">H × H
+                    <span class="sub-calc"> Weights: H * H </span>
+                    <span class="sub-calc"> Bias: H  </span>
+                </td>
             </tr>
             <tr>
                 <td><strong>Norm</strong> <span class="sub-calc">pre-MLP</span></td>
