@@ -359,6 +359,7 @@ Steps common to both architectures
 - $$L \times$$ Transformer Block — the core repeated unit.
 - Final normalisation.
 - LM Head — projects the hidden state of the last token back to vocabulary logits.
+
 <style>
     .architecture-comparison-wrapper {
         margin: 2.5rem 0;
@@ -445,8 +446,8 @@ Steps common to both architectures
             </tr>
             <tr>
                 <td><strong>W_Q</strong></td>
-                <td class="text-center formula-text"><span class="bias-box">H × H + H</span></td>
-                <td class="text-center formula-text">H × H</td>
+                <td class="text-center formula-text"><span class="bias-box">H × H (Weights)+ H (Bias) </span></td>
+                <td class="text-center formula-text">H × H (Weights) < /td>
             </tr>
             <tr>
                 <td><strong>W_K, W_V</strong></td>
@@ -455,7 +456,7 @@ Steps common to both architectures
                 </td>
                 <td class="text-center logic-llama">
                     <span class="formula-text">2 × [H × (g/n)H]</span><br>
-                    <span class="sub-calc">= 2 × H² (1/4 size if 8B)</span>
+                    <span class="sub-calc">= n=number of Q heads, g= number of KV heads </span>
                 </td>
             </tr>
             <tr>
