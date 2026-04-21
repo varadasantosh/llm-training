@@ -360,10 +360,127 @@ Steps common to both architectures
 - Final normalisation.
 - LM Head — projects the hidden state of the last token back to vocabulary logits.
 
-<figure>
-  {% include param-count.html %}
-  <figcaption>Table 6: Parameter count — Classic vs Llama 3.</figcaption>
-</figure>
+<style>
+    .arch-compare-container {
+        margin: 2rem 0;
+        background-color: var(--global-bg-color);
+        color: var(--global-text-color);
+        border: 1px solid var(--global-divider-color);
+        border-radius: 8px;
+        padding: 15px;
+    }
+    table.compare-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: 'JetBrains Mono', monospace; /* al-folio default mono */
+        font-size: 0.85rem;
+    }
+    table.compare-table th, table.compare-table td {
+        border-bottom: 1px solid var(--global-divider-color);
+        padding: 12px 8px;
+        vertical-align: middle;
+    }
+    /* Header Colors */
+    .header-classic {
+        color: #b388ff !important; /* Lighter purple for dark/light mode compatibility */
+        border-top: 3px solid #7c4dff;
+        text-align: center;
+    }
+    .header-llama {
+        color: #0084ff !important; /* Meta Blue */
+        border-top: 3px solid #0084ff;
+        text-align: center;
+    }
+    /* Highlighting */
+    .highlight-classic { background-color: rgba(124, 77, 255, 0.08); }
+    .highlight-llama { background-color: rgba(0, 132, 255, 0.08); }
+    
+    .label-cat {
+        font-weight: bold;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        color: var(--global-theme-color);
+        background-color: var(--global-code-bg-color);
+    }
+    .sub-info {
+        display: block;
+        font-size: 0.75rem;
+        opacity: 0.7;
+        font-style: italic;
+    }
+    .formula { font-weight: 600; }
+</style>
+
+<div class="arch-compare-container table-responsive">
+    <table class="compare-table">
+        <thead>
+            <tr>
+                <th style="border-top: none;"></th>
+                <th class="header-classic">Classic Transformer<br><span class="sub-info">MHA · FFN · LayerNorm · with bias</span></th>
+                <th class="header-llama">Llama 3<br><span class="sub-info">GQA · SwiGLU · RMSNorm · no bias</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="label-cat"><td colspan="3">Embedding Layer</td></tr>
+            <tr>
+                <td><strong>W_E</strong></td>
+                <td class="text-center formula">V × H</td>
+                <td class="text-center formula">V × H</td>
+            </tr>
+            <tr>
+                <td><strong>Position</strong></td>
+                <td class="text-center">Sinusoidal<br><span class="sub-info">0 params · pre-block</span></td>
+                <td class="text-center">RoPE<br><span class="sub-info">0 params · inside attn</span></td>
+            </tr>
+            <tr class="label-cat"><td colspan="3">Transformer Block (× L)</td></tr>
+            <tr>
+                <td><strong>Norm 1</strong></td>
+                <td class="text-center highlight-classic">LayerNorm: 2H<br><span class="sub-info">scale + bias</span></td>
+                <td class="text-center highlight-llama">RMSNorm: H<br><span class="sub-info">scale only</span></td>
+            </tr>
+            <tr>
+                <td><strong>Q, K, V</strong></td>
+                <td class="text-center formula">3 × (H² + H)</td>
+                <td class="text-center highlight-llama">
+                    <span class="formula">H² + 2(H × H/4)</span><br>
+                    <span class="sub-info">GQA: KV is 4x smaller</span>
+                </td>
+            </tr>
+            <tr>
+                <td><strong>W_O</strong></td>
+                <td class="text-center formula">H² + H</td>
+                <td class="text-center formula">H²</td>
+            </tr>
+            <tr>
+                <td><strong>Norm 2</strong></td>
+                <td class="text-center highlight-classic">LayerNorm: 2H</td>
+                <td class="text-center highlight-llama">RMSNorm: H</td>
+            </tr>
+            <tr>
+                <td><strong>MLP</strong></td>
+                <td class="text-center">
+                    <span class="formula">2 × (H × 4H)</span><br>
+                    <span class="sub-info">Standard FFN</span>
+                </td>
+                <td class="text-center highlight-llama">
+                    <span class="formula">3 × (H × 3.5H)</span><br>
+                    <span class="sub-info">SwiGLU: Added Gate Matrix</span>
+                </td>
+            </tr>
+            <tr class="label-cat"><td colspan="3">Output</td></tr>
+            <tr>
+                <td><strong>LM Head</strong></td>
+                <td class="text-center sub-info">Tied to W_E</td>
+                <td class="text-center formula">H × V</td>
+            </tr>
+            <tr style="background-color: var(--global-footer-bg-color);">
+                <td><strong>Total</strong></td>
+                <td class="text-center"><strong>~6.97B</strong></td>
+                <td class="text-center"><strong>~8.03B</strong></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
 
 #### Transformer Architecture 
 
