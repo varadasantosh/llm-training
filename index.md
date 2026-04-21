@@ -336,6 +336,296 @@ Training memory breaks down into these components — each of them competing for
 </figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 5: Configurations Influencing Model Size</figcaption>
 </figure>
 
+**Parameter Count**
+
+In order to understand how much memory is consumed by parameters, gradients, optimizer
+states, and activations, we first need to walk through every learnable component in
+the model. Each configuration in Table 5 above influences the final parameter count — and
+with small changes to those knobs, many of the open-source LLMs you know emerge.
+We will not cover every variant here; instead we focus on two reference architectures:
+the classic encoder-decoder Transformer from Attention Is All You Need<d-cite key="vaswani2017attention"></d-cite>
+(treated as a decoder-only stack for a fair comparison) and the Llama 3 decoder-only
+architecture.<d-cite key="dubey2024llama3"></d-cite>
+For a gallery of OSS LLM architectures and how their configurations differ, see the
+OSS LLM Architecture Gallery section.
+
+Steps common to both architectures
+
+- Tokenisation — each sentence in the training corpus is split into tokens.
+- Vocabulary — the set of unique tokens across the entire corpus, of size $$V$$.
+- Token Embeddings — each token index is mapped to a dense vector of dimension
+- $$H$$ via a learnable table of shape $$(V \times H)$$.
+- Positional information — how position is encoded differs between the two architectures and is discussed below.
+- $$L \times$$ Transformer Block — the core repeated unit.
+- Final normalisation.
+- LM Head — projects the hidden state of the last token back to vocabulary logits.
+
+<div class="l-page">
+<table class="table table-sm table-bordered" style="font-size:0.82rem; table-layout:fixed;">
+  <colgroup>
+    <col style="width:18%">
+    <col style="width:41%">
+    <col style="width:41%">
+  </colgroup>
+  <thead class="thead-dark">
+    <tr>
+      <th>Component</th>
+      <th>Classic Transformer<br><small><em>Vaswani et al. 2017 — decoder-only view</em></small></th>
+      <th>Llama 3<br><small><em>Decoder-only, GQA, SwiGLU, no bias</em></small></th>
+    </tr>
+  </thead>
+  <tbody>
+    <!-- ── POSITIONAL ENCODING ── -->
+<tr class="table-secondary">
+  <td colspan="3"><strong>Positional encoding</strong></td>
+</tr>
+<tr>
+  <td>Position encoding</td>
+  <td>
+    Sinusoidal (fixed, computed once)<br>
+    <strong>Parameters: 0</strong>
+  </td>
+  <td>
+    RoPE — applied inside attention to Q &amp; K<br>
+    <strong>Parameters: 0</strong>
+  </td>
+</tr>
+
+<!-- ── TOKEN EMBEDDING ── -->
+<tr class="table-secondary">
+  <td colspan="3"><strong>Token embedding table (once)</strong></td>
+</tr>
+<tr>
+  <td>Embedding</td>
+  <td>
+    $$W_E \in \mathbb{R}^{V \times H}$$<br>
+    <strong>$$V \cdot H$$</strong>
+  </td>
+  <td>
+    $$W_E \in \mathbb{R}^{V \times H}$$<br>
+    <strong>$$V \cdot H$$</strong>
+  </td>
+</tr>
+
+<!-- ── PER-LAYER: NORM ── -->
+<tr class="table-secondary">
+  <td colspan="3"><strong>Per-layer — pre-attention normalisation</strong></td>
+</tr>
+<tr>
+  <td>Norm type</td>
+  <td>
+    <em>Post-norm</em> (after sublayer + residual)<br>
+    LayerNorm: scale $$\gamma \in \mathbb{R}^H$$, bias $$\beta \in \mathbb{R}^H$$<br>
+    <strong>$$2H$$</strong>
+  </td>
+  <td>
+    <em>Pre-norm</em> (before sublayer)<br>
+    RMSNorm: scale $$\gamma \in \mathbb{R}^H$$ only — no bias<br>
+    <strong>$$H$$</strong>
+  </td>
+</tr>
+
+<!-- ── PER-LAYER: ATTENTION ── -->
+<tr class="table-secondary">
+  <td colspan="3"><strong>Per-layer — attention (MHA vs GQA)</strong></td>
+</tr>
+<tr>
+  <td>$$W_Q$$</td>
+  <td>
+    $$H \times H$$ weight + $$H$$ bias<br>
+    <strong>$$H^2 + H$$</strong>
+  </td>
+  <td>
+    $$H \times H$$ weight, <em>no bias</em><br>
+    <strong>$$H^2$$</strong>
+  </td>
+</tr>
+<tr>
+  <td>$$W_K$$</td>
+  <td>
+    MHA: $$H \times H$$ weight + $$H$$ bias<br>
+    <strong>$$H^2 + H$$</strong>
+  </td>
+  <td>
+    GQA: $$H \times (g \cdot d)$$ weight, no bias<br>
+    $$= H \times \tfrac{g \cdot H}{n}$$<br>
+    <strong>$$\tfrac{g}{n} H^2$$</strong>
+  </td>
+</tr>
+<tr>
+  <td>$$W_V$$</td>
+  <td>
+    MHA: $$H \times H$$ weight + $$H$$ bias<br>
+    <strong>$$H^2 + H$$</strong>
+  </td>
+  <td>
+    GQA: $$H \times (g \cdot d)$$ weight, no bias<br>
+    <strong>$$\tfrac{g}{n} H^2$$</strong>
+  </td>
+</tr>
+<tr>
+  <td>$$W_O$$</td>
+  <td>
+    $$H \times H$$ weight + $$H$$ bias<br>
+    <strong>$$H^2 + H$$</strong>
+  </td>
+  <td>
+    $$H \times H$$ weight, no bias<br>
+    <strong>$$H^2$$</strong>
+  </td>
+</tr>
+<tr>
+  <td><em>Attention total</em></td>
+  <td><strong>$$4H^2 + 4H$$</strong></td>
+  <td>
+    <strong>$$\left(2 + \tfrac{2g}{n}\right) H^2$$</strong><br>
+    <small>For Llama 3 8B: $$g=8, n=32 \Rightarrow 2.5\,H^2$$</small>
+  </td>
+</tr>
+
+<!-- ── PER-LAYER: NORM 2 ── -->
+<tr class="table-secondary">
+  <td colspan="3"><strong>Per-layer — pre-MLP normalisation</strong></td>
+</tr>
+<tr>
+  <td>Norm</td>
+  <td>
+    LayerNorm: $$\gamma, \beta \in \mathbb{R}^H$$<br>
+    <strong>$$2H$$</strong>
+  </td>
+  <td>
+    RMSNorm: $$\gamma \in \mathbb{R}^H$$ only<br>
+    <strong>$$H$$</strong>
+  </td>
+</tr>
+
+<!-- ── PER-LAYER: MLP ── -->
+<tr class="table-secondary">
+  <td colspan="3"><strong>Per-layer — feed-forward / MLP</strong></td>
+</tr>
+<tr>
+  <td>MLP type</td>
+  <td>Standard 2-layer FFN<br>$$f = 4H$$</td>
+  <td>SwiGLU 3-matrix FFN<br>$$f \approx \tfrac{8}{3}H$$ (rounded to nearest 256)<br><small>e.g. 14 336 for 8B ≈ 3.5H</small></td>
+</tr>
+<tr>
+  <td>Up / gate</td>
+  <td>
+    $$W_{\text{up}} \in \mathbb{R}^{H \times 4H}$$ + bias $$4H$$<br>
+    <strong>$$4H^2 + 4H$$</strong>
+  </td>
+  <td>
+    $$W_{\text{gate}} \in \mathbb{R}^{H \times f}$$, no bias<br>
+    $$W_{\text{up}} \in \mathbb{R}^{H \times f}$$, no bias<br>
+    <strong>$$2Hf$$</strong>
+  </td>
+</tr>
+<tr>
+  <td>Down</td>
+  <td>
+    $$W_{\text{down}} \in \mathbb{R}^{4H \times H}$$ + bias $$H$$<br>
+    <strong>$$4H^2 + H$$</strong>
+  </td>
+  <td>
+    $$W_{\text{down}} \in \mathbb{R}^{f \times H}$$, no bias<br>
+    <strong>$$Hf$$</strong>
+  </td>
+</tr>
+<tr>
+  <td><em>MLP total</em></td>
+  <td><strong>$$8H^2 + 5H$$</strong></td>
+  <td><strong>$$3Hf$$</strong></td>
+</tr>
+
+<!-- ── PER-LAYER TOTAL ── -->
+<tr class="table-warning">
+  <td><strong>1 layer total</strong></td>
+  <td>
+    $$4H + 4H^2 + 2H + 2H + 8H^2 + 5H$$<br>
+    <strong>$$= 12H^2 + 13H$$</strong>
+  </td>
+  <td>
+    $$H + (2 + \tfrac{2g}{n})H^2 + H + 3Hf$$<br>
+    <strong>$$= \left(2 + \tfrac{2g}{n}\right)H^2 + 3Hf + 2H$$</strong>
+  </td>
+</tr>
+
+<!-- ── FINAL NORM ── -->
+<tr class="table-secondary">
+  <td colspan="3"><strong>After all layers (once)</strong></td>
+</tr>
+<tr>
+  <td>Final norm</td>
+  <td>LayerNorm: <strong>$$2H$$</strong></td>
+  <td>RMSNorm: <strong>$$H$$</strong></td>
+</tr>
+<tr>
+  <td>LM head $$W_{\text{out}}$$</td>
+  <td>
+    Weight-tied with $$W_E$$ in original paper<br>
+    <strong>$$+0$$ extra params</strong>
+  </td>
+  <td>
+    <em>Not tied</em> in Llama 3<br>
+    $$H \times V$$<br>
+    <strong>$$HV$$</strong>
+  </td>
+</tr>
+
+<!-- ── GRAND TOTAL ── -->
+<tr class="table-danger">
+  <td><strong>Grand total</strong></td>
+  <td>
+    $$VH + L(12H^2 + 13H) + 2H$$<br>
+    <small>(LM head tied, no extra cost)</small>
+  </td>
+  <td>
+    $$VH + L\!\left[\!\left(2{+}\tfrac{2g}{n}\right)H^2 + 3Hf + 2H\right] + H + HV$$
+  </td>
+</tr>
+</tbody>
+</table>
+</div>
+
+
+#### Transformer Architecture 
+
+1. Token Embeddings - V*H
+2. Positional Embeddings (Sinusoidal) - No Parameters
+3. Layer Norm - 2*H 
+4. Attention  
+    Projecting: Q,K,V,O
+    Q: H*H (Weights) , H (Bias)  
+    K: H*H (Weights) , H (Bias)
+    V: H*H (Weights) , H (Bias)
+    O: H*H (Weights) , H (Bias)
+5. Layer Norm - 2*H 
+6. MLP
+    Up Projection:   H * 4H (Weights) , 4H (Bias)
+    Down Projection: 4H*H (Weights), H(Bias)
+7. Final Norm - 2*H    
+8. Convert Ebeddings to Token & Vocabulary = H*V 
+
+Total: 
+
+#### Llama3 Architecture
+
+1. Token Embeddings - V*H
+2. RMS Norm - H
+3. Attention  
+    Projecting: Q,K,V,O
+    Q: H*H (Weights) , H (Bias)  
+    K: H*H/N_q (Weights) , H (Bias)
+    V: H*H/N_q (Weights) , H (Bias)
+    O: H*H (Weights) , H (Bias)
+4. RMS Norm - H
+5. MLP(with SwigLU) 
+        Up Projection:   H * 4H (Weights) , 4H (Bias)
+        Gated Projection: 
+        Down Projection: 4H*H (Weights), H(Bias)
+6. Final RMS Norm - H
+7. Convert Ebeddings to Token & Vocabulary = H*V       
+    
 
 ### How model architecture amplifies the problem
 
@@ -394,7 +684,7 @@ The H100 GPU has 80GB of HBM memory. Let's <a href="#table-params-memory">see</a
 </figure>
 
 The 70B model needs 140GB just for Parameters — nearly double the H100's entire 80GB. The 
-405B model needs 810GB in BF16 and 1620GB in FP32,this is only for Parameters(Weights, Biases) .
+405B model needs 810GB in BF16 and 1620GB in FP32,this is only for Parameters(Weights, Biases).
 
 Training model needs multiple forward & backward passes which requires memory for **Gradients**, **Activations**, **Optimizer States** and additional memory buffers for staging intermediate calculations. The <a href="#table-params-memory">table</a> only captures memory required for Parameters For inference, this is the primary cost — but training needs significantly more on top of this. Of all the model sizes here, Only an 8B model can fit on GPU. This is because of distinction between inference & training. inference only needs Parameters, Activations, and KV Cache to complete a forward pass. Training needs all of that plus Gradients and Optimizer States — which is why training memory requirements are significantly heavier than inference. 
 
