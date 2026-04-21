@@ -449,7 +449,7 @@ Steps common to both architectures
                 <td class="text-center formula-text"><span class="bias-box">H × H + H </span>
                  <span class="sub-calc"> Weights: H*H </span>
                  <span class="sub-calc"> Bias: H </span> </td>
-                <td class="text-center formula-text">span class="bias-box">H × H + H </span> 
+                <td class="text-center formula-text"><span class="bias-box">H × H + H </span> 
                   <span class="sub-calc"> Weights: H*H </span>
                   <span class="sub-calc"> Bias: H </span> </td>
                 </td>
