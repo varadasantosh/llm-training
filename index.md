@@ -629,8 +629,8 @@ W_out = H × V   = 4,096 × 128,256             =    525,336,576  ≈ 525 M
 
 Now that we have $$ \phi \approx 8.03\text{ B}$$, we can calculate the exact memory cost for each training component. Parameters stored in FP32 occupy $$4P$$ bytes; in BF16/FP16 they occupy $$2$$ bytes. Llama3 models use BF16 [Precision](https://huggingface.co/meta-llama/Meta-Llama-3-8B/blob/main/config.json#L23) for Parameters, Gradients 
 
-$$ \phi $$ =  VH + L(12H² + 13H) + 2H (Classic) || $$ \phi $$ = VH + L[(2+2g/n)H² + 3Hf + 2H] + H + VH (Llama3)
 
+$$ \phi $$ = VH + L[(2+2g/n)H² + 3Hf + 2H] + H + VH (Llama3)
 Gradients($$\nabla \text{W}$$) = $$ \phi$$
 Optimizer States (m,v) = 2* $$ \phi$$
 
