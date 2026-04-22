@@ -38,9 +38,17 @@ d-article {
     font-style: normal;
   }
   h1,
-  h2,
-  hr {
+  h2 {
     border-bottom-color: var(--global-divider-color) !important;
+  }
+  // Custom hr styling - overrides distill's default 100% width
+  hr {
+    width: 40% !important;
+    margin: 2rem auto !important;
+    border: none !important;
+    border-top: 1px solid #e0e0e0 !important;
+    border-bottom: none !important;
+    grid-column: text !important; // Override distill's grid-column: screen
   }
   table,
   table tbody,
