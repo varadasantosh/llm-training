@@ -672,11 +672,10 @@ The solution is mixed precision — use BF16 where speed matters, FP32 where pre
   
  Below is one way to express Graidents, Optimizer states interms of Parameters
 
-``` 
-$$\phi = \text{VH} + L[(2+2g/n)H^2 + 3Hf + 2H] + H + \text{VH}$$
-$$\text{Gradients}(\nabla W) = \phi$$
-$$\text{Optimizer States } (m,v) = 2\phi$$
-```
+
+> $$\phi = \text{VH} + L[(2+2g/n)H^2 + 3Hf + 2H] + H + \text{VH}$$
+> $$\text{Gradients}(\nabla W) = \phi$$
+> $$\text{Optimizer States } (m,v) = 2\phi$$
 
 ### How model architecture amplifies the problem
 
