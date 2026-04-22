@@ -344,7 +344,7 @@ moving to Activations which require a different approach.
 </figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 5: Configurations Influencing Model Size</figcaption>
 </figure>
 
-##### Parameter Count
+#### Parameter Count
 
 In order to understand how much memory is consumed by parameters, gradients, optimizer
 states, and activations, we first need to walk through every learnable component in
@@ -397,13 +397,13 @@ d = H/n = 128 (per-head dimension)
   int(1.3 × 2,730) = 3,549, × 4 = 14,196, rounded up → <strong>14,336</strong>.
 </aside>
 
-#### 1 — Token embedding  *(once)*
+##### 1 — Token embedding  *(once)*
 
 $$W_E = V \times H = 128{,}256 \times 4{,}096 = \textbf{525,336,576} \approx 525\text{ M}$$
 
 ---
 
-#### 2 — Transformer layer  *(× 32)*
+##### 2 — Transformer layer  *(× 32)*
 
 **Pre-attention RMSNorm**
 
@@ -452,7 +452,7 @@ $$32 \times 218{,}112{,}000 = \textbf{6,979,584,000} \approx 6.98\text{ B}$$
 
 ---
 
-#### 3 — Output  *(once)*
+##### 3 — Output  *(once)*
 
 ```
 Final RMSNorm = H                              =          4,096
@@ -463,7 +463,7 @@ W_out = H × V   = 4,096 × 128,256             =    525,336,576  ≈ 525 M
 > <a href="https://huggingface.co/meta-llama/Meta-Llama-3-8B/blob/main/config.json#L22" target="_blank">See Llama 3 8B config.json</a>
 
 
-#### 4 — Total
+##### 4 — Total
 
 | Component | Parameters |
 | :--- | ---: |
@@ -539,6 +539,9 @@ model dimension grows from 4,096 to 16,384, and FFN dimension jumps from 14,336 
 <figure id="llama-3-config">
   {% include figure.liquid path="assets/img/llm-training/section-3/Llama-3-config.png" class="img-medium" caption="Figure-4: Llama 3 Configurations" %}
 </figure>
+
+#### Activations
+Short intro
 
 ### How Much Memory Are We Actually Talking About?
 
