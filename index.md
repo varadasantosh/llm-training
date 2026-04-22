@@ -631,44 +631,6 @@ W_out = H × V   = 4,096 × 128,256             =    525,336,576  ≈ 525 M
 Now that we have $$P \approx 8.03\text{ B}$$, we can calculate the exact memory cost for each training component. Parameters stored in FP32 occupy $$4P$$ bytes; in BF16/FP16 they occupy $$2$$ bytes. Llama3 models use BF16 [Precision](https://huggingface.co/meta-llama/Meta-Llama-3-8B/blob/main/config.json#L23) for Parameters, Gradients, Optimizer states  
 
 
-
-Applying the above formulae for calculating Llama 8B model to calculate number of parameters, we will refer to the [configurations](https://huggingface.co/meta-llama/Meta-Llama-3-8B/blob/main/config.json) and [parameters](https://huggingface.co/meta-llama/Meta-Llama-3-8B/blob/main/original/params.json) from hugging face 
-
-V = 128256
-H = 4096
-N = 32 (Number of Q heads)
-g = 8 (Number of KV heads)
-f = 3.5*H
-
-V*H = 128256 * 4096 = 52,53,36,576
-
-RMS Norm = 4096
-Attention:
-  W_Q = H*H = 4096 * 4096 = 167,77,216
-  W_K = H*(g/n*H) = 4096 * (1/4*4096)=41,94,304
-  W_V = H*(g/n*H) = 4096 * (1/4*4096)=41,94,304
-  W_O = H*H = 4096 * 4096 = 167,77,216
-MLP (SwiGLU):
-  hidden_dim = int(2 * hidden_dim / 3) = 2730*4 = 10920
-  multiple_of = 1024
-  hidden_dim = int(ffn_dim_multiplier * hidden_dim) = 1.3*10920     = 14196
-  hidden_dim = multiple_of * ((hidden_dim + multiple_of - 1) // multiple_of)
-
-  Gate Proj:  H* 8/3*H = 4096 *  (8/3*1.3*4096) = 6,23,37,024
-  Up Proj:  H* 8/3*H = 4096 *  (8/3*1.3*4096) = 6,23,37,024
-  Down Proj: H* 8/3*H = 4096 *  (8/3*1.3*4096) = 6,23,37,024  
-
-  Parameters per Block = 22,89,62,304
-  L= 32
-  L * Parameters per Block = 7,32,67,93,728
-
-
-RMS Norm = 4096
-V*H = 128256 * 4096 =  52,53,36,576
-
-Total. = 52,53,36,576 + 7,32,67,93,728 + 4096 + 52,53,36,576 = 8,37,74,70,976
-
-
 ### How model architecture amplifies the problem
 
 Below <a href="#llama-3-config" >table </a> from Llama-3 [paper](https://arxiv.org/pdf/2407.21783) clearly demonstrates how model architecture influence size of the models & how these  configurations change across models of different sizes: layers go from 32 to 126, 
