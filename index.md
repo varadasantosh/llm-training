@@ -336,7 +336,7 @@ Training memory breaks down into these components — each of them competing for
 </figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 5: Configurations Influencing Model Size</figcaption>
 </figure>
 
-**Parameter Count**
+#### Parameter Count
 
 In order to understand how much memory is consumed by parameters, gradients, optimizer
 states, and activations, we first need to walk through every learnable component in
@@ -523,7 +523,7 @@ Steps common to both architectures
 
 
 
-#### Worked example — Llama 3 8B
+##### Worked example — Llama 3 8B
 
 We use the published configuration from HuggingFace
 ([config.json](https://huggingface.co/meta-llama/Meta-Llama-3-8B/blob/main/config.json),
@@ -628,6 +628,7 @@ $$
 <aside>
   W_out is <em>not</em> weight-tied to W_E in Llama 3 (unlike the
   original Transformer). Both tables contribute separately.
+  <br><a href="https://huggingface.co/meta-llama/Meta-Llama-3-8B/blob/main/config.json#L22" target="_blank">See Llama 3 8B config.json</a>
 </aside>
 
 ---
