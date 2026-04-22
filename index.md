@@ -336,7 +336,7 @@ Training memory breaks down into these components — each of them competing for
 </figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 5: Configurations Influencing Model Size</figcaption>
 </figure>
 
-#### Parameter Count
+##### Parameter Count
 
 In order to understand how much memory is consumed by parameters, gradients, optimizer
 states, and activations, we first need to walk through every learnable component in
