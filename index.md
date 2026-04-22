@@ -282,7 +282,15 @@ This is why Scaling laws dictate that for architectures of this magnitude, CPUs 
 
 Let's go back to that assumption we made earlier — that a 405B model could fit on a single GPU. To understand why that's a problem, we need to understand what a model actually is.
 
-A model isn't just its weights. When we call **model.to(device)**, it is not just moving parameters onto the GPU we're moving an entire graph of interconnected components. Parameters required for forward pass, Gradients for every parameter, Optimizer States like Adam's m and v vectors, Activations from the forward pass that need to be held in memory for the backward pass and temporary buffers for intermediate calculations. All of that has to live in VRAM simultaneously. Besides the mentioned components input and output tensors need to sit on the same device as the model. Closely looking at the training process these components can be divided into two categories Static & Dynamic. Static parameters are purely dependent on model architecture and independent of input configurations such as **Batch Size** , **Sequence Length**  , static components like Parameters, Gradients, Optimizer States take up large amount of memory but Activations require major allocation, below table summarizes few confiugrations that are critical in determining the memory required. we will calculate the formula for number of parameters, we can calcualte the memory required for static components, for dynamic compoentns(Activations) we need to calculate them differently , following sections we will focus on these calculations
+A model isn't just its weights. When we call model.to(device), we're not just moving parameters onto the GPU — we're moving an entire graph of interconnected components: Parameters for the forward pass, Gradients for every parameter, Optimizer States 
+like Adam's m and v vectors, Activations from the forward pass held in memory for the backward pass, and temporary buffers for intermediate calculations. On top of these, input and output tensors need to sit on the same device as the model. All of that 
+has to live in VRAM simultaneously.
+
+Looking more closely at these components, they fall into two categories — Static and Dynamic. Static components like Parameters, Gradients, and Optimizer States are determined purely by model architecture and remain fixed regardless of how you configure your training run. Dynamic components — primarily Activations — scale directly with Batch Size and Sequence Length, and can exceed all static components combined at large scales.
+
+The table below captures the key configurations that drive memory requirements across both categories. In the sections that follow, we'll work through the memory formula for each of them — starting with static components where the math is straightforward, then 
+moving to Activations which require a different approach.
+
 
 <figure>
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; table-layout:fixed; border:2px dashed #555;">
