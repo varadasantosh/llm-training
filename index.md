@@ -523,6 +523,7 @@ Steps common to both architectures
 
 
 
+
 ##### Worked example — Llama 3 8B
 
 We use the published configuration from HuggingFace
@@ -547,113 +548,88 @@ d = H/n = 128 (per-head dimension)
   int(1.3 × 2,730) = 3,549, × 4 = 14,196, rounded up → <strong>14,336</strong>.
 </aside>
 
-##### Token embedding
+#### 1 — Token embedding  *(once)*
 
-$$
-W_E = V \times H = 128{,}256 \times 4{,}096 = \mathbf{525{,}336{,}576}
-\approx 525\text{ M}
-$$
+$$W_E = V \times H = 128{,}256 \times 4{,}096 = \textbf{525,336,576} \approx 525\text{ M}$$
 
-##### Per transformer layer  (repeated × 32)
+---
+
+#### 2 — Transformer layer  *(× 32)*
 
 **Pre-attention RMSNorm**
 
-$$
-\text{RMSNorm} = H = 4{,}096
-$$
+$$\text{RMSNorm} = H = 4{,}096$$
 
 **Attention**
 
-$$
-\begin{aligned}
-W_Q &= H \times H &&= 4{,}096 \times 4{,}096 &&= 16{,}777{,}216 \\
-W_K &= H \times (g \cdot d) &&= 4{,}096 \times (8 \times 128) &&= 4{,}194{,}304 \\
-W_V &= H \times (g \cdot d) &&= 4{,}096 \times 1{,}024 &&= 4{,}194{,}304 \\
-W_O &= H \times H &&= 4{,}096 \times 4{,}096 &&= 16{,}777{,}216 \\
-\end{aligned}
-$$
+```
+W_Q = H × H         = 4,096 × 4,096          = 16,777,216
+W_K = H × (g·d)     = 4,096 × (8 × 128)      =  4,194,304
+W_V = H × (g·d)     = 4,096 × 1,024          =  4,194,304
+W_O = H × H         = 4,096 × 4,096          = 16,777,216
+                                        ─────────────────
+                     Attention subtotal       = 41,943,040  ≈ 41.9 M
+```
 
-$$
-\text{Attention subtotal} = 41{,}943{,}040 \approx 41.9\text{ M}
-$$
-
-> **GQA saving:** W_K and W_V are each $$4{,}194{,}304$$ vs
-> $$16{,}777{,}216$$ in MHA — exactly **4× smaller**, because $$g/n = 8/32 = 1/4$$.
+> **GQA saving:** W_K and W_V are each 4,194,304 vs 16,777,216 in MHA —
+> exactly **4× smaller** because $$g/n = 8/32 = \tfrac{1}{4}$$.
 
 **Pre-MLP RMSNorm**
 
-$$
-\text{RMSNorm} = H = 4{,}096
-$$
+$$\text{RMSNorm} = H = 4{,}096$$
 
 **SwiGLU MLP**
 
-$$
-\begin{aligned}
-W_{\text{gate}} &= H \times f &&= 4{,}096 \times 14{,}336 &&= 58{,}720{,}256 \\
-W_{\text{up}}   &= H \times f &&= 4{,}096 \times 14{,}336 &&= 58{,}720{,}256 \\
-W_{\text{down}} &= f \times H &&= 14{,}336 \times 4{,}096 &&= 58{,}720{,}256 \\
-\end{aligned}
-$$
-
-$$
-\text{MLP subtotal} = 3 \times 58{,}720{,}256 = 176{,}160{,}768 \approx 176.2\text{ M}
-$$
+```
+W_gate = H × f      = 4,096 × 14,336         = 58,720,256
+W_up   = H × f      = 4,096 × 14,336         = 58,720,256
+W_down = f × H      = 14,336 × 4,096         = 58,720,256
+                                        ─────────────────
+                     MLP subtotal             = 176,160,768  ≈ 176.2 M
+```
 
 **Per-layer total**
 
 $$
-\underbrace{8{,}192}_{\text{2× RMSNorm}}
+\underbrace{8{,}192}_{2\times\text{RMSNorm}}
 + \underbrace{41{,}943{,}040}_{\text{attention}}
 + \underbrace{176{,}160{,}768}_{\text{MLP}}
-= \mathbf{218{,}112{,}000} \approx 218\text{ M}
+= \textbf{218,112,000} \approx 218\text{ M}
 $$
 
 **All 32 layers**
 
-$$
-32 \times 218{,}112{,}000 = 6{,}979{,}584{,}000 \approx 6.98\text{ B}
-$$
-
-##### Output (once)
-
-$$
-\text{Final RMSNorm} = H = 4{,}096
-$$
-
-$$
-W_{\text{out}} = H \times V = 4{,}096 \times 128{,}256 = 525{,}336{,}576 \approx 525\text{ M}
-$$
-
-<aside>
-  W_out is <em>not</em> weight-tied to W_E in Llama 3 (unlike the
-  original Transformer). Both tables contribute separately.
-  <br><a href="https://huggingface.co/meta-llama/Meta-Llama-3-8B/blob/main/config.json#L22" target="_blank">See Llama 3 8B config.json</a>
-</aside>
+$$32 \times 218{,}112{,}000 = \textbf{6,979,584,000} \approx 6.98\text{ B}$$
 
 ---
 
-#### Total parameter count
+#### 3 — Output  *(once)*
 
-$$
-\begin{aligned}
-W_E                &= 525{,}336{,}576 \\
-32 \times \text{layer} &= 6{,}979{,}584{,}000 \\
-\text{Final norm}  &= 4{,}096 \\
-W_{\text{out}}     &= 525{,}336{,}576 \\
-\hline
-\textbf{Total}     &= \mathbf{8{,}030{,}261{,}248} \approx \mathbf{8.03\text{ B}}
-\end{aligned}
-$$
+```
+Final RMSNorm = H                              =          4,096
+W_out = H × V   = 4,096 × 128,256             =    525,336,576  ≈ 525 M
+```
 
-The official "8B" label is rounded. The true count from the config is
-**8.03 B** — which is why model cards sometimes report 8.03B and
-memory calculators that use 8.00B are slightly off.
+> W_out is *not* weight-tied to W_E in Llama 3 — both contribute independently.
+> <a href="https://huggingface.co/meta-llama/Meta-Llama-3-8B/blob/main/config.json#L22" target="_blank">See Llama 3 8B config.json</a>
 
-Now that we have $$P \approx 8.03\text{ B}$$, we can calculate the
-exact memory cost for each training component. Parameters stored in
-fp32 occupy $$4P$$ bytes; in bf16/fp16 they occupy $$2P$$ bytes.
-We cover this in the next section.
+---
+
+#### 4 — Total
+
+| Component | Parameters |
+| :--- | ---: |
+| Token embedding W_E | 525,336,576 |
+| 32 × transformer layer | 6,979,584,000 |
+| Final RMSNorm | 4,096 |
+| LM head W_out | 525,336,576 |
+| **Total** | **8,030,261,248 ≈ 8.03 B** |
+
+
+---
+
+Now that we have $$P \approx 8.03\text{ B}$$, we can calculate the exact memory cost for each training component. Parameters stored in FP32 occupy $$4P$$ bytes; in BF16/FP16 they occupy $$2$$ bytes. Llama3 models use BF16 [Precision](https://huggingface.co/meta-llama/Meta-Llama-3-8B/blob/main/config.json#L23) for Parameters, Gradients, Optimizer states  
+
 
 
 Applying the above formulae for calculating Llama 8B model to calculate number of parameters, we will refer to the [configurations](https://huggingface.co/meta-llama/Meta-Llama-3-8B/blob/main/config.json) and [parameters](https://huggingface.co/meta-llama/Meta-Llama-3-8B/blob/main/original/params.json) from hugging face 
