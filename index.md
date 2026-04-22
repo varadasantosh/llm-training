@@ -513,15 +513,21 @@ The solution is mixed precision — use BF16 where speed matters, FP32 where pre
   
 Since Gradients and Optimizer States scale directly with parameter count, we can express their memory cost in terms of $$\phi$$:
 
-> $\phi = \text{VH} + L[(2+2g/n)H^2 + 3Hf + 2H] + H + \text{VH} \text {Llama-3}$
->
-> $ \text {Parameters (Working Copy)} = 2* \phi \text{Bytes}$
->
-> $ \text {Parameters (Master Copy)} = 4* \phi \text{Bytes}$
->
->
->$\text{Optimizer States (m,v)}  = 2 * \phi = 8* \phi \text{Bytes}$
 
+> $\text{Parameters — working copy} \quad \rightarrow \quad 2\phi \text{ bytes (BF16)}$
+>
+> $\text{Parameters — master copy} \quad \rightarrow \quad 4\phi \text{ bytes (FP32)}$
+>
+> $\text{Gradients } (\nabla W) = \phi \quad \rightarrow \quad 4\phi \text{ bytes (FP32)}$
+>
+> $\text{Optimizer States } (m, v) = 2\phi \quad \rightarrow \quad 8\phi \text{ bytes (FP32)}$
+> ───────────────────────────────────
+>
+> $\text{Total Static Memory} \quad = \quad 18\phi \text{ bytes}$
+
+This is the well-known **18 bytes per parameter** rule for mixed precision training with Adam. For Llama-3 8B with $$\phi \approx 8.03\text{B}$$ parameters, static components alone require approximately **144GB** — nearly double the H100's 80GB VRAM, before a single activation is stored.
+
+Next we look at Activations — the dynamic component whose memory cost changes with every training configuration.
 
 ### How model architecture amplifies the problem
 
