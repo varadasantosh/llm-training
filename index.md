@@ -521,6 +521,7 @@ Since Gradients and Optimizer States scale directly with parameter count, we can
 > $\text{Gradients } (\nabla W) = \phi \quad \rightarrow \quad 4\phi \text{ bytes (FP32)}$
 >
 > $\text{Optimizer States } (m, v) = 2\phi \quad \rightarrow \quad 8\phi \text{ bytes (FP32)}$
+>
 > ───────────────────────────────────
 >
 > $\text{Total Static Memory} \quad = \quad 18\phi \text{ bytes}$
