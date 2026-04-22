@@ -505,17 +505,18 @@ The solution is mixed precision — use BF16 where speed matters, FP32 where pre
 
 | Component| Precision| Bytes| 
 | :---| ---: | ---:|
-| Parameters($\nphi$) working copy|  BF16 | 2 Bytes |
-| Parameters($\nphi$) master copy| FP32 | 4 Bytes |
+| Parameters($$\phi$$) working copy|  BF16 | 2 Bytes |
+| Parameters($$\phi$$) master copy| FP32 | 4 Bytes |
 | Gradients Acc| FP32 | 4 Bytes|
 | Optimizer States| FP32 | 4 Bytes |
    
   
- Below is one way to express Graidents, Optimizer states interms of Parameters
-
+ Below is one way to express Gradients, Optimizer states in terms of Parameters
 
 > $$\phi = \text{VH} + L[(2+2g/n)H^2 + 3Hf + 2H] + H + \text{VH}$$
+>
 > $$\text{Gradients}(\nabla W) = \phi$$
+>
 > $$\text{Optimizer States } (m,v) = 2\phi$$
 
 ### How model architecture amplifies the problem
