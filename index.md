@@ -513,11 +513,15 @@ The solution is mixed precision — use BF16 where speed matters, FP32 where pre
   
  Below is one way to express Gradients, Optimizer states in terms of Parameters
 
-> $$\phi = \text{VH} + L[(2+2g/n)H^2 + 3Hf + 2H] + H + \text{VH}$$
->
-> $$\text{Gradients}(\nabla W) = \phi$$
->
-> $$\text{Optimizer States } (m,v) = 2\phi$$
+<div class="l-body" style="background: var(--global-code-bg-color); border-left: 4px solid var(--global-theme-color); padding: 1rem 1.5rem; margin: 1rem 0;">
+
+$$\phi = \text{VH} + L[(2+2g/n)H^2 + 3Hf + 2H] + H + \text{VH}$$
+
+$$\text{Gradients}(\nabla W) = \phi$$
+
+$$\text{Optimizer States } (m,v) = 2\phi$$
+
+</div>
 
 ### How model architecture amplifies the problem
 
