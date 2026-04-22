@@ -552,7 +552,6 @@ d = H/n = 128 (per-head dimension)
 
 $$W_E = V \times H = 128{,}256 \times 4{,}096 = \textbf{525,336,576} \approx 525\text{ M}$$
 
----
 
 #### 2 — Transformer layer  *(× 32)*
 
@@ -601,7 +600,6 @@ $$
 
 $$32 \times 218{,}112{,}000 = \textbf{6,979,584,000} \approx 6.98\text{ B}$$
 
----
 
 #### 3 — Output  *(once)*
 
@@ -613,7 +611,6 @@ W_out = H × V   = 4,096 × 128,256             =    525,336,576  ≈ 525 M
 > W_out is *not* weight-tied to W_E in Llama 3 — both contribute independently.
 > <a href="https://huggingface.co/meta-llama/Meta-Llama-3-8B/blob/main/config.json#L22" target="_blank">See Llama 3 8B config.json</a>
 
----
 
 #### 4 — Total
 
@@ -629,6 +626,8 @@ W_out = H × V   = 4,096 × 128,256             =    525,336,576  ≈ 525 M
 ---
 
 Now that we have $$P \approx 8.03\text{ B}$$, we can calculate the exact memory cost for each training component. Parameters stored in FP32 occupy $$4P$$ bytes; in BF16/FP16 they occupy $$2$$ bytes. Llama3 models use BF16 [Precision](https://huggingface.co/meta-llama/Meta-Llama-3-8B/blob/main/config.json#L23) for Parameters, Gradients, Optimizer states  
+
+N = 
 
 
 ### How model architecture amplifies the problem
