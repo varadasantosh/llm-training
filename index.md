@@ -525,9 +525,9 @@ Since Gradients and Optimizer States scale directly with parameter count, we can
 >
 > $\text{Total Static Memory} \quad = \quad 18\phi \text{ bytes}$
 
-This is the well-known **18 bytes per parameter** rule for mixed precision training with Adam. For Llama-3 8B with $$\phi \approx 8.03\text{B}$$ parameters, static components alone require approximately **144GB** — nearly double the H100's 80GB VRAM, before a single activation is stored.
+This sums up to **18 bytes per parameter** for mixed precision training with Adam Optimizer For Llama-3 8B with $$\phi \approx 8.03\text{B}$$ parameters, static components alone require approximately **144GB** — nearly double the H100's 80GB VRAM, 144GB memory is required before a single activation is stored.
 
-Next we look at Activations — the dynamic component whose memory cost changes with every training configuration.
+Next we look at Activations — the dynamic component whose memory cost changes with every training configuration (**Batch Size, Sequnece Length**).
 
 ### How model architecture amplifies the problem
 
