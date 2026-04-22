@@ -552,6 +552,7 @@ d = H/n = 128 (per-head dimension)
 
 $$W_E = V \times H = 128{,}256 \times 4{,}096 = \textbf{525,336,576} \approx 525\text{ M}$$
 
+---
 
 #### 2 — Transformer layer  *(× 32)*
 
@@ -600,6 +601,7 @@ $$
 
 $$32 \times 218{,}112{,}000 = \textbf{6,979,584,000} \approx 6.98\text{ B}$$
 
+---
 
 #### 3 — Output  *(once)*
 
