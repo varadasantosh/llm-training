@@ -10,7 +10,9 @@
 // | table |   <table>           right-align numbers, bold total row
 
 // ── scoped to distill post body only ─────────────────────────
-.post-content {
+// Targets both regular posts (.post-content) and distill articles (d-article)
+.post-content,
+d-article {
 
   // ── horizontal rule ( --- ) ────────────────────────────────
   hr {
