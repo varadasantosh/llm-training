@@ -513,11 +513,14 @@ The solution is mixed precision — use BF16 where speed matters, FP32 where pre
   
 Since Gradients and Optimizer States scale directly with parameter count, we can express their memory cost in terms of $$\phi$$:
 
-> $\phi = \text{VH} + L[(2+2g/n)H^2 + 3Hf + 2H] + H + \text{VH}$
+> $\phi = \text{VH} + L[(2+2g/n)H^2 + 3Hf + 2H] + H + \text{VH} \text {Llama-3}$
 >
->$\text{Gradients}(\nabla W) = \phi$
+> $ \text {Parameters (Working Copy)} = 2* \phi \text{Bytes}$
 >
->$\text{Optimizer States } (m,v) = 2\phi$
+> $ \text {Parameters (Master Copy)} = 4* \phi \text{Bytes}$
+>
+>
+>$\text{Optimizer States (m,v)}  = 2 * \phi = 8* \phi \text{Bytes}$
 
 
 ### How model architecture amplifies the problem
