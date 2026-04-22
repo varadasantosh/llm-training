@@ -641,7 +641,7 @@ memory cost for each training component. Parameters in FP32 occupy 4 bytes each 
 Inference only requires a forward pass — no gradients, no optimizer updates — so storing parameters in a single precision works fine. Training is a different story.
 
 During training we need to run both forward and backward passes, compute gradients, and update parameters using optimizer states. If we store everything in BF16, we get a real speed advantage — GPU architectures from A100 onwards include Tensor Cores that 
-deliver significantly higher throughput for BF16/FP16 matrix multiplications than FP32. But using BF16 everywhere creates a serious problem.
+deliver significantly higher throughput for BF16/FP16 matrix multiplications than FP32. But using BF16 everywhere we are trading accuracy with high throughput .
 
 Gradient values can be very small, and BF16's limited precision rounds small values to zero — losing the update entirely. The same applies to optimizer states, where Adam's moment estimates need to track subtle changes across millions of steps. Lost precision here 
 leads directly to training instability and poor convergence.
@@ -649,16 +649,16 @@ leads directly to training instability and poor convergence.
 The solution is mixed precision — use BF16 where speed matters, FP32 where precision matters. The steps below show how this plays out across one training step:
 
 
-1.Forward Pass
+1. Forward Pass
     Parameters (BF16) → fast matrix multiplications 
     using Tensor Cores → Output (BF16)
-2.Backward Pass:
+2. Backward Pass:
     Gradients computed in BF16 initially
     Gradients accumulated/reduced in FP32  ← precision is more important  
-3.Optimizer Step
+3. Optimizer Step
     FP32 gradients + FP32 optimizer states → parameter update (FP32)  
 4. Parameter Cast
-  Updated parameters cast back to BF16 ← ready for next forward pass
+    Updated parameters cast back to BF16 ← ready for next forward pass
 
 
 
