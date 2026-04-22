@@ -662,12 +662,10 @@ The solution is mixed precision — use BF16 where speed matters, FP32 where pre
 
 
 
-
-
 | Component| Precision| Bytes| 
 | :---| ---: | ---:|
-| Parameters($\nphi$) working copy|  BF16 | 2 Bytes |
-| Parameters($\nphi$) master copy| FP32 | 4 Bytes |
+| Parameters($$\nphi$$) working copy|  BF16 | 2 Bytes |
+| Parameters($$\nphi$$) master copy| FP32 | 4 Bytes |
 | Gradients Acc| FP32 | 4 Bytes|
 | Optimizer States| FP32 | 4 Bytes |
    
