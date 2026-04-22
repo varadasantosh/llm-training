@@ -26,6 +26,7 @@
 @use "publications";
 @use "components";
 @use "utilities";
+@use "calc-cards";
 
 // Other specialized styles
 @use "distill";
@@ -37,3 +38,4 @@
 @use "font-awesome/brands";
 @use "font-awesome/solid";
 @use "font-awesome/regular";
+

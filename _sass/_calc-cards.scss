@@ -1,0 +1,99 @@
+// _sass/_calc-cards.scss
+// Targets semantic HTML that Kramdown generates from pure markdown.
+// Import in assets/css/main.scss  →  @import "calc-cards";
+//
+// Markdown  →  HTML element  →  what this SCSS does
+// ────────────────────────────────────────────────────────────────
+// ---         <hr>              limit width, center, lighten
+// > quote     <blockquote>      left border callout style
+// ``` code``` <pre><code>       monospace calc block, subtle bg
+// | table |   <table>           right-align numbers, bold total row
+
+// ── scoped to distill post body only ─────────────────────────
+.post-content {
+
+  // ── horizontal rule ( --- ) ────────────────────────────────
+  hr {
+    width: 40%;
+    margin: 2rem 0;
+    border: none;
+    border-top: 1px solid #e0e0e0;
+  }
+
+  // ── blockquote ( > text ) ──────────────────────────────────
+  // used for GQA callout, W_out note, f=14336 derivation
+  blockquote {
+    margin: 1rem 0;
+    padding: 10px 14px;
+    background: #f0faf6;
+    border-left: 3px solid #1D9E75;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.83rem;
+    color: #085041;
+    line-height: 1.6;
+
+    p { margin: 0; }
+
+    // nested blockquote = warning/note variant
+    blockquote {
+      background: #FAEEDA;
+      border-color: #EF9F27;
+      color: #633806;
+    }
+  }
+
+  // ── code block ( ``` ``` ) ─────────────────────────────────
+  // used for aligned calculation columns
+  pre {
+    background: #FAFAFA;
+    border: 1px solid #EBEBEB;
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-size: 0.78rem;
+    line-height: 1.85;
+    overflow-x: auto;
+
+    code {
+      background: none;
+      color: #333;
+      font-size: inherit;
+    }
+  }
+
+  // ── table ( | col | ) ──────────────────────────────────────
+  // used for the grand total summary
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    margin: 1rem 0;
+
+    th {
+      text-align: left;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #999;
+      border-bottom: 2px solid #e0e0e0;
+      padding: 5px 10px;
+    }
+
+    td {
+      padding: 6px 10px;
+      border-bottom: 1px solid #F0F0F0;
+
+      // right-align the numbers column
+      &:last-child { text-align: right; font-family: monospace; }
+    }
+
+    // last row = total row (bold)
+    tr:last-child td {
+      border-bottom: none;
+      border-top: 2px solid #ccc;
+      font-weight: 700;
+      font-size: 0.88rem;
+    }
+  }
+
+}
