@@ -1,6 +1,6 @@
 // _sass/_calc-cards.scss
 // Targets semantic HTML that Kramdown generates from pure markdown.
-// Import in assets/css/main.scss  →  @import "calc-cards";
+// Import in assets/css/main.scss  →  @use "calc-cards";
 //
 // Markdown  →  HTML element  →  what this SCSS does
 // ────────────────────────────────────────────────────────────────
@@ -8,6 +8,8 @@
 // > quote     <blockquote>      left border callout style
 // ``` code``` <pre><code>       monospace calc block, subtle bg
 // | table |   <table>           right-align numbers, bold total row
+//
+// NOTE: Uses !important to override _distill.scss defaults
 
 // ── scoped to distill post body only ─────────────────────────
 // Targets both regular posts (.post-content) and distill articles (d-article)
@@ -16,85 +18,92 @@ d-article {
 
   // ── horizontal rule ( --- ) ────────────────────────────────
   hr {
-    width: 40%;
-    margin: 2rem 0;
-    border: none;
-    border-top: 1px solid #e0e0e0;
+    width: 40% !important;
+    margin: 2rem auto !important;
+    border: none !important;
+    border-top: 1px solid #e0e0e0 !important;
+    border-bottom: none !important;
   }
 
   // ── blockquote ( > text ) ──────────────────────────────────
   // used for GQA callout, W_out note, f=14336 derivation
   blockquote {
-    margin: 1rem 0;
-    padding: 10px 14px;
-    background: #f0faf6;
-    border-left: 3px solid #1D9E75;
-    border-radius: 0 6px 6px 0;
-    font-size: 0.83rem;
-    color: #085041;
-    line-height: 1.6;
+    margin: 1rem 0 !important;
+    padding: 10px 14px !important;
+    background: #f0faf6 !important;
+    border-left: 3px solid #1D9E75 !important;
+    border-radius: 0 6px 6px 0 !important;
+    font-size: 0.83rem !important;
+    color: #085041 !important;
+    line-height: 1.6 !important;
 
-    p { margin: 0; }
+    p { margin: 0 !important; }
 
     // nested blockquote = warning/note variant
     blockquote {
-      background: #FAEEDA;
-      border-color: #EF9F27;
-      color: #633806;
+      background: #FAEEDA !important;
+      border-left-color: #EF9F27 !important;
+      color: #633806 !important;
     }
   }
 
   // ── code block ( ``` ``` ) ─────────────────────────────────
   // used for aligned calculation columns
   pre {
-    background: #FAFAFA;
-    border: 1px solid #EBEBEB;
-    border-radius: 8px;
-    padding: 14px 18px;
-    font-size: 0.78rem;
-    line-height: 1.85;
-    overflow-x: auto;
+    background: #FAFAFA !important;
+    border: 1px solid #EBEBEB !important;
+    border-radius: 8px !important;
+    padding: 14px 18px !important;
+    font-size: 0.78rem !important;
+    line-height: 1.85 !important;
+    overflow-x: auto !important;
 
     code {
-      background: none;
-      color: #333;
-      font-size: inherit;
+      background: none !important;
+      color: #333 !important;
+      font-size: inherit !important;
     }
   }
 
   // ── table ( | col | ) ──────────────────────────────────────
   // used for the grand total summary
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.82rem;
-    margin: 1rem 0;
+  table.calc-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 0.82rem !important;
+    margin: 1rem 0 !important;
+    border: none !important;
 
     th {
-      text-align: left;
-      font-size: 0.72rem;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: #999;
-      border-bottom: 2px solid #e0e0e0;
-      padding: 5px 10px;
+      text-align: left !important;
+      font-size: 0.72rem !important;
+      font-weight: 600 !important;
+      letter-spacing: 0.04em !important;
+      text-transform: uppercase !important;
+      color: #999 !important;
+      border: none !important;
+      border-bottom: 2px solid #e0e0e0 !important;
+      padding: 5px 10px !important;
     }
 
     td {
-      padding: 6px 10px;
-      border-bottom: 1px solid #F0F0F0;
+      padding: 6px 10px !important;
+      border: none !important;
+      border-bottom: 1px solid #F0F0F0 !important;
 
       // right-align the numbers column
-      &:last-child { text-align: right; font-family: monospace; }
+      &:last-child { 
+        text-align: right !important; 
+        font-family: monospace !important; 
+      }
     }
 
     // last row = total row (bold)
     tr:last-child td {
-      border-bottom: none;
-      border-top: 2px solid #ccc;
-      font-weight: 700;
-      font-size: 0.88rem;
+      border-bottom: none !important;
+      border-top: 2px solid #ccc !important;
+      font-weight: 700 !important;
+      font-size: 0.88rem !important;
     }
   }
 

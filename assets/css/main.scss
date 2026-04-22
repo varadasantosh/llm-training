@@ -26,10 +26,10 @@
 @use "publications";
 @use "components";
 @use "utilities";
-@use "calc-cards";
 
 // Other specialized styles
 @use "distill";
+@use "calc-cards"; // Must come after distill to override its styles
 @use "cv";
 @use "tabs";
 @use "teachings";
