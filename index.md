@@ -635,14 +635,46 @@ W_out = H × V   = 4,096 × 128,256             =    525,336,576  ≈ 525 M
 
 ---
 
-Now that we have $$ \phi \approx 8.03\text{ B}$$, we can calculate the exact memory cost for each training component. Parameters stored in FP32 occupy 4 bytes; in BF16/FP16 they occupy 2 bytes. For  Parameters, Gradients Llama3 models use BF16 [Precision](https://huggingface.co/meta-llama/Meta-Llama-3-8B/blob/main/config.json#L23) 
+Now that we have $$ \phi \approx 8.03\text{ B}$$, we can calculate the exact 
+memory cost for each training component. Parameters in FP32 occupy 4 bytes each — in BF16/FP16 they occupy 2 bytes. HuggingFace stores Llama-3 weights in BF16 for inference ref from [hugging-face](https://huggingface.co/meta-llama/Meta-Llama-3-8B/blob/main/config.json#L23). 
 
+Inference only requires a forward pass — no gradients, no optimizer updates — so storing parameters in a single precision works fine. Training is a different story.
+
+During training we need to run both forward and backward passes, compute gradients, and update parameters using optimizer states. If we store everything in BF16, we get a real speed advantage — GPU architectures from A100 onwards include Tensor Cores that 
+deliver significantly higher throughput for BF16/FP16 matrix multiplications than FP32. But using BF16 everywhere creates a serious problem.
+
+Gradient values can be very small, and BF16's limited precision rounds small values to zero — losing the update entirely. The same applies to optimizer states, where Adam's moment estimates need to track subtle changes across millions of steps. Lost precision here 
+leads directly to training instability and poor convergence.
+
+The solution is mixed precision — use BF16 where speed matters, FP32 where precision matters. The steps below show how this plays out across one training step:
+
+
+1.Forward Pass
+    Parameters (BF16) → fast matrix multiplications 
+    using Tensor Cores → Output (BF16)
+2.Backward Pass:
+    Gradients computed in BF16 initially
+    Gradients accumulated/reduced in FP32  ← precision is more important  
+3.Optimizer Step
+    FP32 gradients + FP32 optimizer states → parameter update (FP32)  
+4. Parameter Cast
+  Updated parameters cast back to BF16 ← ready for next forward pass
+
+
+
+
+
+| Component| Precision| Bytes| 
+| :---| ---: | ---:|
+| Parameters($\nphi$) working copy|  BF16 | 2 Bytes |
+| Parameters($\nphi$) master copy| FP32 | 4 Bytes |
+| Gradients Acc| FP32 | 4 Bytes|
+| Optimizer States| FP32 | 4 Bytes |
+   
 
 $$\phi = \text{VH} + L[(2+2g/n)H^2 + 3Hf + 2H] + H + \text{VH}$$
 $$\text{Gradients}(\nabla W) = \phi$$
 $$\text{Optimizer States } (m,v) = 2\phi$$
-
-
 
 
 ### How model architecture amplifies the problem
