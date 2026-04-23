@@ -344,7 +344,7 @@ moving to Activations which require a different approach.
 </figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 5: Configurations Influencing Model Size</figcaption>
 </figure>
 
-#### Parameter Count
+#### Parameters
 
 In order to understand how much memory is consumed by parameters, gradients, optimizer
 states, and activations, we first need to walk through every learnable component in
@@ -540,7 +540,7 @@ model dimension grows from 4,096 to 16,384, and FFN dimension jumps from 14,336 
   {% include figure.liquid path="assets/img/llm-training/section-3/Llama-3-config.png" class="img-medium" caption="Figure-4: Llama 3 Configurations" %}
 </figure>
 
-#### Activations Computations
+#### Activations
 The basic building block of every Large Language Model is a single Transformer block. Each block consists of three components in sequence — Layer Norm → Attention → Layer Norm -> MLP. Inside the MLP, data passes through several layers, each producing an intermediate output before passing it forward. These intermediate outputs are Activations. During the forward pass, the output of layer n becomes the input to layer n+1 — that output is an activation. This happens at every layer, across every block, for every sample in the batch.
 
 The backward pass needs to compute gradients for every layer  and to do that it needs the activations that were produced during the forward pass (see <a href="#table-backward-pass">Table 2</a>). This means all activations from the entire forward pass must be held in memory until backpropagation is complete. Unlike Parameters, Gradients, and Optimizer States whose memory cost is fixed by model architecture, Activations scale with both Batch Size and Sequence Length — which is what makes them the most unpredictable component of your memory budget.
