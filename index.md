@@ -121,7 +121,7 @@ backward pass. Let's look at the equations behind it.
 {% include figure.liquid path="assets/img/llm-training/section-2/backward-pass.svg" class="img-medium" caption="Figure-3: Backward Pass" %}
 </figure>
 
-<figure>
+<figure id="table-backward-pass">
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px; border:2px dashed #555;">
   <thead>
     <tr style="text-align:left;">
@@ -540,8 +540,10 @@ model dimension grows from 4,096 to 16,384, and FFN dimension jumps from 14,336 
   {% include figure.liquid path="assets/img/llm-training/section-3/Llama-3-config.png" class="img-medium" caption="Figure-4: Llama 3 Configurations" %}
 </figure>
 
-#### Activations
-Short intro
+#### Activations Computations
+The basic building block of every Large Language Model is a single Transformer block. Each block consists of three components in sequence — Layer Norm → Attention → Layer Norm -> MLP. Inside the MLP, data passes through several layers, each producing an intermediate output before passing it forward. These intermediate outputs are Activations. During the forward pass, the output of layer n becomes the input to layer n+1 — that output is an activation. This happens at every layer, across every block, for every sample in the batch.
+
+The backward pass needs to compute gradients for every layer  and to do that it needs the activations that were produced during the forward pass (see <a href="#table-backward-pass">Table 2</a>). This means all activations from the entire forward pass must be held in memory until backpropagation is complete. Unlike Parameters, Gradients, and Optimizer States whose memory cost is fixed by model architecture, Activations scale with both Batch Size and Sequence Length — which is what makes them the most unpredictable component of your memory budget.
 
 ### How Much Memory Are We Actually Talking About?
 
