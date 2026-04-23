@@ -548,6 +548,8 @@ These activations are not just temporary values they are critical for the The ba
 
 ### Per-Block Activation Memory Breakdown
 
+<div class="table-responsive">
+
 | Step | Operation | Shape | Llama 3 8B Dim | Memory (Bytes) |
 | :--- | :--- | :--- | :--- | :--- |
 | **1** | **RMSNorm (Attn)** | $(B, S, H)$ | $(B, S, 4096)$ | $2 \cdot BSH$ |
@@ -563,6 +565,7 @@ These activations are not just temporary values they are critical for the The ba
 | **4.b** | **Up Proj** | $(B, S, f)$ | $(B, S, 14336)$ | $2 \cdot BSf$ |
 | **4.c** | **Down Proj** | $(B, S, H)$ | $(B, S, 4096)$ | $2 \cdot BSH$ |
 {: .table .table-sm .table-bordered .table-hover .text-center}
+</div>
 
 2. Why this is the "Flexible" approachBootstrap Integration: The {: .table .table-bordered ...} line at the bottom of the table tells Kramdown to wrap the table in those specific CSS classes. Since your theme is built on Bootstrap, it will instantly look like your existing tables.Theme Consistency: If you ever decide to change your site's font or color scheme, these tables will update automatically.Readability: You can easily see your technical notations (like $BSH$) in the source code without digging through <tr> and <td> tags.3. Implementation ChecklistMath Rendering: Ensure your _config.yml or the front matter of your post has mathjax: true or katex: true enabled so the LaTeX symbols ($B, S, H$) render correctly.Responsive Wrapper: If your tables are very wide (especially with $128\text{k}$ context discussions), you can wrap the entire Markdown table in a single HTML div:HTML<div class="table-responsive">
   [Markdown Table Here]
