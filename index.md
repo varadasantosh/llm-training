@@ -344,7 +344,7 @@ moving to Activations which require a different approach.
 </figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 5: Configurations Influencing Model Size</figcaption>
 </figure>
 
-#### Parameters
+#### **Parameters**
 
 In order to understand how much memory is consumed by parameters, gradients, optimizer
 states, and activations, we first need to walk through every learnable component in
@@ -530,7 +530,7 @@ This sums up to **18 bytes per parameter** for mixed precision training with Ada
 
 Next we look at Activations — the dynamic component whose memory cost changes with every training configuration (**Batch Size, Sequnece Length**).
 
-#### Activations
+#### **Activations**
 There are various types of Large Language Models (LLM,VLLM,Difussion LLM),While specific design and Architecture vary by modality and its purpose(chat, completions).  the fundamental building block remains the Transformer Block consisting of Layer Norm → Attention → Layer Norm -> MLP. Inside the MLP, data passes through several layers, Zooming into the MLP either Feed Forward or MoE, we see data flowing through sequence of layers.  During the forward pass, the output of layer $L_{n-1}$ serves as the input for layer $L_n$; these intermediate outputs are known as Activations.
 
 each producing an intermediate output before passing it forward. These intermediate outputs are Activations. During the forward pass, the output of layer n becomes the input to layer n+1 — that output is an activation. This happens at every layer, across every block, for every sample in the batch.
@@ -566,10 +566,6 @@ These activations are not just temporary values they are critical for the The ba
 {: .table .table-sm .table-bordered .table-hover .text-center}
 
 
-2. Why this is the "Flexible" approachBootstrap Integration: The {: .table .table-bordered ...} line at the bottom of the table tells Kramdown to wrap the table in those specific CSS classes. Since your theme is built on Bootstrap, it will instantly look like your existing tables.Theme Consistency: If you ever decide to change your site's font or color scheme, these tables will update automatically.Readability: You can easily see your technical notations (like $BSH$) in the source code without digging through <tr> and <td> tags.3. Implementation ChecklistMath Rendering: Ensure your _config.yml or the front matter of your post has mathjax: true or katex: true enabled so the LaTeX symbols ($B, S, H$) render correctly.Responsive Wrapper: If your tables are very wide (especially with $128\text{k}$ context discussions), you can wrap the entire Markdown table in a single HTML div:HTML<div class="table-responsive">
-  [Markdown Table Here]
-</div>
-4. Technical Final CheckGQA Notation: I used $(B, S, g \cdot d_k)$ for K/V projections to maintain clarity, as it explicitly highlights the memory savings from Grouped Query Attention.SwiGLU Dimension: Using $f$ (where $f=14,336$) for the MLP layers aligns with the Llama 3 technical specifications you've been working with.Does this clean, attribute-based format make it easier for you to assemble the final blog post?
 
 
 
