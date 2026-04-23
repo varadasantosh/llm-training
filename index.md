@@ -370,6 +370,137 @@ Steps common to both architectures
 
 {% include tables/architecture-comparison.liquid %}
 
+<style>
+.arch-table{width:100%;border-collapse:collapse;font-family:monospace;font-size:0.8rem;border:1px dashed #bbb}
+.arch-table td,.arch-table th{border:1px dashed #ccc;padding:9px 14px;vertical-align:top;background:#fff;color:#111}
+.arch-table thead th{font-weight:600}
+.arch-table .section-header{background:#f2f2f2;color:#a030b0;font-size:0.72rem;letter-spacing:.05em;font-weight:500;padding:5px 14px;border-top:1px dashed #bbb}
+.arch-table .col-header-classic{color:#9030b0;font-size:0.72rem;font-weight:600}
+.arch-table .col-header-llama{color:#1a50c8;font-size:0.72rem;font-weight:600}
+.arch-table .main{font-weight:500;margin-bottom:2px}
+.arch-table .sub{font-size:0.68rem;color:#666;margin-top:2px}
+.arch-table .note{font-size:0.68rem;color:#b030a0;margin-top:3px}
+.arch-table .comp{font-weight:600}
+</style>
+
+<table class="arch-table">
+  <thead>
+    <tr>
+      <th style="width:18%"><span class="comp">COMPONENT</span></th>
+      <th style="width:41%">
+        <div class="col-header-classic">CLASSIC TRANSFORMER</div>
+        <div class="sub">MHA · FFN · LAYERNORM · WITH BIAS</div>
+      </th>
+      <th style="width:41%">
+        <div class="col-header-llama">LLAMA 3</div>
+        <div class="sub">GQA · SWIGLU · RMSNORM · NO BIAS</div>
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+
+    <!-- EMBEDDING SECTION -->
+    <tr><td colspan="3" class="section-header">EMBEDDING · ONCE</td></tr>
+    <tr>
+      <td class="comp">W_E</td>
+      <td><div class="main">V × H</div></td>
+      <td><div class="main">V × H</div></td>
+    </tr>
+    <tr>
+      <td><span class="comp">Position</span></td>
+      <td><div class="main">Sinusoidal</div><div class="sub">0 params · pre-block</div></td>
+      <td><div class="main">RoPE</div><div class="sub">0 params · inside attention</div></td>
+    </tr>
+
+    <!-- PER LAYER SECTION -->
+    <tr><td colspan="3" class="section-header">PER TRANSFORMER LAYER (× L)</td></tr>
+    <tr>
+      <td><span class="comp">Norm</span><div class="sub">pre-attention</div></td>
+      <td><div class="main">LayerNorm 2H</div><div class="sub">scale γ + shift β · post-norm</div></td>
+      <td><div class="main">RMSNorm H</div><div class="sub">scale γ only · pre-norm</div></td>
+    </tr>
+    <tr>
+      <td class="comp">W_Q</td>
+      <td>
+        <div class="main">H × H + H</div>
+        <div class="sub">Weights: H*H</div>
+        <div class="sub">Bias: H</div>
+      </td>
+      <td>
+        <div class="main">H × H + H</div>
+        <div class="sub">Weights: H*H</div>
+        <div class="sub">Bias: H</div>
+      </td>
+    </tr>
+    <tr>
+      <td class="comp">W_K, W_V</td>
+      <td>
+        <div class="main">2 × (H × H + H)</div>
+        <div class="sub">Weights: H * H</div>
+        <div class="sub">Bias: H</div>
+      </td>
+      <td>
+        <div class="main">2 × [H × (g/n)H]</div>
+        <div class="sub">n = number of Q heads</div>
+        <div class="sub">g = number of KV heads</div>
+      </td>
+    </tr>
+    <tr>
+      <td class="comp">W_O</td>
+      <td>
+        <div class="main">H × H + H</div>
+        <div class="sub">Weights: H * H</div>
+        <div class="sub">Bias: H</div>
+      </td>
+      <td>
+        <div class="main">H × H</div>
+        <div class="sub">Weights: H * H</div>
+        <div class="sub">Bias: H</div>
+      </td>
+    </tr>
+    <tr>
+      <td><span class="comp">Norm</span><div class="sub">pre-MLP</div></td>
+      <td><div class="main">LayerNorm 2H</div></td>
+      <td><div class="main">RMSNorm H</div></td>
+    </tr>
+    <tr>
+      <td class="comp">MLP / FFN</td>
+      <td>
+        <div class="main">2 × (H × 4H + 4H)</div>
+        <div class="sub">Up Projection: h ⇒ 4h (weights: h*4h, bias: 4h)</div>
+        <div class="sub">Down Projection 4h ⇒ h (weights: 4h*h, bias: h)</div>
+      </td>
+      <td>
+        <div class="main">3 × (H × f)</div>
+        <div class="sub">MLP(x) = (SiLU(xW<sub>g</sub>) · xW<sub>u</sub>)W<sub>d</sub></div>
+        <div class="sub">Gate Projection (Wg): H * f</div>
+        <div class="sub">Up Projection (Wu): H * f</div>
+        <div class="sub">Down Projection (Wd): H * f</div>
+        <div class="note">f ≈ 3.5*h (SwiGLU Gate/Up/Down)</div>
+      </td>
+    </tr>
+
+    <!-- OUTPUT SECTION -->
+    <tr><td colspan="3" class="section-header">OUTPUT · ONCE</td></tr>
+    <tr>
+      <td class="comp">Final Norm</td>
+      <td><div class="main">LayerNorm 2H</div></td>
+      <td><div class="main">RMSNorm H</div></td>
+    </tr>
+    <tr>
+      <td class="comp">LM Head</td>
+      <td><div class="main">Tied to W_E</div><div class="sub">0 extra params</div></td>
+      <td><div class="main">H × V</div><div class="sub">Separate matrix</div></td>
+    </tr>
+    <tr>
+      <td><span class="comp">TOTAL</span><div class="sub">ESTIMATE</div></td>
+      <td style="font-size:0.75rem">VH + L(12H² + 13H) + 2H</td>
+      <td style="font-size:0.75rem">VH + L[(2+2g/n)H² + 3Hf + 2H] + H + VH</td>
+    </tr>
+
+  </tbody>
+</table>
+
 
 
 

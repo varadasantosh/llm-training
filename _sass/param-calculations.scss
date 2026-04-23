@@ -1,0 +1,35 @@
+.arch-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: $font-family-monospace;
+  font-size: 0.8rem;
+  border: 1px dashed #bbb;
+
+  td, th {
+    border: 1px dashed #ccc;
+    padding: 9px 14px;
+    vertical-align: top;
+    background: #fff;       // no alternating shading
+    color: #111;
+  }
+
+  thead th { font-weight: 600; }
+
+  .section-header {
+    background: #f2f2f2;    // plain light gray, not purple-tinted
+    color: #a030b0;
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+    font-weight: 500;
+    padding: 5px 14px;
+    border-top: 1px dashed #bbb;
+  }
+
+  .col-header-classic { color: #9030b0; font-size: 0.72rem; font-weight: 600; }
+  .col-header-llama   { color: #1a50c8; font-size: 0.72rem; font-weight: 600; }
+
+  .main { font-weight: 500; margin-bottom: 2px; }
+  .sub  { font-size: 0.68rem; color: #666; margin-top: 2px; }
+  .note { font-size: 0.68rem; color: #b030a0; margin-top: 3px; }
+  .comp { font-weight: 600; }
+}
