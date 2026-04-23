@@ -5,12 +5,17 @@
   font-size: 0.82rem;
   border: 1px dashed #bbb;
 
+  th{
+
+    padding: 18px 10px;
+    background-color: var(--global-card-bg-color);
+    text-transform: uppercase;
+  }
+
   td, th {
-    border: 1px dashed #ccc;
-    padding: 9px 14px;
-    vertical-align: top;
-    background: #fff;       // no alternating shading
-    color: #111;
+    padding: 12px 10px;
+    border-bottom: 1px solid var(--global-divider-color);
+    vertical-align: middle;
   }
 
   thead th { font-weight: 600; }
