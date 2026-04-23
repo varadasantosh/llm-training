@@ -476,7 +476,7 @@ Steps common to both architectures
         <div class="sub">Gate Projection (Wg): H * f</div>
         <div class="sub">Up Projection (Wu): H * f</div>
         <div class="sub">Down Projection (Wd): H * f</div>
-        <div class="note">f ≈ 3.5*h (SwiGLU Gate/Up/Down)</div>
+        <div class="sub"><a href="https://github.com/meta-llama/llama-models/blob/main/models/llama3/model.py#L214" target="_blank">f ≈ 3.5*h (SwiGLU Gate/Up/Down)</a>f ≈ 3.5*h (SwiGLU Gate/Up/Down)</div>
       </td>
     </tr>
 
