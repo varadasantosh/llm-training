@@ -530,6 +530,47 @@ This sums up to **18 bytes per parameter** for mixed precision training with Ada
 
 Next we look at Activations — the dynamic component whose memory cost changes with every training configuration (**Batch Size, Sequnece Length**).
 
+#### Activations
+There are various types of Large Language Models (LLM,VLLM,Difussion LLM),While specific design and Architecture vary by modality and its purpose(chat, completions).  the fundamental building block remains the Transformer Block consisting of Layer Norm → Attention → Layer Norm -> MLP. Inside the MLP, data passes through several layers, Zooming into the MLP either Feed Forward or MoE, we see data flowing through sequence of layers.  During the forward pass, the output of layer $L_{n-1}$ serves as the input for layer $L_n$; these intermediate outputs are known as Activations.
+
+each producing an intermediate output before passing it forward. These intermediate outputs are Activations. During the forward pass, the output of layer n becomes the input to layer n+1 — that output is an activation. This happens at every layer, across every block, for every sample in the batch.
+
+These activations are not just temporary values they are critical for the The backward pass to compute gradients during backpropagation, at every layer we need activations that were produced during the forward pass (see <a href="#table-backward-pass">Table 2</a>). This means all activations from the entire forward pass must be held in memory until backpropagation is complete. Unlike Parameters, Gradients, and Optimizer States whose memory cost is fixed by model architecture, Activations scale with both Batch Size and Sequence Length — which is what makes them the most unpredictable component of all that lives on GPU.
+
+| Component | Classic Transformer (MHA) | Llama 3 (GQA / SwiGLU) |
+| :--- | :--- | :--- |
+| **Position Coding** | Sinusoidal (Fixed) | **RoPE** (Inside Attention) |
+| **Normalization** | LayerNorm (Scale + Shift) | **RMSNorm** (Scale Only) |
+| **Attention** | $H \times H$ (Q, K, V) | **$H \times H$ (Q), $g \times d_k$ (K, V)** |
+| **MLP / FFN** | $2 \times (H \times 4H)$ | **$3 \times (H \times f)$** |
+{: .table .table-sm .table-bordered .table-hover .text-center}
+
+
+### Per-Block Activation Memory Breakdown
+
+| Step | Operation | Shape | Llama 3 8B Dim | Memory (Bytes) |
+| :--- | :--- | :--- | :--- | :--- |
+| **1** | **RMSNorm (Attn)** | $(B, S, H)$ | $(B, S, 4096)$ | $2 \cdot BSH$ |
+| **2.a** | **Q Projection** | $(B, S, H)$ | $(B, S, 4096)$ | $2 \cdot BSH$ |
+| **2.b** | **K Projection** | $(B, S, g \cdot d_k)$ | $(B, S, 1024)$ | $0.5 \cdot BSH$ |
+| **2.c** | **V Projection** | $(B, S, g \cdot d_k)$ | $(B, S, 1024)$ | $0.5 \cdot BSH$ |
+| **2.d** | **Score ($QK^T$)** | $(B, N, S, S)$ | $(B, 32, S, S)$ | $2 \cdot BnS^2$ |
+| **2.e** | **Softmax** | $(B, N, S, S)$ | $(B, 32, S, S)$ | $2 \cdot BnS^2$ |
+| **2.f** | **Attn Output** | $(B, S, H)$ | $(B, S, 4096)$ | $2 \cdot BSH$ |
+| **2.g** | **O Projection** | $(B, S, H)$ | $(B, S, 4096)$ | $2 \cdot BSH$ |
+| **3** | **RMSNorm (MLP)** | $(B, S, H)$ | $(B, S, 4096)$ | $2 \cdot BSH$ |
+| **4.a** | **Gate Proj** | $(B, S, f)$ | $(B, S, 14336)$ | $2 \cdot BSf$ |
+| **4.b** | **Up Proj** | $(B, S, f)$ | $(B, S, 14336)$ | $2 \cdot BSf$ |
+| **4.c** | **Down Proj** | $(B, S, H)$ | $(B, S, 4096)$ | $2 \cdot BSH$ |
+{: .table .table-sm .table-bordered .table-hover .text-center}
+
+2. Why this is the "Flexible" approachBootstrap Integration: The {: .table .table-bordered ...} line at the bottom of the table tells Kramdown to wrap the table in those specific CSS classes. Since your theme is built on Bootstrap, it will instantly look like your existing tables.Theme Consistency: If you ever decide to change your site's font or color scheme, these tables will update automatically.Readability: You can easily see your technical notations (like $BSH$) in the source code without digging through <tr> and <td> tags.3. Implementation ChecklistMath Rendering: Ensure your _config.yml or the front matter of your post has mathjax: true or katex: true enabled so the LaTeX symbols ($B, S, H$) render correctly.Responsive Wrapper: If your tables are very wide (especially with $128\text{k}$ context discussions), you can wrap the entire Markdown table in a single HTML div:HTML<div class="table-responsive">
+  [Markdown Table Here]
+</div>
+4. Technical Final CheckGQA Notation: I used $(B, S, g \cdot d_k)$ for K/V projections to maintain clarity, as it explicitly highlights the memory savings from Grouped Query Attention.SwiGLU Dimension: Using $f$ (where $f=14,336$) for the MLP layers aligns with the Llama 3 technical specifications you've been working with.Does this clean, attribute-based format make it easier for you to assemble the final blog post?
+
+
+
 ### How model architecture amplifies the problem
 
 Below <a href="#llama-3-config" >table </a> from Llama-3 [paper](https://arxiv.org/pdf/2407.21783) clearly demonstrates how model architecture influence size of the models & how these  configurations change across models of different sizes: layers go from 32 to 126, 
@@ -540,10 +581,6 @@ model dimension grows from 4,096 to 16,384, and FFN dimension jumps from 14,336 
   {% include figure.liquid path="assets/img/llm-training/section-3/Llama-3-config.png" class="img-medium" caption="Figure-4: Llama 3 Configurations" %}
 </figure>
 
-#### Activations
-The basic building block of every Large Language Model is a single Transformer block. Each block consists of three components in sequence — Layer Norm → Attention → Layer Norm -> MLP. Inside the MLP, data passes through several layers, each producing an intermediate output before passing it forward. These intermediate outputs are Activations. During the forward pass, the output of layer n becomes the input to layer n+1 — that output is an activation. This happens at every layer, across every block, for every sample in the batch.
-
-The backward pass needs to compute gradients for every layer  and to do that it needs the activations that were produced during the forward pass (see <a href="#table-backward-pass">Table 2</a>). This means all activations from the entire forward pass must be held in memory until backpropagation is complete. Unlike Parameters, Gradients, and Optimizer States whose memory cost is fixed by model architecture, Activations scale with both Batch Size and Sequence Length — which is what makes them the most unpredictable component of your memory budget.
 
 ### How Much Memory Are We Actually Talking About?
 
