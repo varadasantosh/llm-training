@@ -33,7 +33,7 @@ Technology has a pattern — every few decades, evolution in technology challeng
 just make communication cheaper, it shrunk the entire world. These 
 weren't incremental improvements, they were resets.
 
-Machine Learning is going through one such moments right now.
+Machine Learning is going through one such moment right now.
 
 <!-- Add timeline of ML evolution -->
 
@@ -63,7 +63,7 @@ What this blog focuses on is a challenge that sits underneath all of those phase
 
 ## The Training Loop-A Quick Refresher
 
-The PyTorch training loop is something most of us know well. But before diving into parallelism techniques, a clear understanding of how the forward and backward passes work creates a baseline for every thing that follows — hence it is worth revisiting the mechanics before moving forward.
+The PyTorch training loop is something most of us know well. But before diving into parallelism techniques, a clear understanding of how the forward and backward passes work creates a baseline for everything that follows — hence it is worth revisiting the mechanics before moving forward.
 
 {% highlight python %}
   def train_step(model, optimizer, batch):
@@ -158,7 +158,7 @@ backward pass. Let's look at the equations behind it.
     </tr>
     <tr>
       <td style="padding:10px 12px; white-space:nowrap; border:2px dashed #555;">w.r.t Activations $A_1$</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">Passed to preceeding layer</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Passed to preceding layer</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$\frac{\nabla L}{\nabla A_1} = \frac{\nabla L}{\nabla \hat{Y}} \cdot W_2$</td>
     </tr>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
@@ -280,7 +280,7 @@ But even if we had infinite time, there's another fundamental constraint: **memo
     </tr>
     <tr>
       <td style="padding:10px 12px; border:2px dashed #555;">High-End CPU</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">~11.37 TFLOPS ($5.36 \times 10^{12}$ FLOPS)</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">~11.37 TFLOPS (11.37 \times 10^{12}$ FLOPS)</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$\frac{3.8 \times 10^{25}}{11.37 \times 10^{12}} = 3.342 \times 10^{12}$ sec</td>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>~105,900 Years</strong></td>
     </tr>
@@ -546,7 +546,7 @@ d = H/n = 128 (per-head dimension)
 <aside>
   <strong>Why f = 14,336?</strong><br>
   Llama 3 derives the FFN width as
-  int(ffn_dim_multiplier × int(2H/3)) rounded up to the nearest
+  int(ffn_dim_multiplier × int(8H/3)) rounded up to the nearest
   multiple_of = 1,024. With ffn_dim_multiplier = 1.3 this gives
   int(1.3 × 2,730) = 3,549, × 4 = 14,196, rounded up → <strong>14,336</strong>.
 </aside>
@@ -631,12 +631,11 @@ W_out = H × V   = 4,096 × 128,256             =    525,336,576  ≈ 525 M
 ---
 
 Now that we have $$ \phi \approx 8.03\text{ B}$$, we can calculate the exact 
-memory cost for each training component. Parameters in FP32 occupy 4 bytes each — in BF16/FP16 they occupy 2 bytes. HuggingFace stores Llama-3 weights in BF16 for inference ref from [hugging-face](https://huggingface.co/meta-llama/Meta-Llama-3-8B/blob/main/config.json#L23). 
+memory cost for each training component. Parameters in FP32 occupy 4 bytes each — in BF16/FP16 they occupy 2 bytes. HuggingFace stores Llama-3 weights in BF16 for inference [hugging-face](https://huggingface.co/meta-llama/Meta-Llama-3-8B/blob/main/config.json#L23). 
 
 Inference only requires a forward pass — no gradients, no optimizer updates — so storing parameters in a single precision works fine. Training is a different story.
 
-During training we need to run both forward and backward passes, compute gradients, and update parameters using optimizer states. If we store everything in BF16, we get a real speed advantage — GPU architectures from A100 onwards include Tensor Cores that 
-deliver significantly higher throughput for BF16/FP16 matrix multiplications than FP32. But using BF16 everywhere we are trading accuracy with high throughput .
+During training we need to run both forward and backward passes, compute gradients, and update parameters using optimizer states. If we store everything in BF16, we get a real speed advantage — GPU architectures from Volta onwards include Tensor Cores that deliver significantly higher throughput for Matrix multiplications, later architectures from A100 introduced support for BF16/FP16 data types. But using BF16 everywhere we are trading accuracy for high throughput .
 
 Gradient values can be very small, and BF16's limited precision rounds small values to zero — losing the update entirely. The same applies to optimizer states, where Adam's moment estimates need to track subtle changes across millions of steps. Lost precision here 
 leads directly to training instability and poor convergence.
@@ -644,16 +643,14 @@ leads directly to training instability and poor convergence.
 The solution is mixed precision — use BF16 where speed matters, FP32 where precision matters. The steps below show how this plays out across one training step:
 
 
-1. Forward Pass
-    Parameters (BF16) → fast matrix multiplications 
-    using Tensor Cores → Output (BF16)
-2. Backward Pass:
-    Gradients computed in BF16 initially
-    Gradients accumulated/reduced in FP32  ← precision is more important  
-3. Optimizer Step
-    FP32 gradients + FP32 optimizer states → parameter update (FP32)  
-4. Parameter Cast
-    Updated parameters cast back to BF16 ← ready for next forward pass
+1. **Forward Pass** — parameters are kept in BF16; fast Tensor Core matrix
+     multiplications run in BF16, producing BF16 activations and outputs.
+2. **Backward Pass** — gradients are initially computed in BF16, then
+     accumulated and reduced in FP32 to preserve precision on small values.
+3. **Optimizer Step** — FP32 gradients and FP32 optimizer states (Adam's
+     $m_t$, $v_t$) are used to compute the parameter update entirely in FP32.
+4. **Parameter Cast** — the updated FP32 master weights are cast back to BF16,
+     ready for the next forward pass.
 
 
 | Component| Precision| Bytes| 
@@ -681,13 +678,28 @@ Since Gradients and Optimizer States scale directly with parameter count, we can
 
 This sums up to **18 bytes per parameter** for mixed precision training with Adam Optimizer For Llama-3 8B with $$\phi \approx 8.03\text{B}$$ parameters, static components alone require approximately **144GB** — nearly double the H100's 80GB VRAM, 144GB memory is required before a single activation is stored.
 
-Next we look at Activations — the dynamic component whose memory cost changes with every training configuration (**Batch Size, Sequnece Length**).
+Next we look at Activations — the dynamic component whose memory cost changes with every training configuration (**Batch Size, Sequence Length**).
 
 #### Activations
-There are various types of Large Language Models (LLM,VLLM,Difusion LLM),while specific design and architecture vary by modality and its purpose(chat, completions). The fundamental building block remains the Transformer Block consisting of Layer Norm → Attention → Layer Norm -> MLP. Inside the MLP, data passes through several layers, Zooming into the MLP either Feed Forward or MoE, we see data flowing through sequence of layers.  During the forward pass, the output of layer $L_{n-1}$ serves as the input for layer $L_n$; these intermediate outputs are known as Activations. 
 
-These activations are not just temporary they are critical for backward pass to compute gradients during backpropagation, at every layer we need activations that were produced during the forward pass (see <a href="#table-backward-pass">Table 2</a>). This means all activations from the entire forward pass must be held in memory until backpropagation is complete. Unlike Parameters, Gradients, and Optimizer States whose memory cost is fixed by model architecture, Activations scale with both Batch Size and Sequence Length — which is what makes them the most unpredictable component of all that lives on GPU, like mentioned earlier data goes through different layers input => L* transformer blocks => output. The largest portion of activation memory lives inside the transformer blocks — the table below breaks this down component by component for one Llama-3 block.
+Regardless of architecture variant, every transformer-based LLM shares the same
+fundamental structure: input tokens flow through an embedding layer, then through
+L repeated transformer blocks (each containing Attention and an MLP/FFN), and
+finally through an output projection. At each step, the output of one operation
+becomes the input to the next — these intermediate outputs are called **Activations**. 
 
+Activations are not discarded after the forward pass. The backward pass requires
+the activation produced at each layer to compute the gradient for that layer's
+weights (see <a href="#table-backward-pass">Table 2</a>). This means every
+activation from the entire forward pass must stay in memory until backpropagation
+finishes.
+
+This is what separates activations from the static components. Parameters,
+Gradients, and Optimizer States are fixed by model architecture — their memory
+cost is constant for a given model. Activations scale with **Batch Size** and
+**Sequence Length**, and at large scales they easily dwarf the static footprint.
+The largest share of activation memory sits inside the transformer blocks —
+the table below breaks this down operation by operation for one Llama 3 block.
 
 
 ##### Per-Block Activation Memory Breakdown
@@ -716,6 +728,7 @@ These activations are not just temporary they are critical for backward pass to 
       <td class="comp">1.b</td>
       <td><div class="main">RMSNorm (Pre-Attn)</div></td>
       <td><div class="main">$(B, S, H)$</div></td>
+      <td><div class="main">$2 \cdot BSH$</div></td>
     </tr>
     
     <tr>
@@ -845,10 +858,10 @@ The [Llama 3 paper (Section 3.4)](https://arxiv.org/pdf/2407.21783#section.3.4) 
 
 **Example Calculation for Llama-3 8B:**
 
-while the sequence length is gradually increased, for simiplicity let us consider that Llama-3 8B uses configurations **S=8192, H=4096, f=14,336**. Considering a batch of single sequence **(B=1)** with BF16/FP16 precision: -  without **FlashAttention** Activation memory per transformer block ≈ **9.78GB**. For L=32 blocks: **32 × 9.78GB = 312.96 GB** -  with **FlashAttention:** this reduces to approximately **~37GB** (eliminating the O(S²) attention score storage)
+while the sequence length is gradually increased, for simplicity let us consider that Llama-3 8B uses configurations **S=8192, H=4096, f=14,336**. Considering a batch of single sequence **(B=1)** with BF16/FP16 precision: -  without **FlashAttention** Activation memory per transformer block ≈ **9.78GB**. For L=32 blocks: **32 × 9.78GB = 312.96 GB** -  with **FlashAttention:** this reduces to approximately **~37GB** (eliminating the O(S²) attention score storage)
 
 ```
-Term 1: 17 × 8192 × 4096  =  637,534,208 bytes   ≈  0.53 GB
+Term 1: 17 × 8192 × 4096  =  57,04,25,344 bytes   ≈  0.53 GB
 Term 2: 4 × 32 × 8192²    =  8,589,934,592 bytes ≈  8.59 GB
 Term 3: 6 × 8192 × 14336  =  704,643,072 bytes   ≈  0.66 GB
 ─────────────────────────────────────────────────────────────
@@ -856,8 +869,8 @@ Per block total            ≈  9.78 GB
 × 32 blocks                ≈  312.96 GB  (baseline, no FA)
 
 
-Term 1: 17 × 8192 × 4096  =  637,534,208 bytes  ≈  0.53 GB
-Term 2: 4 × 32 × 8192     =  10,48,576 bytes    ≈  0.0009 GB
+Term 1: 17 × 8192 × 4096  =  57,04,25,344 bytes  ≈  0.53 GB
+Term 2: 4 × 32 × 8192     =  1,048,576 bytes    ≈  0.001 GB
 Term 3: 6 × 8192 × 14336  =  704,643,072 bytes  ≈  0.66 GB
 ─────────────────────────────────────────────────────────────
 Per block total            ≈  1.19 GB
@@ -874,15 +887,48 @@ Per block total            ≈  1.19 GB
 
 ### Putting it All Together
 
-Below <a href="#llama-3-config" >table </a> from Llama-3 [paper](https://arxiv.org/pdf/2407.21783) clearly demonstrates how model architecture influence size of the models & how these  configurations change across models of different sizes: layers go from 32 to 126, model dimension grows from 4,096 to 16,384, and FFN dimension jumps from 14,336 to 53,248. Every one of these numbers is a multiplier on your memory requirement. More layers means more weight matrices to store and more activations to hold in memory during the forward pass. Larger dimensions make each of those weight matrices bigger. Every configuration here directly or indirectly influences the memory required for training — and together they compound fast
+Below <a href="#llama-3-config" >table </a>(from the Llama 3 [paper](https://arxiv.org/pdf/2407.21783)) shows how architecture choices scale across model sizes. From 8B to 405B, the number of layers grows from 32 to 126, the hidden dimension from 4,096 to 16,384, and the FFN intermediate size from 14,336 to 53,248.
 
- 
+Each of these numbers is a direct multiplier on memory. More layers means more
+weight matrices and more activations to hold during the forward pass. A larger
+hidden dimension makes every one of those matrices wider. These factors do not
+add — they compound. A model that is 2× deeper *and* 4× wider does not cost 6×
+more memory; it costs closer to 8×.
+
+Architecture is only one side of the memory equation. Dynamic memory — activations — is driven by the data side: how long each sequence is and how many sequences are processed simultaneously.
+
+Deep learning models are data-hungry. The more capable we want a model to be,
+the more data it must see during training. The Llama series makes this trend
+concrete: Llama 2 was trained on 1.8 trillion tokens, Llama 3 on 15 trillion,
+and Llama 4 on approximately 30 trillion. More tokens means longer training runs,
+larger batch sizes, and correspondingly larger activation footprints at every step.
+
 <figure id="llama-3-config">
   {% include figure.liquid path="assets/img/llm-training/section-3/Llama-3-config.png" class="img-medium" caption="Figure-4: Llama 3 Configurations" %}
 </figure>
 
-Beyond model architecture and configurations mentioned  memory requirements are directly influenced by data used for training especially dynamic memory which is also known as activations. Deep Learning models are hungry — the more capable we want the model to be, the more data it needs to see during training, Llama models made this trend clear, Llama-2 was trained on 1.8 Trillion Tokens, subsequent models Llama-3 was trained on 15 Trillion Tokens and  Llama-4 on 30 Trillion Tokens ,which translates to increase in batch size, number of batches, longer training runs & more compute. 
+To summarize what we have covered in this section:
 
-To summairze we looked at overall training budget allocated for training Llama-3 series models and time it would have taken to train a model using single GPU, how configurations mentioned influence calculations and memory requirements for model to be placed on GPU  - model components are calssified into two categories, static & dynamic components static components don't change with input data, dynamic components change with input data, for an 8B model static components (Parameters, Gradients, Optimizer States) alone take up 144 GB memory &  we considered a batch with single sequence to calculate memory required for activations which is 312 GB without Flash Attention & 32 GB with Flash Attention, in practical scenarios a micro batch (batch allocated one GPU) is not single sequence , size of micro batch is derived from Global Batch Size and number of GPU's used for training, ideally a micro batch might contain 32 sequences , activations required for a minimum batch size of 1 will not fit on GPU along with the static components hence the best case of using Flash Attention
-which requires 38 GB per 1 sequence , it requires 38 GB*32 = 1.18 TB , which is much beyond the 80 GB VRAM available on H100, together this gives us clear idea on why single GPU is not sufficient for training a model
+- **Compute alone makes a single GPU infeasible.** At $3.8 \times 10^{25}$ FLOPs,
+    training Llama 3 405B on a single H100 (67 TFLOPS FP32) would take ~18,000 year even at 100% utilisation.
+
+- **Memory is the harder constraint.** GPU components fall into two categories:
+  *static* (Parameters, Gradients, Optimizer States — fixed by architecture) and
+  *dynamic* (Activations — scale with Batch Size and Sequence Length).
+
+- **Static memory for Llama 3 8B: ~144 GB.** With mixed-precision Adam, each
+  of the 8.03 B parameters requires 18 bytes, totalling ~144 GB — nearly double
+  the H100's 80 GB VRAM before a single activation is stored.
+
+- **Dynamic memory compounds the problem.** For a single sequence (B=1,
+  S=8,192), activation memory per block is ~9.86 GB without FlashAttention and
+  ~1.27 GB with it. Across 32 blocks that is **~315 GB** vs **~41 GB**.
+
+- **A realistic micro-batch makes it far worse.** In practice, the micro-batch
+  on one GPU is not a single sequence. With a global batch of 16 M tokens and
+  16,384 sequences, each of thousands of GPUs processes multiple sequences.
+  Even at a modest 32 sequences per GPU, activation memory with FlashAttention
+  reaches **32 × 41 GB ≈ 1.3 TB** — more than 16× the H100's VRAM.
+
+This is why no single GPU can train a frontier LLM. The following sections explore  how parallelism techniques distribute these memory and compute requirements across thousands of GPUs.
 
