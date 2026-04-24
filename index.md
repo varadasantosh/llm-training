@@ -757,6 +757,14 @@ These activations are not just temporary values they are critical for backward p
       <td><div class="main">$(B, S, H)$</div></td>
       <td><div class="main">$2 \cdot BSH$</div></td>
     </tr>
+     <tr>
+      <td class="comp">4.d</td>
+      <td><div class="main">SiLU Output</div></td>
+      <td><div class="main">$(B, S, H)$</div></td>
+      <td><div class="main">$2 \cdot BSH$</div></td>
+    </tr>
+    <tr><td colspan="4" class="section-header">TOTAL per block</td></tr>
+
   </tbody>
 </table>
 <figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 7: Per-Block Activation Memory Breakdown for Llama 3</figcaption>
