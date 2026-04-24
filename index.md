@@ -16,13 +16,9 @@ toc:
   - name: Why One GPU is Never Enough
     subsections:
       - name: What actually lives on that GPU?
-        subsections:
-          - name: Parameters
-          - name: Activations
-      - name: Putting it All Together     
-      
-
-
+      - name: Parameters
+      - name: Activations
+      - name: Putting it All Together
 
 # bibliography: references.bib
 ---
@@ -66,7 +62,7 @@ What this blog focuses on is a challenge that sits underneath all of those phase
 The PyTorch training loop is something most of us know well. But before diving into parallelism techniques, a clear understanding of how the forward and backward passes work creates a baseline for everything that follows — hence it is worth revisiting the mechanics before moving forward.
 
 {% highlight python %}
-  def train_step(model, optimizer, batch):
+  def train_step(model, optimizer, dataloader):
       for batch in dataloader:
           input,target = batch  
           output = model(input)
@@ -382,7 +378,7 @@ The table below captures the key configurations that drive memory requirements a
 <figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 5: Configurations Influencing GPU Memory Requirements</figcaption>
 </figure>
 
-#### Parameters
+### Parameters
 
 In order to understand how much memory is consumed by parameters, gradients, optimizer
 states, and activations, we first need to walk through every learnable component in
@@ -548,7 +544,7 @@ d = H/n = 128 (per-head dimension)
   Llama 3 derives the FFN width as
   int(ffn_dim_multiplier × int(8H/3)) rounded up to the nearest
   multiple_of = 1,024. With ffn_dim_multiplier = 1.3 this gives
-  int(1.3 × 2,730) = 3,549, × 4 = 14,196, rounded up → <strong>14,336</strong>.
+  int(1.3 × 10,922) =  14,198  rounded up to nearest multiple of 1024 → <strong>14,336</strong>.
 </aside>
 
 ##### 1 — Token embedding  *(once)*
@@ -635,7 +631,7 @@ memory cost for each training component. Parameters in FP32 occupy 4 bytes each 
 
 Inference only requires a forward pass — no gradients, no optimizer updates — so storing parameters in a single precision works fine. Training is a different story.
 
-During training we need to run both forward and backward passes, compute gradients, and update parameters using optimizer states. If we store everything in BF16, we get a real speed advantage — GPU architectures from Volta onwards include Tensor Cores that deliver significantly higher throughput for Matrix multiplications, later architectures from A100 introduced support for BF16/FP16 data types. But using BF16 everywhere we are trading accuracy for high throughput .
+During training we need to run both forward and backward passes, compute gradients, and update parameters using optimizer states. If we store everything in BF16, we get a real speed advantage — GPU architectures from Volta onwards include Tensor Cores that deliver significantly higher throughput for matrix multiplications. Later architectures from A100 added native BF16/FP16 support via Tensor Cores. However, using BF16 everywhere we are trading accuracy for throughput .
 
 Gradient values can be very small, and BF16's limited precision rounds small values to zero — losing the update entirely. The same applies to optimizer states, where Adam's moment estimates need to track subtle changes across millions of steps. Lost precision here 
 leads directly to training instability and poor convergence.
@@ -861,9 +857,9 @@ The [Llama 3 paper (Section 3.4)](https://arxiv.org/pdf/2407.21783#section.3.4) 
 while the sequence length is gradually increased, for simplicity let us consider that Llama-3 8B uses configurations **S=8192, H=4096, f=14,336**. Considering a batch of single sequence **(B=1)** with BF16/FP16 precision: -  without **FlashAttention** Activation memory per transformer block ≈ **9.78GB**. For L=32 blocks: **32 × 9.78GB = 312.96 GB** -  with **FlashAttention:** this reduces to approximately **~37GB** (eliminating the O(S²) attention score storage)
 
 ```
-Term 1: 17 × 8192 × 4096  =  57,04,25,344 bytes   ≈  0.53 GB
+Term 1: 17 × 8192 × 4096  =  570,425,344 bytes   ≈  0.53 GB
 Term 2: 4 × 32 × 8192²    =  8,589,934,592 bytes ≈  8.59 GB
-Term 3: 6 × 8192 × 14336  =  704,643,072 bytes   ≈  0.66 GB
+Term 3: 6 × 8192 × 14336  =  704,643,072 bytes   ≈  0.65 GB
 ─────────────────────────────────────────────────────────────
 Per block total            ≈  9.78 GB
 × 32 blocks                ≈  312.96 GB  (baseline, no FA)
