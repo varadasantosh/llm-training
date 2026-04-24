@@ -780,7 +780,7 @@ These activations are not just temporary they are critical for backward pass to 
     <tr>
       <td colspan="4" style="padding:16px 12px;">
         <div style="text-align:center; font-size:0.9rem;">
-          <strong style="font-size:1rem; color:#c040c0;">$\text{Total} = 15 \cdot BSH + 4 \cdot BnS^2 + 6 \cdot BSf$</strong>
+          <strong style="font-size:1rem; color:#c040c0;">$\text{Total} = 17 \cdot BSH + 4 \cdot BnS^2 + 6 \cdot BSf$</strong>
         </div>
         <div style="margin-top:12px; font-size:0.75rem; color:#666; line-height:1.6;">
           <strong>Breakdown:</strong><br>
@@ -793,13 +793,35 @@ These activations are not just temporary they are critical for backward pass to 
   </tbody>
 </table>
 <figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 7: Per-Block Activation Memory Breakdown for Llama 3 (8B)</figcaption>
-<figcaption style="text-align:center; font-size:12px; color:#888; margin-top:4px; font-style:italic;">
-  <strong>Note:</strong> Llama 3 uses <a href="https://arxiv.org/abs/2205.14135" target="_blank">FlashAttention</a>, which optimizes the attention calculation process by eliminating the necessity for storing intermediate attention scores (Step 2.d) and softmax outputs (Step 2.e), significantly reducing activation memory requirements.
-</figcaption>
-<figcaption style="text-align:center; font-size:12px; color:#666; margin-top:8px;">
-  <strong>Legend:</strong> $B$ = Batch Size |  $S$ = Sequence Length | $H$ = Hidden Dimension | $L$= Transformer Block | $n$ = Number of Q Heads | $g$ = Number of KV Heads | $f$ = FFN Intermediate Size
-</figcaption>
 </figure>
+
+<div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:16px 0; font-size:0.8rem;">
+  <span style="background:#f0f0f0; padding:4px 10px; border-radius:4px;"><strong>B</strong> = Batch Size</span>
+  <span style="background:#f0f0f0; padding:4px 10px; border-radius:4px;"><strong>S</strong> = Sequence Length</span>
+  <span style="background:#f0f0f0; padding:4px 10px; border-radius:4px;"><strong>H</strong> = Hidden Dimension</span>
+  <span style="background:#f0f0f0; padding:4px 10px; border-radius:4px;"><strong>L</strong> = Transformer Blocks</span>
+  <span style="background:#f0f0f0; padding:4px 10px; border-radius:4px;"><strong>n</strong> = Q Heads</span>
+  <span style="background:#f0f0f0; padding:4px 10px; border-radius:4px;"><strong>g</strong> = KV Heads</span>
+  <span style="background:#f0f0f0; padding:4px 10px; border-radius:4px;"><strong>f</strong> = FFN Intermediate Size</span>
+</div>
+
+> **FlashAttention Optimization:** Llama 3 uses [FlashAttention](https://arxiv.org/abs/2205.14135), which computes attention in tiles without materializing the full S×S score matrix. Steps 2.d (Score) and 2.e (Softmax) are never stored — it uses online softmax calculations to reduce memory for attention scores & softmax from O(S²) to O(S).
+
+The [Llama 3 paper (Section 3.4)](https://arxiv.org/pdf/2407.21783#section.3.4) details the pre-training recipe used for training the Llama 3 series of models. For Llama 3 405B, they use a **progressive batch size schedule**, Similar recipes are used for the 8B and 70B models.
+
+| Training Phase | Global Batch Size | Sequence Length | Training Tokens |
+|----------------|-------------------|-----------------|-----------------|
+| Initial | 4M tokens | 4,096 | 0 → 252M |
+| Phase 2 | 8M tokens | 8,192 | 252M → 2.87T |
+| Final | 16M tokens | 8,192 | 2.87T → end |
+
+
+
+**Example Calculation for Llama-3 8B:**
+
+Llama-3 8B uses configurations **S=8,192, H=4,096, f=14,336**. Considering a batch of single sequence **(B=1)** with BF16/FP16 precision:
+- **Without FlashAttention:** Activation memory per transformer block ≈ **9.78GB**. For L=32 blocks: **32 × 9.78GB = 312.96 GB**
+- **With FlashAttention:** This reduces to approximately **~37GB** (eliminating the O(S²) attention score storage)
 
 
 ### How model architecture amplifies the problem
