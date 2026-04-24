@@ -14,6 +14,15 @@ toc:
   - name: Introduction
   - name: The Training Loop-A Quick Refresher
   - name: Why One GPU is Never Enough
+    subsections:
+      - name: What actually lives on that GPU?
+        subsections:
+          - name: Parameters
+          - name: Activations
+      - name: Per-Block Activation Memory Breakdown
+      - name: How model architecture amplifies the problem
+      - name: How Much Memory Are We Actually Talking About?
+      - name: The Data Side of the Problem
 
 # bibliography: references.bib
 ---
