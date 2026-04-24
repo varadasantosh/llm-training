@@ -19,10 +19,10 @@ toc:
         subsections:
           - name: Parameters
           - name: Activations
-      - name: Per-Block Activation Memory Breakdown
-      - name: How model architecture amplifies the problem
-      - name: How Much Memory Are We Actually Talking About?
-      - name: The Data Side of the Problem
+      - name: Putting it All Together     
+      
+
+
 
 # bibliography: references.bib
 ---
@@ -246,14 +246,17 @@ backward pass. Let's look at the equations behind it.
 
 ## Why One GPU is Never Enough
 
-Now that we have refreshed our memory on the basic PyTorch training loop, we are ready to understand the requirements for training a frontier Large Language Model. Training a  Large Language Model is fundamentally different engineering problem from earlier models came before them.
+Now that we have refreshed our memory on the basic PyTorch training loop, we are ready to understand the requirements for training a frontier Large Language Model. Training an LLM is a fundamentally different engineering problem compared to earlier models.
 
-To understand why, let's start with something concrete. According to the "Llama 3 Herd of Models" [paper](https://arxiv.org/pdf/2407.21783), Llama 3 405B  had a training budget of $3.8 \times 10^{25}$ FLOPs.
+To understand why, let's start with something concrete. According to the "Llama 3 Herd of Models" [paper](https://arxiv.org/pdf/2407.21783), Llama 3 405B had a training budget of $3.8 \times 10^{25}$ FLOPs.
 
-If we tried to train this model on a high-end CPU running at 11.37 TFLOPS, it would take approximately 105,900 years (see <a href="#table-gpu-vs-cpu">Table 4</a>).Even on a single 
-NVIDIA H100 GPU — one of the most powerful GPUs available at the time of training Llama-3  running at 67 TFLOPS (FP32), the time comes down to around 17,972 years. We are making two major assumptions here that a 405B model could even fit on a single GPU (it can't) and that we could achieve 100% of the peak throughput. In practice, achieving peak throughput is nearly impossible with hand-crafted kernels like FlashAttention and meticulous infrastructure planning achieving 40 - 50% of Peak Throughput is considered successful. 
+If we tried to train this model on a high-end CPU running at 11.37 TFLOPS, it would take approximately 105,900 years (see <a href="#table-gpu-vs-cpu">Table 4</a>). Even on a single NVIDIA H100 GPU — one of the most powerful GPUs available at the time of training Llama-3, running at 67 TFLOPS (FP32) — the time comes down to around 17,972 years. 
 
-This is why Scaling laws dictate that for architectures of this magnitude, CPUs are no longer a viable choice. GPU architectures are purpose-built for the massive, parallel mathematical computations required at scale. This became evident in the history of CNNs when researchers used GPUs to train AlexNet; today, for LLMs, the GPU's role is irreplaceable.
+We are making two major assumptions here: (1) that a 405B model could fit on a single GPU (it can't), and (2) that we could achieve 100% of peak throughput. In practice, achieving peak throughput is nearly impossible — even with hand-crafted kernels like FlashAttention and meticulous infrastructure planning, 40–50% of peak throughput is considered successful.
+
+This is why scaling laws dictate that for architectures of this magnitude, CPUs are no longer a viable choice. GPU architectures are purpose-built for the massive, parallel mathematical computations required at scale. This became evident in the history of CNNs when researchers used GPUs to train AlexNet; today, for LLMs, the GPU's role is irreplaceable.
+
+But even if we had infinite time, there's another fundamental constraint: **memory**.
 
 <figure>
 <table id="table-gpu-vs-cpu" style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px; border:2px dashed #555;">
@@ -271,7 +274,7 @@ This is why Scaling laws dictate that for architectures of this magnitude, CPUs 
     </tr>
     <tr>
       <td style="padding:10px 12px; border:2px dashed #555;">NVIDIA H100 GPU</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">67 TFLOPS ($34 \times 10^{12}$ FLOPS)</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">67 TFLOPS ($67 \times 10^{12}$ FLOPS)</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$\frac{3.8 \times 10^{25}}{67 \times 10^{12}} = 5.67 \times 10^{11}$ sec</td>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>~17,972 Years</strong></td>
     </tr>
@@ -284,7 +287,6 @@ This is why Scaling laws dictate that for architectures of this magnitude, CPUs 
   </tbody>
 </table>
 <figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 4: GPU vs CPU Training Time Comparison for Llama-3 405B</figcaption>
-<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;"> Training Budget: 3.8 × 10²⁵ FLOPs | Formula: T = Training Budget / Peak Throughput</figcaption>
 </figure>
 
 ### What actually lives on that GPU?
@@ -297,63 +299,90 @@ has to live in VRAM simultaneously.
 
 Looking more closely at these components, they fall into two categories — Static and Dynamic. Static components like Parameters, Gradients, and Optimizer States are determined purely by model architecture and remain fixed regardless of how you configure your training run. Dynamic components — primarily Activations — scale directly with Batch Size and Sequence Length, and can exceed all static components combined at large scales.
 
-The table below captures the key configurations that drive memory requirements across both categories. In the sections that follow, we'll work through the memory formula for each of them — starting with static components where the math is straightforward, then 
-moving to Activations which require a different approach.
+The table below captures the key configurations that drive memory requirements across both categories. In the sections that follow, we'll work through the memory formula for each of them — starting with static components where the math is straightforward, then moving to Activations which require a different approach.
 
 
 <figure>
-<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; table-layout:fixed; border:2px dashed #555;">
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
 <thead>
     <tr style="text-align:left;">
-      <th style="padding:8px 12px; border:2px dashed #555;">Parameters</th>
+      <th style="padding:8px 12px; border:2px dashed #555; width:30%;">Category</th>
+      <th style="padding:8px 12px; border:2px dashed #555;">Configuration</th>
+      <th style="padding:8px 12px; border:2px dashed #555; width:35%;">Description</th>
     </tr>
 </thead>
 <tbody>
-    <tr>
-      <td style="padding:8px 12px; border:2px dashed #555;">Parameters(w,b)</td>
+    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+      <td style="padding:8px 12px; border:2px dashed #555;" colspan="3"><strong>Memory Components</strong></td>
     </tr>
     <tr>
-      <td style="padding:8px 12px; border:2px dashed #555;">Gradients($\nabla$)</td>
+      <td style="padding:8px 12px; border:2px dashed #555;" rowspan="3"><strong>Static</strong><br><span style="font-size:0.8rem; color:#666;">(Fixed by architecture)</span></td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Parameters (w, b)</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Model weights and biases</td>
     </tr>
     <tr>
-      <td style="padding:8px 12px; border:2px dashed #555;">Optimizer States(m𝑡,v𝘵)</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Gradients ($\nabla$)</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Computed during backward pass</td>
     </tr>
     <tr>
+      <td style="padding:8px 12px; border:2px dashed #555;">Optimizer States (m, v)</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Adam's 1st & 2nd moments</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px; border:2px dashed #555;"><strong>Dynamic</strong><br><span style="font-size:0.8rem; color:#666;">(Scales with data)</span></td>
       <td style="padding:8px 12px; border:2px dashed #555;">Activations</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Intermediate outputs held for backward pass</td>
     </tr>
-     <tr>
-      <td style="padding:8px 12px; border:2px dashed #555;">Batch Size(B)</td>
-    </tr>
-    <tr>
-      <td style="padding:8px 12px; border:2px dashed #555;">Context Length(S)</td>
+    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+      <td style="padding:8px 12px; border:2px dashed #555;" colspan="3"><strong>Model Architecture</strong></td>
     </tr>
     <tr>
-      <td style="padding:8px 12px; border:2px dashed #555;">Vocabulary Size(V)</td>
+      <td style="padding:8px 12px; border:2px dashed #555;" rowspan="6"><strong>Architecture</strong><br><span style="font-size:0.8rem; color:#666;">(Defines model structure)</span></td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Vocabulary Size (V)</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Number of unique tokens</td>
     </tr>
     <tr>
-      <td style="padding:8px 12px; border:2px dashed #555;">Token Embedding Dimension(H)</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Hidden Dimension (H)</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Token embedding size</td>
     </tr>
     <tr>
-      <td style="padding:8px 12px; border:2px dashed #555;">Number of Transformer Blocks(L)</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Transformer Blocks (L)</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Number of layers</td>
     </tr>
     <tr>
-      <td style="padding:8px 12px; border:2px dashed #555;">Type of Attention (MHA, GQA, MLA)</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Attention Type</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">MHA, GQA, or MLA</td>
     </tr>
     <tr>
-      <td style="padding:8px 12px; border:2px dashed #555;">FFN vs. MoE </td>
+      <td style="padding:8px 12px; border:2px dashed #555;">FFN Type</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Dense FFN or MoE</td>
     </tr>
     <tr>
-      <td style="padding:8px 12px; border:2px dashed #555;">Number of Expers in MoE </td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Experts (if MoE)</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Number of expert networks</td>
+    </tr>
+    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+      <td style="padding:8px 12px; border:2px dashed #555;" colspan="3"><strong>Training Configuration</strong></td>
     </tr>
     <tr>
-      <td style="padding:8px 12px; border:2px dashed #555;">Numerical Precision(Parameters, Gradients, Activations, Optimizer States)</td>
+      <td style="padding:8px 12px; border:2px dashed #555;" rowspan="3"><strong>Data & Precision</strong><br><span style="font-size:0.8rem; color:#666;">(Training choices)</span></td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Batch Size (B)</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Sequences per training step</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px; border:2px dashed #555;">Sequence Length (S)</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">Context window size</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px; border:2px dashed #555;">Numerical Precision</td>
+      <td style="padding:8px 12px; border:2px dashed #555;">FP32, BF16, FP16 for each component</td>
     </tr>
   </tbody>
 </table>
-</figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 5: Configurations Influencing Model Size</figcaption>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 5: Configurations Influencing GPU Memory Requirements</figcaption>
 </figure>
 
-#### **Parameters**
+#### Parameters
 
 In order to understand how much memory is consumed by parameters, gradients, optimizer
 states, and activations, we first need to walk through every learnable component in
@@ -423,9 +452,8 @@ Steps common to both architectures
         <div class="sub">Bias: H</div>
       </td>
       <td>
-        <div class="main">H × H + H</div>
+        <div class="main">H × H </div>
         <div class="sub">Weights: H*H</div>
-        <div class="sub">Bias: H</div>
       </td>
     </tr>
     <tr>
@@ -451,7 +479,6 @@ Steps common to both architectures
       <td>
         <div class="main">H × H</div>
         <div class="sub">Weights: H * H</div>
-        <div class="sub">Bias: H</div>
       </td>
     </tr>
     <tr>
@@ -629,7 +656,6 @@ The solution is mixed precision — use BF16 where speed matters, FP32 where pre
     Updated parameters cast back to BF16 ← ready for next forward pass
 
 
-
 | Component| Precision| Bytes| 
 | :---| ---: | ---:|
 | Parameters($$\phi$$) working copy|  BF16 | 2 Bytes |
@@ -657,14 +683,14 @@ This sums up to **18 bytes per parameter** for mixed precision training with Ada
 
 Next we look at Activations — the dynamic component whose memory cost changes with every training configuration (**Batch Size, Sequnece Length**).
 
-#### **Activations**
+#### Activations
 There are various types of Large Language Models (LLM,VLLM,Difusion LLM),while specific design and architecture vary by modality and its purpose(chat, completions). The fundamental building block remains the Transformer Block consisting of Layer Norm → Attention → Layer Norm -> MLP. Inside the MLP, data passes through several layers, Zooming into the MLP either Feed Forward or MoE, we see data flowing through sequence of layers.  During the forward pass, the output of layer $L_{n-1}$ serves as the input for layer $L_n$; these intermediate outputs are known as Activations. 
 
 These activations are not just temporary they are critical for backward pass to compute gradients during backpropagation, at every layer we need activations that were produced during the forward pass (see <a href="#table-backward-pass">Table 2</a>). This means all activations from the entire forward pass must be held in memory until backpropagation is complete. Unlike Parameters, Gradients, and Optimizer States whose memory cost is fixed by model architecture, Activations scale with both Batch Size and Sequence Length — which is what makes them the most unpredictable component of all that lives on GPU, like mentioned earlier data goes through different layers input => L* transformer blocks => output. The largest portion of activation memory lives inside the transformer blocks — the table below breaks this down component by component for one Llama-3 block.
 
 
 
-### Per-Block Activation Memory Breakdown
+##### Per-Block Activation Memory Breakdown
 
 <figure id="table-activation-memory">
 <table class="arch-table">
@@ -819,7 +845,7 @@ The [Llama 3 paper (Section 3.4)](https://arxiv.org/pdf/2407.21783#section.3.4) 
 
 **Example Calculation for Llama-3 8B:**
 
-while the sequence length is gradually increased for simiplicity let us consider that Llama-3 8B uses configurations **S=8,192, H=4,096, f=14,336**. Considering a batch of single sequence **(B=1)** with BF16/FP16 precision: -  without **FlashAttention** Activation memory per transformer block ≈ **9.78GB**. For L=32 blocks: **32 × 9.78GB = 312.96 GB** -  with **FlashAttention:** this reduces to approximately **~37GB** (eliminating the O(S²) attention score storage)
+while the sequence length is gradually increased, for simiplicity let us consider that Llama-3 8B uses configurations **S=8192, H=4096, f=14,336**. Considering a batch of single sequence **(B=1)** with BF16/FP16 precision: -  without **FlashAttention** Activation memory per transformer block ≈ **9.78GB**. For L=32 blocks: **32 × 9.78GB = 312.96 GB** -  with **FlashAttention:** this reduces to approximately **~37GB** (eliminating the O(S²) attention score storage)
 
 ```
 Term 1: 17 × 8192 × 4096  =  637,534,208 bytes   ≈  0.53 GB
@@ -846,69 +872,17 @@ Per block total            ≈  1.19 GB
 
 
 
-### How model architecture amplifies the problem
+### Putting it All Together
 
-Below <a href="#llama-3-config" >table </a> from Llama-3 [paper](https://arxiv.org/pdf/2407.21783) clearly demonstrates how model architecture influence size of the models & how these  configurations change across models of different sizes: layers go from 32 to 126, 
-model dimension grows from 4,096 to 16,384, and FFN dimension jumps from 14,336 to 53,248. Every one of these numbers is a multiplier on your memory requirement. More layers means more weight matrices to store and more activations to hold in memory during the forward pass. Larger dimensions make each of those weight matrices bigger. Every configuration here directly or indirectly influences the memory required for training — and together they compound fast
+Below <a href="#llama-3-config" >table </a> from Llama-3 [paper](https://arxiv.org/pdf/2407.21783) clearly demonstrates how model architecture influence size of the models & how these  configurations change across models of different sizes: layers go from 32 to 126, model dimension grows from 4,096 to 16,384, and FFN dimension jumps from 14,336 to 53,248. Every one of these numbers is a multiplier on your memory requirement. More layers means more weight matrices to store and more activations to hold in memory during the forward pass. Larger dimensions make each of those weight matrices bigger. Every configuration here directly or indirectly influences the memory required for training — and together they compound fast
 
  
 <figure id="llama-3-config">
   {% include figure.liquid path="assets/img/llm-training/section-3/Llama-3-config.png" class="img-medium" caption="Figure-4: Llama 3 Configurations" %}
 </figure>
 
+Beyond model architecture and configurations mentioned  memory requirements are directly influenced by data used for training especially dynamic memory which is also known as activations. Deep Learning models are hungry — the more capable we want the model to be, the more data it needs to see during training, Llama models made this trend clear, Llama-2 was trained on 1.8 Trillion Tokens, subsequent models Llama-3 was trained on 15 Trillion Tokens and  Llama-4 on 30 Trillion Tokens ,which translates to increase in batch size, number of batches, longer training runs & more compute. 
 
-### How Much Memory Are We Actually Talking About?
+To summairze we looked at overall training budget allocated for training Llama-3 series models and time it would have taken to train a model using single GPU, how configurations mentioned influence calculations and memory requirements for model to be placed on GPU  - model components are calssified into two categories, static & dynamic components static components don't change with input data, dynamic components change with input data, for an 8B model static components (Parameters, Gradients, Optimizer States) alone take up 144 GB memory &  we considered a batch with single sequence to calculate memory required for activations which is 312 GB without Flash Attention & 32 GB with Flash Attention, in practical scenarios a micro batch (batch allocated one GPU) is not single sequence , size of micro batch is derived from Global Batch Size and number of GPU's used for training, ideally a micro batch might contain 32 sequences , activations required for a minimum batch size of 1 will not fit on GPU along with the static components hence the best case of using Flash Attention
+which requires 38 GB per 1 sequence , it requires 38 GB*32 = 1.18 TB , which is much beyond the 80 GB VRAM available on H100, together this gives us clear idea on why single GPU is not sufficient for training a model
 
-Before we calculate total training memory, it helps to understand what we're working with. Training uses mixed precision — FP32 and BF16 — and once training is complete, models are typically served in BF16. Models also support INT8 and INT4 quantization [ref](https://huggingface.co/meta-llama/Llama-3.1-70B-Instruct#use-with-bitsandbytes) for 
-inference, which trades some accuracy for significant memory savings.
-
-The H100 GPU has 80GB of HBM memory. Let's <a href="#table-params-memory">see</a> how the Llama-3 model variants stack up against that — for Parameters alone, across different precision types.
-
-
-<figure>
-<table id="table-params-memory" style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px; border:2px dashed #555;">
-  <thead>
-    <tr style="text-align:left;">
-      <th style="padding:10px 12px; border:2px dashed #555;">Model Size (No. Parameters)</th>
-      <th style="padding:10px 12px; border:2px dashed #555;">FP32</th>
-      <th style="padding:10px 12px; border:2px dashed #555;">BF16</th>
-      <th style="padding:10px 12px; border:2px dashed #555;">INT8</th>
-      <th style="padding:10px 12px; border:2px dashed #555;">INT4</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;">8B</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$8B * 4 Bytes = 32 GB$</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$8B * 2 Bytes = 16 GB$</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$8B * 1 Byte = 8 GB$</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$8B * 4 Bits  = 4 GB$</td>
-    </tr>
-    <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;">70B</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$70B * 4 Bytes = 280 GB$</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$70B * 2 Bytes = 140 GB$</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$70B * 1 Byte = 70 GB$</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$70B * 4 Bits  = 35 GB$</td>
-    </tr>
-    <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;">405B</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$405B * 4 Bytes = 1620 GB$</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$405B * 2 Bytes = 810 GB$</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$405B * 1 Byte = 405 GB$</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$405B * 4 Bits  = 202.5 GB$</td>
-    </tr>
-  </tbody>
-</table>
-<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 7: Memory Required for Parameters across Precision Types</figcaption>
-</figure>
-
-The 70B model needs 140GB just for Parameters — nearly double the H100's entire 80GB. The 
-405B model needs 810GB in BF16 and 1620GB in FP32,this is only for Parameters(Weights, Biases).
-
-Training model needs multiple forward & backward passes which requires memory for **Gradients**, **Activations**, **Optimizer States** and additional memory buffers for staging intermediate calculations. The <a href="#table-params-memory">table</a> only captures memory required for Parameters For inference, this is the primary cost — but training needs significantly more on top of this. Of all the model sizes here, Only an 8B model can fit on GPU. This is because of distinction between inference & training. inference only needs Parameters, Activations, and KV Cache to complete a forward pass. Training needs all of that plus Gradients and Optimizer States — which is why training memory requirements are significantly heavier than inference. 
-
-### The Data Side of the Problem
-Beyond model architecture and Parameters required, memory requirements are directly influenced by data used for training. Deep Learning models are hungry — the more capable you want the model to be, the more data it needs to see during training, Llama models made this trend clear , Llama-2 was trained on 1.8 Trillion Tokens, subsequent models Llama-3 was trained on 15 Trillion Tokens and  Llama-4 on 30 Trillion Tokens ,which translates to increase in batch size, number of batches, longer training runs & more compute.
-
-We looked at the training budget and time it would have taken to train a model using single GPU and memory required for storing the data and model components on single GPU , together they strengthens requirement for distributing the model and data across multiple GPU's. Parallelism techniques are all about resolving the constraints by distributing the model, data, and computation across multiple GPUs working together.
