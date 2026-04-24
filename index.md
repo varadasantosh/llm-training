@@ -671,8 +671,14 @@ These activations are not just temporary values they are critical for backward p
     <!-- ATTENTION SECTION -->
     <tr><td colspan="4" class="section-header">ATTENTION</td></tr>
     <tr>
-      <td class="comp">1</td>
+      <td class="comp">1.a</td>
       <td><div class="main">RMSNorm (Pre-Attn)</div></td>
+      <td><div class="main">$(B, S, H)$</div></td>
+      <td><div class="main">$2 \cdot BSH$</div></td>
+    </tr>
+      <tr>
+      <td class="comp">1.b</td>
+      <td><div class="main">Residual-Add(Pre-Attn)</div></td>
       <td><div class="main">$(B, S, H)$</div></td>
       <td><div class="main">$2 \cdot BSH$</div></td>
     </tr>
@@ -722,8 +728,14 @@ These activations are not just temporary values they are critical for backward p
     <!-- MLP SECTION -->
     <tr><td colspan="4" class="section-header">MLP / FFN</td></tr>
     <tr>
-      <td class="comp">3</td>
+      <td class="comp">3.a</td>
       <td><div class="main">RMSNorm (Pre-MLP)</div></td>
+      <td><div class="main">$(B, S, H)$</div></td>
+      <td><div class="main">$2 \cdot BSH$</div></td>
+    </tr>
+    <tr>
+      <td class="comp">3.b</td>
+      <td><div class="main">Residual-Add (Pre-MLP)</div></td>
       <td><div class="main">$(B, S, H)$</div></td>
       <td><div class="main">$2 \cdot BSH$</div></td>
     </tr>
