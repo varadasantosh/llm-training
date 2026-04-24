@@ -676,7 +676,7 @@ This sums up to **18 bytes per parameter** for mixed precision training with Ada
 
 Next we look at Activations — the dynamic component whose memory cost changes with every training configuration (**Batch Size, Sequence Length**).
 
-#### Activations
+### Activations
 
 Regardless of architecture variant, every transformer-based LLM shares the same
 fundamental structure: input tokens flow through an embedding layer, then through
