@@ -80,6 +80,15 @@
                     {% for subsection in section.subsections %}
                       <li>
                         <a href="#{{ subsection.name | slugify }}">{{ subsection.name }}</a>
+                        {% if subsection.subsections %}
+                          <ul>
+                            {% for subsubsection in subsection.subsections %}
+                              <li>
+                                <a href="#{{ subsubsection.name | slugify }}">{{ subsubsection.name }}</a>
+                              </li>
+                            {% endfor %}
+                          </ul>
+                        {% endif %}
                       </li>
                     {% endfor %}
                   </ul>

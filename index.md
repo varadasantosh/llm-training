@@ -16,8 +16,9 @@ toc:
   - name: Why One GPU is Never Enough
     subsections:
       - name: What actually lives on that GPU?
-      - name: Parameters
-      - name: Activations
+        subsections:
+          - name: Parameters
+          - name: Activations
       - name: Putting it All Together
 
 # bibliography: references.bib
