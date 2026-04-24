@@ -368,7 +368,7 @@ Steps common to both architectures
 - Final normalisation.
 - LM Head — projects the hidden state of the last token back to vocabulary logits.
 
-<!-- {% include tables/architecture-comparison.liquid %} -->
+
 
 <!-- <style>
 .arch-table{width:100%;border-collapse:collapse;font-family:'JetBrains Mono', 'Courier New', monospace;font-size:0.82rem;border:1px dashed #bbb}
