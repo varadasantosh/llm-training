@@ -658,9 +658,9 @@ This sums up to **18 bytes per parameter** for mixed precision training with Ada
 Next we look at Activations — the dynamic component whose memory cost changes with every training configuration (**Batch Size, Sequnece Length**).
 
 #### **Activations**
-There are various types of Large Language Models (LLM,VLLM,Difussion LLM),while specific design and architecture vary by modality and its purpose(chat, completions).  the fundamental building block remains the Transformer Block consisting of Layer Norm → Attention → Layer Norm -> MLP. Inside the MLP, data passes through several layers, Zooming into the MLP either Feed Forward or MoE, we see data flowing through sequence of layers.  During the forward pass, the output of layer $L_{n-1}$ serves as the input for layer $L_n$; these intermediate outputs are known as Activations. 
+There are various types of Large Language Models (LLM,VLLM,Difusion LLM),while specific design and architecture vary by modality and its purpose(chat, completions). The fundamental building block remains the Transformer Block consisting of Layer Norm → Attention → Layer Norm -> MLP. Inside the MLP, data passes through several layers, Zooming into the MLP either Feed Forward or MoE, we see data flowing through sequence of layers.  During the forward pass, the output of layer $L_{n-1}$ serves as the input for layer $L_n$; these intermediate outputs are known as Activations. 
 
-These activations are not just temporary values they are critical for backward pass to compute gradients during backpropagation, at every layer we need activations that were produced during the forward pass (see <a href="#table-backward-pass">Table 2</a>). This means all activations from the entire forward pass must be held in memory until backpropagation is complete. Unlike Parameters, Gradients, and Optimizer States whose memory cost is fixed by model architecture, Activations scale with both Batch Size and Sequence Length — which is what makes them the most unpredictable component of all that lives on GPU, like mentioned earlier data goes through different layers input => L* transformer blocks => output,  activations are present before passing input to transformer blocks & after data comes out of transformer blocks. The largest portion of activation memory lives inside the transformer blocks themselves — the table below breaks this down component by component for one Llama-3 block.
+These activations are not just temporary they are critical for backward pass to compute gradients during backpropagation, at every layer we need activations that were produced during the forward pass (see <a href="#table-backward-pass">Table 2</a>). This means all activations from the entire forward pass must be held in memory until backpropagation is complete. Unlike Parameters, Gradients, and Optimizer States whose memory cost is fixed by model architecture, Activations scale with both Batch Size and Sequence Length — which is what makes them the most unpredictable component of all that lives on GPU, like mentioned earlier data goes through different layers input => L* transformer blocks => output. The largest portion of activation memory lives inside the transformer blocks — the table below breaks this down component by component for one Llama-3 block.
 
 
 
@@ -679,18 +679,20 @@ These activations are not just temporary values they are critical for backward p
   <tbody>
     <!-- ATTENTION SECTION -->
     <tr><td colspan="4" class="section-header">ATTENTION</td></tr>
+    
     <tr>
       <td class="comp">1.a</td>
+      <td><div class="main">Block Input/Residual(Pre-Attn)</div></td>
+      <td><div class="main">$(B, S, H)$</div></td>
+      <td><div class="main">$2 \cdot BSH$</div></td>
+    </tr>
+    <tr>
+      <td class="comp">1.b</td>
       <td><div class="main">RMSNorm (Pre-Attn)</div></td>
       <td><div class="main">$(B, S, H)$</div></td>
-      <td><div class="main">$2 \cdot BSH$</div></td>
     </tr>
-      <tr>
-      <td class="comp">1.b</td>
-      <td><div class="main">Residual-Add(Pre-Attn)</div></td>
-      <td><div class="main">$(B, S, H)$</div></td>
-      <td><div class="main">$2 \cdot BSH$</div></td>
-    </tr>
+    
+    <td><div class="main">$2 \cdot BSH$</div></td>
     <tr>
       <td class="comp">2.a</td>
       <td><div class="main">Q Projection</div></td>
@@ -736,18 +738,21 @@ These activations are not just temporary values they are critical for backward p
 
     <!-- MLP SECTION -->
     <tr><td colspan="4" class="section-header">MLP / FFN</td></tr>
+    
     <tr>
       <td class="comp">3.a</td>
+      <td><div class="main">Block Input/ Residual(Pre-MLP)</div></td>
+      <td><div class="main">$(B, S, H)$</div></td>
+      <td><div class="main">$2 \cdot BSH$</div></td>
+    </tr>
+    
+    <tr>
+      <td class="comp">3.b</td>
       <td><div class="main">RMSNorm (Pre-MLP)</div></td>
       <td><div class="main">$(B, S, H)$</div></td>
       <td><div class="main">$2 \cdot BSH$</div></td>
     </tr>
-    <tr>
-      <td class="comp">3.b</td>
-      <td><div class="main">Residual-Add (Pre-MLP)</div></td>
-      <td><div class="main">$(B, S, H)$</div></td>
-      <td><div class="main">$2 \cdot BSH$</div></td>
-    </tr>
+    
     <tr>
       <td class="comp">4.a</td>
       <td><div class="main">Gate Proj</div></td>
@@ -769,10 +774,19 @@ These activations are not just temporary values they are critical for backward p
      <tr>
       <td class="comp">4.d</td>
       <td><div class="main">SiLU Output</div></td>
-      <td><div class="main">$(B, S, H)$</div></td>
-      <td><div class="main">$2 \cdot BSH$</div></td>
+      <td><div class="main">$(B, S, f)$</div></td>
+      <td><div class="main">$2 \cdot BSf$</div></td>
     </tr>
     <tr><td colspan="4" class="section-header">TOTAL per block</td></tr>
+    <td><div class="main">2BSH (Residual 1) + 2BSH (RMSNorm-Attn) +
+             + 2BSH (Q) + 0.5BSH (K) + 0.5BSH (V)
+             + 2BnS² (Score) + 2BnS² (Softmax) 
+             + 2BSH (Attn Output) + 2BSH (O Proj) 
+             + 2BSH (Residual 2)
+             + 2BSH (RMSNorm-MLP) 
+             + 2BSf (Gate) + 2BSf (Up) + 2BSf (SiLU)
+             + 2BSH (Down Proj)
+             = 15·BSH + 4·BnS² + 6·BSf </div></td>
 
   </tbody>
 </table>
