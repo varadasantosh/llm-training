@@ -657,22 +657,98 @@ These activations are not just temporary values they are critical for backward p
 
 ### Per-Block Activation Memory Breakdown
 
+<figure id="table-activation-memory">
+<table class="arch-table">
+  <thead>
+    <tr>
+      <th style="width:10%"><span class="comp">Step</span></th>
+      <th style="width:25%"><span class="comp">Operation</span></th>
+      <th style="width:35%"><span class="comp">Shape</span></th>
+      <th style="width:30%"><span class="comp">Memory (Bytes)</span></th>
+    </tr>
+  </thead>
+  <tbody>
+    <!-- ATTENTION SECTION -->
+    <tr><td colspan="4" class="section-header">ATTENTION</td></tr>
+    <tr>
+      <td class="comp">1</td>
+      <td><div class="main">RMSNorm (Attn)</div></td>
+      <td><div class="main">$(B, S, H)$</div></td>
+      <td><div class="main">$2 \cdot BSH$</div></td>
+    </tr>
+    <tr>
+      <td class="comp">2.a</td>
+      <td><div class="main">Q Projection</div></td>
+      <td><div class="main">$(B, S, H)$</div></td>
+      <td><div class="main">$2 \cdot BSH$</div></td>
+    </tr>
+    <tr>
+      <td class="comp">2.b</td>
+      <td><div class="main">K Projection</div></td>
+      <td><div class="main">$(B, S, g/n \cdot H)$</div></td>
+      <td><div class="main">$0.5 \cdot BSH$</div></td>
+    </tr>
+    <tr>
+      <td class="comp">2.c</td>
+      <td><div class="main">V Projection</div></td>
+      <td><div class="main">$(B, S, g/n \cdot H)$</div></td>
+      <td><div class="main">$0.5 \cdot BSH$</div></td>
+    </tr>
+    <tr>
+      <td class="comp">2.d</td>
+      <td><div class="main">Score ($QK^T$)</div></td>
+      <td><div class="main">$(B, n, S, S)$</div></td>
+      <td><div class="main">$2 \cdot BnS^2$</div></td>
+    </tr>
+    <tr>
+      <td class="comp">2.e</td>
+      <td><div class="main">Softmax</div></td>
+      <td><div class="main">$(B, n, S, S)$</div></td>
+      <td><div class="main">$2 \cdot BnS^2$</div></td>
+    </tr>
+    <tr>
+      <td class="comp">2.f</td>
+      <td><div class="main">Attn Output</div></td>
+      <td><div class="main">$(B, S, H)$</div></td>
+      <td><div class="main">$2 \cdot BSH$</div></td>
+    </tr>
+    <tr>
+      <td class="comp">2.g</td>
+      <td><div class="main">O Projection</div></td>
+      <td><div class="main">$(B, S, H)$</div></td>
+      <td><div class="main">$2 \cdot BSH$</div></td>
+    </tr>
 
-| Step | Operation | Shape |  Memory (Bytes) |
-| :--- | :--- | :--- | :--- | :--- |
-| **1** | **RMSNorm (Attn)** | $(B, S, H)$ |  $2 \cdot BSH$ |
-| **2.a** | **Q Projection** | $(B, S, H)$ |  $2 \cdot BSH$ |
-| **2.b** | **K Projection** | $(B, S, g/n \cdot H )$ |  $0.5 \cdot BSH$ |
-| **2.c** | **V Projection** | $(B, S, g/n \cdot H)$ |  $0.5 \cdot BSH$ |
-| **2.d** | **Score ($QK^T$)** | $(B, n, S, S)$  | $2 \cdot BnS^2$ |
-| **2.e** | **Softmax** | $(B, n, S, S)$ | $2 \cdot BnS^2$ |
-| **2.f** | **Attn Output** | $(B, S, H)$ | $2 \cdot BSH$ |
-| **2.g** | **O Projection** | $(B, S, H)$ | $2 \cdot BSH$ |
-| **3** | **RMSNorm (MLP)** | $(B, S, H)$ | $2 \cdot BSH$ |
-| **4.a** | **Gate Proj** | $(B, S, f)$ | $2 \cdot BSf$ |
-| **4.b** | **Up Proj** | $(B, S, f)$ | $2 \cdot BSf$ |
-| **4.c** | **Down Proj** | $(B, S, H)$ | $2 \cdot BSH$ |
-{: .table .table-sm .table-bordered .table-hover .text-center}
+    <!-- MLP SECTION -->
+    <tr><td colspan="4" class="section-header">MLP / FFN</td></tr>
+    <tr>
+      <td class="comp">3</td>
+      <td><div class="main">RMSNorm (MLP)</div></td>
+      <td><div class="main">$(B, S, H)$</div></td>
+      <td><div class="main">$2 \cdot BSH$</div></td>
+    </tr>
+    <tr>
+      <td class="comp">4.a</td>
+      <td><div class="main">Gate Proj</div></td>
+      <td><div class="main">$(B, S, f)$</div></td>
+      <td><div class="main">$2 \cdot BSf$</div></td>
+    </tr>
+    <tr>
+      <td class="comp">4.b</td>
+      <td><div class="main">Up Proj</div></td>
+      <td><div class="main">$(B, S, f)$</div></td>
+      <td><div class="main">$2 \cdot BSf$</div></td>
+    </tr>
+    <tr>
+      <td class="comp">4.c</td>
+      <td><div class="main">Down Proj</div></td>
+      <td><div class="main">$(B, S, H)$</div></td>
+      <td><div class="main">$2 \cdot BSH$</div></td>
+    </tr>
+  </tbody>
+</table>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 7: Per-Block Activation Memory Breakdown for Llama 3</figcaption>
+</figure>
 
 
 
