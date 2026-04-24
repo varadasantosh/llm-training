@@ -4,12 +4,14 @@
   font-family: 'JetBrains Mono', 'Courier New', monospace;
   font-size: 0.82rem;
   border: 1px dashed #bbb;
+  line-height: 1.4;
 
   th{
 
     padding: 18px 10px;
     background-color: var(--global-card-bg-color);
     text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
 
   td {
@@ -34,7 +36,7 @@
   .col-header-llama   { color: #1a50c8; font-size: 0.72rem; font-weight: 600; }
 
   .main { font-weight: 500; margin-bottom: 2px; }
-  .sub  { display: block; font-size: 0.72rem; opacity: 0.7; margin-top: 4px; }
+  .sub  { display: block; font-size: 0.72rem; opacity: 0.7; margin-top: 4px;   }
   .note { font-size: 0.68rem; color: #b030a0; margin-top: 3px; }
   .comp { font-weight: 600; }
 }
