@@ -822,7 +822,7 @@ The [Llama 3 paper (Section 3.4)](https://arxiv.org/pdf/2407.21783#section.3.4) 
 while the sequence length is gradually increased for simiplicity let us consider that Llama-3 8B uses configurations **S=8,192, H=4,096, f=14,336**. Considering a batch of single sequence **(B=1)** with BF16/FP16 precision: -  without **FlashAttention** Activation memory per transformer block ≈ **9.78GB**. For L=32 blocks: **32 × 9.78GB = 312.96 GB** -  with **FlashAttention:** this reduces to approximately **~37GB** (eliminating the O(S²) attention score storage)
 
 ```
-Term 1: 17 × 8192 × 4096  =  637,534,208 bytes  ≈  0.53 GB
+Term 1: 17 × 8192 × 4096  =  637,534,208 bytes   ≈  0.53 GB
 Term 2: 4 × 32 × 8192²    =  8,589,934,592 bytes ≈  8.59 GB
 Term 3: 6 × 8192 × 14336  =  704,643,072 bytes   ≈  0.66 GB
 ─────────────────────────────────────────────────────────────
@@ -831,13 +831,18 @@ Per block total            ≈  9.78 GB
 
 
 Term 1: 17 × 8192 × 4096  =  637,534,208 bytes  ≈  0.53 GB
-Term 2: 4 × 32 × 8192    =  10,48,576 bytes ≈  0.0009 GB
-Term 3: 6 × 8192 × 14336  =  704,643,072 bytes   ≈  0.66 GB
+Term 2: 4 × 32 × 8192     =  10,48,576 bytes    ≈  0.0009 GB
+Term 3: 6 × 8192 × 14336  =  704,643,072 bytes  ≈  0.66 GB
 ─────────────────────────────────────────────────────────────
 Per block total            ≈  1.19 GB
 × 32 blocks                ≈  38.10 GB  (FA)
 
 ```
+
+| Configuration | Per Block | Total (×32)  |
+|----------------|-------------------|-----------------|
+| W/o Flash Attention | 9.78 GB| 312.96 GB | 
+| Flash Attention |  1.19 GB| 38.10 GB |
 
 
 
