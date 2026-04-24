@@ -751,6 +751,9 @@ These activations are not just temporary values they are critical for backward p
 <figcaption style="text-align:center; font-size:12px; color:#888; margin-top:4px; font-style:italic;">
   <strong>Note:</strong> Llama 3 uses <a href="https://arxiv.org/abs/2205.14135" target="_blank">FlashAttention</a>, which optimizes the attention calculation process by eliminating the necessity for storing intermediate attention scores (Step 2.d) and softmax outputs (Step 2.e), significantly reducing activation memory requirements.
 </figcaption>
+<figcaption style="text-align:center; font-size:12px; color:#666; margin-top:8px;">
+  <strong>Legend:</strong> $B$ = Batch Size · $S$ = Sequence Length · $H$ = Hidden Dimension · $n$ = Number of Q Heads · $g$ = Number of KV Heads · $f$ = FFN Intermediate Size
+</figcaption>
 </figure>
 
 
