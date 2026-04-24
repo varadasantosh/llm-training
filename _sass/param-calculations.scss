@@ -1,42 +1,89 @@
 .arch-table {
   width: 100%;
   border-collapse: collapse;
-  font-family: 'JetBrains Mono', 'Courier New', monospace;
-  font-size: 0.82rem;
-  border: 1px dashed #bbb;
-  line-height: 1.4;
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Consolas', 'Courier New', monospace;
+  font-size: 0.85rem;
+  border: 1px dashed #999;
+  line-height: 1.5;
+  background: #fff;
 
-  th{
+  th, td {
+    border: 1px dashed #bbb;
+    padding: 12px 14px;
+    vertical-align: top;
+    background: #fff;
+    color: #222;
+  }
 
-    padding: 18px 10px;
-    background-color: var(--global-card-bg-color);
+  th {
+    padding: 18px 14px;
+    background-color: #fff;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    font-weight: 600;
   }
 
   td {
-    padding: 12px 10px;
-    border-bottom: 1px solid var(--global-divider-color);
     vertical-align: middle;
   }
 
-  thead th { font-weight: 600; }
-
-  .section-header {
-    background: #f2f2f2;    // plain light gray, not purple-tinted
-    color: #a030b0;
-    font-size: 0.72rem;
-    letter-spacing: 0.05em;
-    font-weight: 500;
-    padding: 5px 14px;
-    border-top: 1px dashed #bbb;
+  thead th { 
+    font-weight: 600; 
+    border-bottom: 1px dashed #bbb;
   }
 
-  .col-header-classic { color: #9030b0; font-size: 0.72rem; font-weight: 600; }
-  .col-header-llama   { color: #1a50c8; font-size: 0.72rem; font-weight: 600; }
+  .section-header {
+    background: #faf5fa;  // light pink/lavender tint to match reference
+    color: #c040c0;       // brighter magenta for section headers
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-top: 1px dashed #bbb;
+    text-transform: uppercase;
+  }
 
-  .main { font-weight: 500; margin-bottom: 2px; }
-  .sub  { display: block; font-size: 0.72rem; opacity: 0.7; margin-top: 4px;   }
-  .note { font-size: 0.68rem; color: #b030a0; margin-top: 3px; }
-  .comp { font-weight: 600; }
+  .col-header-classic { 
+    color: #9040b0;       // purple for Classic Transformer
+    font-size: 0.75rem; 
+    font-weight: 600; 
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  
+  .col-header-llama { 
+    color: #2060d0;       // blue for LLAMA 3
+    font-size: 0.75rem; 
+    font-weight: 600; 
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .main { 
+    font-weight: 600; 
+    margin-bottom: 4px; 
+  }
+  
+  .sub { 
+    display: block; 
+    font-size: 0.75rem; 
+    color: #555;
+    margin-top: 4px;
+  }
+  
+  .note, .note a { 
+    font-size: 0.72rem; 
+    color: #c040c0;       // magenta for notes/links
+    margin-top: 4px;
+    display: block;
+  }
+  
+  .note a:hover {
+    text-decoration: underline;
+  }
+  
+  .comp { 
+    font-weight: 600; 
+    font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Consolas', 'Courier New', monospace;
+  }
 }
