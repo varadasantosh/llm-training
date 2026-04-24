@@ -369,20 +369,7 @@ Steps common to both architectures
 - LM Head — projects the hidden state of the last token back to vocabulary logits.
 
 
-
-<!-- <style>
-.arch-table{width:100%;border-collapse:collapse;font-family:'JetBrains Mono', 'Courier New', monospace;font-size:0.82rem;border:1px dashed #bbb}
-.arch-table td,.arch-table th{border:1px dashed #ccc;padding:9px 14px;vertical-align:top;background:#fff;color:#111}
-.arch-table thead th{font-weight:600}
-.arch-table .section-header{background:#f2f2f2;color:#a030b0;font-size:0.72rem;letter-spacing:.05em;font-weight:500;padding:5px 14px;border-top:1px dashed #bbb}
-.arch-table .col-header-classic{color:#9030b0;font-size:0.72rem;font-weight:600}
-.arch-table .col-header-llama{color:#1a50c8;font-size:0.72rem;font-weight:600}
-.arch-table .main{font-weight:500;margin-bottom:2px}
-.arch-table .sub{display: block; font-size: 0.72rem; opacity: 0.7; margin-top: 4px;}
-.arch-table .note{font-size:0.68rem;color:#b030a0;margin-top:3px}
-.arch-table .comp{font-weight:600}
-</style> -->
-
+<figure id="table-arch-comparison">
 <table class="arch-table">
   <thead>
     <tr>
@@ -472,7 +459,7 @@ Steps common to both architectures
       </td>
       <td>
         <div class="main">3 × (H × f)</div>
-        <div class="formula">MLP(x) = (SiLU(xW<sub>g</sub>) · xW<sub>u</sub>)W<sub>d</sub></div>
+        <div class="sub">$\text{MLP}(x) = ( \text{SiLU}(xW_g) \cdot xW_u ) W_d$</div>
         <div class="sub">Gate Projection (Wg): H * f</div>
         <div class="sub">Up Projection (Wu): H * f</div>
         <div class="sub">Down Projection (Wd): H * f</div>
@@ -500,6 +487,8 @@ Steps common to both architectures
 
   </tbody>
 </table>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 6: Classic Transformer vs Llama 3 Architecture Comparison</figcaption>
+</figure>
 
 
 ##### Worked example — Llama 3 8B
