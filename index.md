@@ -649,38 +649,29 @@ This sums up to **18 bytes per parameter** for mixed precision training with Ada
 Next we look at Activations — the dynamic component whose memory cost changes with every training configuration (**Batch Size, Sequnece Length**).
 
 #### **Activations**
-There are various types of Large Language Models (LLM,VLLM,Difussion LLM),While specific design and Architecture vary by modality and its purpose(chat, completions).  the fundamental building block remains the Transformer Block consisting of Layer Norm → Attention → Layer Norm -> MLP. Inside the MLP, data passes through several layers, Zooming into the MLP either Feed Forward or MoE, we see data flowing through sequence of layers.  During the forward pass, the output of layer $L_{n-1}$ serves as the input for layer $L_n$; these intermediate outputs are known as Activations.
+There are various types of Large Language Models (LLM,VLLM,Difussion LLM),while specific design and architecture vary by modality and its purpose(chat, completions).  the fundamental building block remains the Transformer Block consisting of Layer Norm → Attention → Layer Norm -> MLP. Inside the MLP, data passes through several layers, Zooming into the MLP either Feed Forward or MoE, we see data flowing through sequence of layers.  During the forward pass, the output of layer $L_{n-1}$ serves as the input for layer $L_n$; these intermediate outputs are known as Activations. 
 
-each producing an intermediate output before passing it forward. These intermediate outputs are Activations. During the forward pass, the output of layer n becomes the input to layer n+1 — that output is an activation. This happens at every layer, across every block, for every sample in the batch.
+These activations are not just temporary values they are critical for backward pass to compute gradients during backpropagation, at every layer we need activations that were produced during the forward pass (see <a href="#table-backward-pass">Table 2</a>). This means all activations from the entire forward pass must be held in memory until backpropagation is complete. Unlike Parameters, Gradients, and Optimizer States whose memory cost is fixed by model architecture, Activations scale with both Batch Size and Sequence Length — which is what makes them the most unpredictable component of all that lives on GPU, like mentioned earlier data goes through different layers input => L* transformer blocks => output,  activations are present before passing input to transformer blocks & after data comes out of transformer blocks. The largest portion of activation memory lives inside the transformer blocks themselves — the table below breaks this down component by component for one Llama-3 block.
 
-These activations are not just temporary values they are critical for the The backward pass to compute gradients during backpropagation, at every layer we need activations that were produced during the forward pass (see <a href="#table-backward-pass">Table 2</a>). This means all activations from the entire forward pass must be held in memory until backpropagation is complete. Unlike Parameters, Gradients, and Optimizer States whose memory cost is fixed by model architecture, Activations scale with both Batch Size and Sequence Length — which is what makes them the most unpredictable component of all that lives on GPU.
-
-| Component | Classic Transformer (MHA) | Llama 3 (GQA / SwiGLU) |
-| :--- | :--- | :--- |
-| **Position Coding** | Sinusoidal (Fixed) | **RoPE** (Inside Attention) |
-| **Normalization** | LayerNorm (Scale + Shift) | **RMSNorm** (Scale Only) |
-| **Attention** | $H \times H$ (Q, K, V) | **$H \times H$ (Q), $g \times d_k$ (K, V)** |
-| **MLP / FFN** | $2 \times (H \times 4H)$ | **$3 \times (H \times f)$** |
-{: .table .table-sm .table-bordered .table-hover .text-center}
 
 
 ### Per-Block Activation Memory Breakdown
 
 
-| Step | Operation | Shape | Llama 3 8B Dim | Memory (Bytes) |
+| Step | Operation | Shape |  Memory (Bytes) |
 | :--- | :--- | :--- | :--- | :--- |
-| **1** | **RMSNorm (Attn)** | $(B, S, H)$ | $(B, S, 4096)$ | $2 \cdot BSH$ |
-| **2.a** | **Q Projection** | $(B, S, H)$ | $(B, S, 4096)$ | $2 \cdot BSH$ |
-| **2.b** | **K Projection** | $(B, S, g \cdot d_k)$ | $(B, S, 1024)$ | $0.5 \cdot BSH$ |
-| **2.c** | **V Projection** | $(B, S, g \cdot d_k)$ | $(B, S, 1024)$ | $0.5 \cdot BSH$ |
-| **2.d** | **Score ($QK^T$)** | $(B, N, S, S)$ | $(B, 32, S, S)$ | $2 \cdot BnS^2$ |
-| **2.e** | **Softmax** | $(B, N, S, S)$ | $(B, 32, S, S)$ | $2 \cdot BnS^2$ |
-| **2.f** | **Attn Output** | $(B, S, H)$ | $(B, S, 4096)$ | $2 \cdot BSH$ |
-| **2.g** | **O Projection** | $(B, S, H)$ | $(B, S, 4096)$ | $2 \cdot BSH$ |
-| **3** | **RMSNorm (MLP)** | $(B, S, H)$ | $(B, S, 4096)$ | $2 \cdot BSH$ |
-| **4.a** | **Gate Proj** | $(B, S, f)$ | $(B, S, 14336)$ | $2 \cdot BSf$ |
-| **4.b** | **Up Proj** | $(B, S, f)$ | $(B, S, 14336)$ | $2 \cdot BSf$ |
-| **4.c** | **Down Proj** | $(B, S, H)$ | $(B, S, 4096)$ | $2 \cdot BSH$ |
+| **1** | **RMSNorm (Attn)** | $(B, S, H)$ |  $2 \cdot BSH$ |
+| **2.a** | **Q Projection** | $(B, S, H)$ |  $2 \cdot BSH$ |
+| **2.b** | **K Projection** | $(B, S, g/n \cdot H )$ |  $0.5 \cdot BSH$ |
+| **2.c** | **V Projection** | $(B, S, g/n \cdot H)$ |  $0.5 \cdot BSH$ |
+| **2.d** | **Score ($QK^T$)** | $(B, n, S, S)$  | $2 \cdot BnS^2$ |
+| **2.e** | **Softmax** | $(B, n, S, S)$ | $2 \cdot BnS^2$ |
+| **2.f** | **Attn Output** | $(B, S, H)$ | $2 \cdot BSH$ |
+| **2.g** | **O Projection** | $(B, S, H)$ | $2 \cdot BSH$ |
+| **3** | **RMSNorm (MLP)** | $(B, S, H)$ | $2 \cdot BSH$ |
+| **4.a** | **Gate Proj** | $(B, S, f)$ | $2 \cdot BSf$ |
+| **4.b** | **Up Proj** | $(B, S, f)$ | $2 \cdot BSf$ |
+| **4.c** | **Down Proj** | $(B, S, H)$ | $2 \cdot BSH$ |
 {: .table .table-sm .table-bordered .table-hover .text-center}
 
 
