@@ -472,7 +472,7 @@ Steps common to both architectures
       </td>
       <td>
         <div class="main">3 × (H × f)</div>
-        <div class="sub">MLP(x) = (SiLU(xW<sub>g</sub>) · xW<sub>u</sub>)W<sub>d</sub></div>
+        <div class="formula">MLP(x) = (SiLU(xW<sub>g</sub>) · xW<sub>u</sub>)W<sub>d</sub></div>
         <div class="sub">Gate Projection (Wg): H * f</div>
         <div class="sub">Up Projection (Wu): H * f</div>
         <div class="sub">Down Projection (Wd): H * f</div>

@@ -32,6 +32,15 @@
     border-bottom: 1px dashed #bbb;
   }
 
+  // Subscript styling for mathematical notation
+  sub {
+    font-size: 0.7em;
+    vertical-align: baseline;
+    position: relative;
+    bottom: -0.25em;
+    font-family: inherit;
+  }
+
   .section-header {
     background: #faf5fa;  // light pink/lavender tint to match reference
     color: #c040c0;       // brighter magenta for section headers
@@ -66,9 +75,20 @@
   
   .sub { 
     display: block; 
-    font-size: 0.75rem; 
-    color: #555;
+    font-size: 0.78rem; 
+    color: #444;
+    margin-top: 5px;
+    line-height: 1.4;
+    font-weight: 400;
+  }
+  
+  // Formula styling - for MLP equation and similar
+  .formula {
+    font-style: italic;
+    font-size: 0.82rem;
+    color: #333;
     margin-top: 4px;
+    display: block;
   }
   
   .note, .note a { 
