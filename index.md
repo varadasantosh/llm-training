@@ -672,7 +672,7 @@ These activations are not just temporary values they are critical for backward p
     <tr><td colspan="4" class="section-header">ATTENTION</td></tr>
     <tr>
       <td class="comp">1</td>
-      <td><div class="main">RMSNorm (Attn)</div></td>
+      <td><div class="main">RMSNorm (Pre-Attn)</div></td>
       <td><div class="main">$(B, S, H)$</div></td>
       <td><div class="main">$2 \cdot BSH$</div></td>
     </tr>
@@ -723,7 +723,7 @@ These activations are not just temporary values they are critical for backward p
     <tr><td colspan="4" class="section-header">MLP / FFN</td></tr>
     <tr>
       <td class="comp">3</td>
-      <td><div class="main">RMSNorm (MLP)</div></td>
+      <td><div class="main">RMSNorm (Pre-MLP)</div></td>
       <td><div class="main">$(B, S, H)$</div></td>
       <td><div class="main">$2 \cdot BSH$</div></td>
     </tr>
@@ -748,6 +748,9 @@ These activations are not just temporary values they are critical for backward p
   </tbody>
 </table>
 <figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 7: Per-Block Activation Memory Breakdown for Llama 3</figcaption>
+<figcaption style="text-align:center; font-size:12px; color:#888; margin-top:4px; font-style:italic;">
+  <strong>Note:</strong> Llama 3 uses <a href="https://arxiv.org/abs/2205.14135" target="_blank">FlashAttention</a>, which optimizes the attention calculation process by eliminating the necessity for storing intermediate attention scores (Step 2.d) and softmax outputs (Step 2.e), significantly reducing activation memory requirements.
+</figcaption>
 </figure>
 
 
