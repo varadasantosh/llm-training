@@ -692,7 +692,6 @@ These activations are not just temporary they are critical for backward pass to 
       <td><div class="main">$(B, S, H)$</div></td>
     </tr>
     
-    <td><div class="main">$2 \cdot BSH$</div></td>
     <tr>
       <td class="comp">2.a</td>
       <td><div class="main">Q Projection</div></td>
@@ -777,16 +776,19 @@ These activations are not just temporary they are critical for backward pass to 
       <td><div class="main">$(B, S, f)$</div></td>
       <td><div class="main">$2 \cdot BSf$</div></td>
     </tr>
-    <tr><td colspan="4" class="section-header">TOTAL per block</td></tr>
-    <td><div class="main">2BSH (Residual 1) + 2BSH (RMSNorm-Attn) +
-             + 2BSH (Q) + 0.5BSH (K) + 0.5BSH (V)
-             + 2BnS² (Score) + 2BnS² (Softmax) 
-             + 2BSH (Attn Output) + 2BSH (O Proj) 
-             + 2BSH (Residual 2)
-             + 2BSH (RMSNorm-MLP) 
-             + 2BSf (Gate) + 2BSf (Up) + 2BSf (SiLU)
-             + 2BSH (Down Proj)
-             = 15·BSH + 4·BnS² + 6·BSf </div></td>
+    <tr><td colspan="4" class="section-header">TOTAL PER BLOCK</td></tr>
+    <tr>
+      <td colspan="4" style="padding:16px 12px;">
+        <div style="text-align:center; font-size:0.9rem;">
+          <strong style="font-size:1rem; color:#c040c0;">$\text{Total} = 15 \cdot BSH + 4 \cdot BnS^2 + 6 \cdot BSf$</strong>
+        </div>
+        <div style="margin-top:12px; font-size:0.75rem; color:#666; line-height:1.6;">
+          <strong>Breakdown:</strong><br>
+          <span style="color:#888;">Attention:</span> 2BSH (Residual) + 2BSH (RMSNorm) + 2BSH (Q) + 0.5BSH (K) + 0.5BSH (V) + 2BnS² (Score) + 2BnS² (Softmax) + 2BSH (Attn Out) + 2BSH (O Proj)<br>
+          <span style="color:#888;">MLP:</span> 2BSH (Residual) + 2BSH (RMSNorm) + 2BSf (Gate) + 2BSf (Up) + 2BSf (SiLU) + 2BSH (Down)
+        </div>
+      </td>
+    </tr>
 
   </tbody>
 </table>
@@ -795,12 +797,9 @@ These activations are not just temporary they are critical for backward pass to 
   <strong>Note:</strong> Llama 3 uses <a href="https://arxiv.org/abs/2205.14135" target="_blank">FlashAttention</a>, which optimizes the attention calculation process by eliminating the necessity for storing intermediate attention scores (Step 2.d) and softmax outputs (Step 2.e), significantly reducing activation memory requirements.
 </figcaption>
 <figcaption style="text-align:center; font-size:12px; color:#666; margin-top:8px;">
-  <strong>Legend:</strong> $B$ = Batch Size · $S$ = Sequence Length · $H$ = Hidden Dimension · $n$ = Number of Q Heads · $g$ = Number of KV Heads · $f$ = FFN Intermediate Size
+  <strong>Legend:</strong> $B$ = Batch Size |  $S$ = Sequence Length | $H$ = Hidden Dimension | $L$= Transformer Block | $n$ = Number of Q Heads | $g$ = Number of KV Heads | $f$ = FFN Intermediate Size
 </figcaption>
 </figure>
-
-
-
 
 
 ### How model architecture amplifies the problem
