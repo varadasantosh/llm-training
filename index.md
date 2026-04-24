@@ -767,7 +767,7 @@ These activations are not just temporary values they are critical for backward p
 
   </tbody>
 </table>
-<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 7: Per-Block Activation Memory Breakdown for Llama 3</figcaption>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 7: Per-Block Activation Memory Breakdown for Llama 3 (8B)</figcaption>
 <figcaption style="text-align:center; font-size:12px; color:#888; margin-top:4px; font-style:italic;">
   <strong>Note:</strong> Llama 3 uses <a href="https://arxiv.org/abs/2205.14135" target="_blank">FlashAttention</a>, which optimizes the attention calculation process by eliminating the necessity for storing intermediate attention scores (Step 2.d) and softmax outputs (Step 2.e), significantly reducing activation memory requirements.
 </figcaption>
