@@ -89,6 +89,23 @@ _styles: >
   }
   .tag-time { background: rgba(220, 53, 69, 0.12); color: #c92a2a; }
   .tag-memory { background: rgba(230, 119, 0, 0.12); color: #d9480f; }
+  .ddp-note {
+    background: var(--global-code-bg-color, #f8f9fa);
+    border-left: 3px solid var(--global-divider-color, #ccc);
+    padding: 10px 14px;
+    margin: 16px 0;
+    border-radius: 0 4px 4px 0;
+    font-size: 0.85rem;
+  }
+  .ddp-note .note-label {
+    display: block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--global-text-color-light, #888);
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
 ---
 
 ## Introduction
@@ -96,7 +113,7 @@ _styles: >
 In the [previous section]({{ '/' | relative_url }}), we established two fundamental constraints that make training frontier models on a single GPU impossible — time and memory.
 
 > **Compute constraint** At $3.8 \times 10^{25}$ FLOPs,
-> training Llama 3 405B on a single H100 (67 TFLOPS FP32) would take ~18,000 years even at 100% : utilisation.
+> training Llama 3 405B on a single H100 (67 TFLOPS FP32) would take ~18,000 years even at 100% > utilisation.
 
 > **Static Memory constraint:** Parameters, Gradients, and Optimizer States for Llama 3 8B 
 > require ~144 GB — nearly double the H100's 80 GB VRAM.
@@ -112,7 +129,7 @@ These are two distinct problems that require two distinct ways of thinking about
 
 <span class="factor-tag tag-time">Time</span>
 
-Though 18,000 years sounds insurmountable, time constraints are a familiar problem in engineering. The standard solution is parallelism: divide the work across multiple workers, each handling a subset of the problem simultaneously.
+Though the scale of the problem is very large(18,000 years) in this context , time constraints are a familiar problem in engineering. The standard solution is parallelism divide the work across multiple workers, each handling a subset of the problem simultaneously.
 
 The same principle applies here. Training on 15 trillion tokens means processing an enormous amount of data. If we split that data across multiple GPUs — each GPU seeing a different subset — and run the forward and backward passes simultaneously, training time scales down proportionally with the number of GPUs. This is the core idea behind **Data Parallelism**.
 
@@ -140,9 +157,10 @@ To achieve this, GPUs cannot work in isolation — they need to communicate and 
 
 Every parallelism technique listed above relies on a common communication layer. For NVIDIA GPUs, that layer is [NCCL](https://developer.nvidia.com/nccl) — the NVIDIA Collective Communications Library. NCCL provides the core routines for moving data across GPUs, whether they share the same node or are spread across multiple nodes over a network. PyTorch, DeepSpeed, and Megatron-LM all build on top of NCCL.
 
-<d-aside>
+<div class="ddp-note">
+  <span class="note-label">Further Reading</span>
   The Llama 3 team extended NCCL into <strong>NCCLX</strong>, optimizing collective operations for their specific network topology across large GPU clusters. See Section 3.3.3 (Collective Communication) of the Llama 3 <a href="https://arxiv.org/pdf/2407.21783">paper</a> for details.
-</d-aside>
+</div>
 
 NCCL exposes a set of collective operations — each designed for a specific communication pattern. We will introduce them as they are needed, but here is the full set we will encounter across all parallelism techniques:
 
