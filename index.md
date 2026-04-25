@@ -1,10 +1,9 @@
 ---
 layout: distill
-title: Why One GPU is Never Enough
-description: Understanding memory and compute constraints in LLM training
+title: LLM Training using Parallelism Techniques
+description: A comprehensive guide to parallelism techniques for training large language models
 date: 2026-03-14
 permalink: /
-series: llm-training
 
 authors:
   - name: Varada Santosh
