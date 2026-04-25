@@ -19,7 +19,7 @@ toc:
         subsections:
           - name: Parameters
           - name: Activations
-      - name: Summary: The Memory Wall
+      - name: Putting it All Together
 
 # bibliography: references.bib
 ---
