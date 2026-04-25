@@ -26,7 +26,7 @@ toc:
 
 ## Introduction
 
-Technology has a pattern — every few decades, evolution in technology challenges status quo and redraws the boundaries of the society, Mechanization didn't just make farming faster, it triggered the Industrial Revolution.The internet didn't 
+Technology has a pattern — every few decades, evolution in technology challenges the status quo and redraws the boundaries of society. Mechanization didn't just make farming faster, it triggered the Industrial Revolution. The internet didn't 
 just make communication cheaper, it shrunk the entire world. These 
 weren't incremental improvements, they were resets.
 
@@ -34,8 +34,8 @@ Machine Learning is going through one such moment right now.
 
 <!-- Add timeline of ML evolution -->
 
-**What are Large Language Models**
-Large Language Models are token factories,Much like a traditional factory takes raw materials, runs them through a series of machines, and produces a finished product,LLMs do exactly that with information. Whether the input is text, images, or video, everything is converted into tokens.These tokens are passed as input & processed through layers of computation across GPU machines, and useful tokens come out the other side.
+**What are Large Language Models:**
+Large Language Models are token factories. Much like a traditional factory takes raw materials, runs them through a series of machines, and produces a finished product, LLMs do exactly that with information. Whether the input is text, images, or video, everything is converted into tokens. These tokens are passed as input & processed through layers of computation across GPU machines, and useful tokens come out the other side.
 
 But not all factories produce the same quality of goods. What comes out depends on three pillars: the raw materials you feed in, the design of the factory itself, and how well the manufacturing process is executed. For LLMs, these translate directly to **Data Preparation**, **Model Architecture**, and the **Training Process**.
 
@@ -43,7 +43,7 @@ But not all factories produce the same quality of goods. What comes out depends 
 
 The utility of the factory depends entirely on the input. Feed it a patient's health records, and it returns a diagnostic summary. Feed it a pull request, and it provides a code review. Feed it a financial report, and it identifies risks and bottlenecks. It is the same factory producing completely different products based on the prompt.
 
-However, running a token factory at this scale is not easy to achieve.Frontier models evolving rapidly consist of hundreds of billions of parameters trained on trillions of tokens. We quickly hit a wall where a single GPU simply cannot hold the workload.
+However, running a token factory at this scale is not easy to achieve. Frontier models evolving rapidly consist of hundreds of billions of parameters trained on trillions of tokens. We quickly hit a wall where a single GPU simply cannot hold the workload.
 
 **Analogy**: building a house for a few people is a straightforward task. Building a city for millions to live comfortably requires entirely different levels of planning, infrastructure, and communication. Model training faces the same leap in complexity. This blog explores how Parallelism techniques provide the infrastructure necessary to build these "cities" of intelligence.
 
@@ -75,7 +75,7 @@ The PyTorch training loop is something most of us know well. But before diving i
 
    
 
-**Forward Pass** : input X enters Layer 1, gets multiplied with that layer's weights, a bias is added, and the result becomes activation A₁. That activation becomes the input to Layer 2, where the same operation happens again, giving us our final prediction Ŷ. This pattern holds for any number of layers — the output of layer n-1 is always the input to layer n. To complete a forward pass, each layer only needs two things: its Parameters (w, b) and the incoming Activations.
+**Forward Pass**: input X enters Layer 1, gets multiplied with that layer's weights, a bias is added, and the result becomes activation A₁. That activation becomes the input to Layer 2, where the same operation happens again, giving us our final prediction Ŷ. This pattern holds for any number of layers — the output of layer n-1 is always the input to layer n. To complete a forward pass, each layer only needs two things: its Parameters (w, b) and the incoming Activations.
 
 <figure>
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:15px; border:2px dashed #555;">
@@ -106,10 +106,9 @@ The PyTorch training loop is something most of us know well. But before diving i
 **Backward Pass:** Once **loss_fn** gives us the loss, it acts as a compass — telling the model 
 how wrong it was, which direction to correct itself. The backward pass uses this signal to update the parameters of every layer in the network.
 
-How much each parameter should change is determined by three things:Gradients, Optimizer States, and Learning Rate. Learning Rate is a hyperparameter we'll dedicate separate discussion to — for now, let's focus on Gradients and Optimizer States, since these are computed and stored every single training step.
+How much each parameter should change is determined by three things: Gradients, Optimizer States, and Learning Rate. Learning Rate is a hyperparameter we'll dedicate separate discussion to — for now, let's focus on Gradients and Optimizer States, since these are computed and stored every single training step.
 
-<a href="#fig-backward-pass">Figure 3</a> shows exactly what's flowing in and out of each layer during 
-backward pass. Let's look at the equations behind it.
+<a href="#fig-backward-pass">Figure 3</a> shows exactly what's flowing in and out of each layer during the backward pass. Let's look at the equations behind it.
 
 
 <d-aside>
@@ -277,7 +276,7 @@ But even if we had infinite time, there's another fundamental constraint: **memo
     </tr>
     <tr>
       <td style="padding:10px 12px; border:2px dashed #555;">High-End CPU</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$11.37 TFLOPS (11.37 \times 10^{12}$ FLOPS)</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">~11.37 TFLOPS ($11.37 \times 10^{12}$ FLOPS)</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$\frac{3.8 \times 10^{25}}{11.37 \times 10^{12}} = 3.342 \times 10^{12}$ sec</td>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>~105,900 Years</strong></td>
     </tr>
@@ -290,7 +289,7 @@ But even if we had infinite time, there's another fundamental constraint: **memo
 
 Let's go back to that assumption we made earlier — that a 405B model could fit on a single GPU. To understand why that's a problem, we need to understand what a model actually is.
 
-A model isn't just its weights. When we call model.to(device), we're not just moving parameters onto the GPU — we're moving an entire graph of interconnected components: Parameters for the forward pass, Gradients for every parameter, Optimizer States 
+A model isn't just its weights. When we call ```model.to(device)``` , we're not just moving parameters onto the GPU — we're moving an entire graph of interconnected components: Parameters for the forward pass, Gradients for every parameter, Optimizer States 
 like Adam's m and v vectors, Activations from the forward pass held in memory for the backward pass, and temporary buffers for intermediate calculations. On top of these, input and output tensors need to sit on the same device as the model. All of that 
 has to live in VRAM simultaneously.
 
@@ -653,9 +652,8 @@ The solution is mixed precision — use BF16 where speed matters, FP32 where pre
 | :---| ---: | ---:|
 | Parameters($$\phi$$) working copy|  BF16 | 2 Bytes |
 | Parameters($$\phi$$) master copy| FP32 | 4 Bytes |
-| Gradients Acc| FP32 | 4 Bytes|
-| Optimizer States| FP32 | 4 Bytes |
-   
+| Gradients ($\nabla W$)| FP32 | 4 Bytes |
+| Optimizer States ($m_t$, $v_t$)| FP32 | 8 Bytes |
   
 Since Gradients and Optimizer States scale directly with parameter count, we can express their memory cost in terms of $$\phi$$:
 
@@ -672,7 +670,7 @@ Since Gradients and Optimizer States scale directly with parameter count, we can
 >
 > $\text{Total Static Memory} \quad = \quad 18\phi \text{ bytes}$
 
-This sums up to **18 bytes per parameter** for mixed precision training with Adam Optimizer. For Llama-3 8B with $$\phi \approx 8.03\text{B}$$ parameters, static components alone require approximately **144GB** — nearly double the H100's 80GB VRAM, 144GB memory is required before a single activation is stored.
+This sums up to **18 bytes per parameter** for mixed precision training with Adam Optimizer. For Llama-3 8B with $$\phi \approx 8.03\text{B}$$ parameters, static components alone require approximately **144 GB** — nearly double the H100's 80 GB VRAM — before a single activation is stored.
 
 Next we look at Activations — the dynamic component whose memory cost changes with every training configuration (**Batch Size, Sequence Length**).
 
@@ -837,7 +835,7 @@ the table below breaks this down operation by operation for one Llama 3 block.
 
 > **FlashAttention Optimization:** Llama 3 uses [FlashAttention](https://arxiv.org/abs/2205.14135), which computes attention in tiles without materializing the full S×S score matrix. Steps 2.d (Score) and 2.e (Softmax) are never stored — it uses online softmax calculations to reduce memory for attention scores & softmax from O(S²) to O(S).
 
-The [Llama 3 paper (Section 3.4)](https://arxiv.org/pdf/2407.21783#section.3.4) details the pre-training recipe used for training the Llama 3 series of models. For Llama 3 405B, they use a **progressive batch size schedule**, similar recipes are used for 8B and 70B models.
+The [Llama 3 paper (Section 3.4)](https://arxiv.org/pdf/2407.21783#section.3.4) details the pre-training recipe used for training the Llama 3 series of models. For Llama 3 405B, they use a **progressive batch size schedule**. Similar recipes are used for the 8B and 70B models.
 
 | Training Phase | Global Batch Size | Sequence Length | Training Tokens |
 |----------------|-------------------|-----------------|-----------------|
@@ -907,10 +905,10 @@ While the sequence length increases progressively during training, for simplicit
 
 
 
-### Summary:The Memory Wall
+### Summary: The Memory Wall
 
 
-Below <a href="#llama-3-config" >table </a>(from the Llama 3 [paper](https://arxiv.org/pdf/2407.21783)) shows how architecture choices scale across model sizes. From 8B to 405B, the number of layers grows from 32 to 126, the hidden dimension from 4,096 to 16,384, and the FFN intermediate size from 14,336 to 53,248.
+The configuration table below from <a href="#llama-3-config" >Llama3 </a>(from the Llama 3 [paper](https://arxiv.org/pdf/2407.21783)) shows how architecture choices scale across model sizes. From 8B to 405B, the number of layers grows from 32 to 126, the hidden dimension from 4,096 to 16,384, and the FFN intermediate size from 14,336 to 53,248.
 
 Each of these numbers is a direct multiplier on memory. More layers means more
 weight matrices and more activations to hold during the forward pass. A larger
@@ -922,7 +920,7 @@ more memory; it costs closer to 8×.
   {% include figure.liquid path="assets/img/llm-training/section-3/Llama-3-config.png" class="img-medium" caption="Figure-4: Llama 3 Configurations" %}
 </figure>
 
-Architecture is only one side of the memory equation. Dynamic memory (activations) — is driven by two training choices: sequence length and batch size.
+Architecture is only one side of the memory equation. Dynamic memory — activations — is driven by two training choices: sequence length and batch size.
 
 Deep learning models are data-hungry. The more capable we want a model to be,
 the more data it must see during training. The Llama series makes this trend
@@ -930,6 +928,7 @@ concrete: Llama 2 was trained on 1.8 trillion tokens, Llama 3 on 15 trillion,
 and Llama 4 on approximately 30 trillion. More tokens means longer training runs,
 larger batch sizes, and larger activation footprints at every training step.
 
+To put the numbers together:
 
 - **Compute alone makes a single GPU infeasible.** At $3.8 \times 10^{25}$ FLOPs,
     training Llama 3 405B on a single H100 (67 TFLOPS FP32) would take ~18,000 years even at 100% utilisation.
@@ -950,7 +949,7 @@ larger batch sizes, and larger activation footprints at every training step.
   on one GPU is not a single sequence. With a global batch of 16 M tokens and
   16,384 sequences, each of thousands of GPUs processes multiple sequences.
   Even at a modest 32 sequences per GPU, activation memory with FlashAttention
-  reaches **32 × 41 GB ≈ 1.3 TB** — more than 16× the H100's VRAM.
+  reaches **32 × 38 GB ≈ 1.2 TB** — more than 15× the H100's VRAM.
 
-This is why no single GPU can train a frontier LLM. The following sections explore  how parallelism techniques distribute these memory and compute requirements across thousands of GPUs.
+This is why no single GPU can train a frontier LLM. The following sections explore how parallelism techniques distribute these memory and compute requirements across thousands of GPUs.
 
