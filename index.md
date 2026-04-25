@@ -28,7 +28,7 @@ toc:
   <div style="color:var(--global-text-color-light,#6c757d); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px;">LLM Training Parallelism Series</div>
   <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px;">
     <span><strong>Part 1:</strong> Memory &amp; The Case for Parallelism</span>
-    <a href="/ddp/"><strong>Part 2:</strong> Data Parallelism &amp; ZeRO →</a>
+    <a href="{{ '/ddp/' | relative_url }}"><strong>Part 2:</strong> Data Parallelism &amp; ZeRO →</a>
   </div>
 </div>
 
@@ -963,6 +963,6 @@ This is why no single GPU can train a frontier LLM. The following sections explo
 
 
 <div style="display:flex; justify-content:flex-end; margin-top:48px; padding-top:20px; border-top:1px solid var(--global-divider-color,#dee2e6);">
-  <a href="/ddp/" style="font-size:0.9rem; font-weight:600;">Next: Data Parallelism &amp; ZeRO →</a>
+  <a href="{{ '/ddp/' | relative_url }}" style="font-size:0.9rem; font-weight:600;">Next: Data Parallelism &amp; ZeRO →</a>
 </div>
 
