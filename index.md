@@ -817,11 +817,6 @@ the table below breaks this down operation by operation for one Llama 3 block.
         <div style="text-align:center; font-size:0.9rem;">
           <strong style="font-size:1rem; color:#c040c0;">$\text{Total} = 17 \cdot BSH + 4 \cdot BnS^2 + 6 \cdot BSf$</strong>
         </div>
-        <div style="margin-top:12px; font-size:0.75rem; color:#666; line-height:1.6;">
-          <strong>Breakdown:</strong><br>
-          <span style="color:#888;">Attention:</span> 2BSH (Residual) + 2BSH (RMSNorm) + 2BSH (Q) + 0.5BSH (K) + 0.5BSH (V) + 2BnS² (Score) + 2BnS² (Softmax) + 2BSH (Attn Out) + 2BSH (O Proj)<br>
-          <span style="color:#888;">MLP:</span> 2BSH (Residual) + 2BSH (RMSNorm) + 2BSf (Gate) + 2BSf (Up) + 2BSf (SiLU) + 2BSH (Down)
-        </div>
       </td>
     </tr>
 
