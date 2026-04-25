@@ -55,6 +55,9 @@
   <body class="{% if site.navbar_fixed %}fixed-top-nav{% endif %} {% unless site.footer_fixed %}sticky-bottom-footer{% endunless %}">
     <!-- Header -->
     {% include header.liquid %}
+    
+    <!-- Series Navigation -->
+    {% include series_nav.liquid %}
 
     <!-- Content -->
     <div class="post distill">

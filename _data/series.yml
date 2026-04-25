@@ -1,0 +1,17 @@
+# Series definitions for multi-part articles
+llm-training:
+  title: "LLM Training using Parallelism Techniques"
+  parts:
+    - title: "Why One GPU is Never Enough"
+      url: "/"
+      description: "Understanding memory and compute constraints"
+    - title: "Data Parallelism — From Vanilla DDP to ZeRO"
+      url: "/ddp/"
+      description: "Distributed Data Parallel and ZeRO optimization"
+    # Future parts:
+    # - title: "Tensor Parallelism"
+    #   url: "/tensor-parallelism/"
+    #   description: "Splitting layers across GPUs"
+    # - title: "Pipeline Parallelism"
+    #   url: "/pipeline-parallelism/"
+    #   description: "Distributing model layers"

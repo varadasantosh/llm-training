@@ -4,6 +4,7 @@ title: Data Parallelism - From Vanilla DDP to ZeRO
 description: Understanding Distributed Data Parallel training and memory optimization techniques
 date: 2026-03-15
 permalink: /ddp/
+series: llm-training
 
 authors:
   - name: Varada Santosh
