@@ -184,9 +184,9 @@ We start with the simplest — **Distributed Data Parallel training** — and bu
 
 ## Vanilla DDP
 
-Distributed Data Parallelism - as the name suggests this technique of parallelism works by dividing the training data into shards , number of shards are determined by number of GPU's avaialble for training, exact same model is replicated to all GPU's along with respective shard, for initial iteration-1 each GPU has same set of weight & bias with only difference being data shard, training on different shard leads to different loss values , gradients &  optimizer states , this leads to the unwanted behavior of model divergence. 
+Distributed Data Parallelism - as the name suggests this technique of parallelism works by dividing the training data into shards , number of shards are determined by number of GPU's available for training, exact same model is replicated to all GPU's along with respective shard, for initial iteration-1 each GPU has same set of weight & bias with only difference being data shard, training on different shard leads to different loss values , gradients &  optimizer states , this leads to the unwanted behavior of model divergence. 
 
-NCCL communication libray provides AllReduce operation, this operation performs aggregation(Reduction) of loss values, optimizer states, gradients across all GPU's to ensure Parameters are updated equally across all the GPU's, with Parameters, Gradients, Optimizer States being identical across GPU's between iterations, the same steps are repeated until convergence. By the end of training process we have single model with same set of weights & parameters
+The solution is to synchronize gradients before the optimizer step. This is where NCCL comes in, AllReduce is one of the operations provied by NCCL library, this operation performs AllReduce averages gradients across all GPUs — every GPU sends its local gradients, receives the average(global gradeints), and proceeds to the optimizer step with identical gradients to ensure Parameters are updated equally across all the GPU's, Because every GPU receives the same averaged gradients and runs the same optimizer step, Parameters and Optimizer States remain identical across all GPUs after each iteration.the same steps are repeated until convergence. By the end of training process we have single model with same set of parameters
 
 ### How DDP Works
 
