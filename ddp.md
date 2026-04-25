@@ -188,6 +188,8 @@ Distributed Data Parallelism - as the name suggests this technique of parallelis
 
 NCCL communication libray provides AllReduce operation, this operation performs aggregation(Reduction) of loss values, optimizer states, gradients across all GPU's to ensure Parameters are updated equally across all the GPU's, with Parameters, Gradients, Optimizer States being identical across GPU's between iterations, the same steps are repeated until convergence. By the end of training process we have single model with same set of weights & parameters
 
+### How DDP Works
+
 <figure>
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
 <thead>
@@ -233,4 +235,3 @@ NCCL communication libray provides AllReduce operation, this operation performs 
 <figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 1: Vanilla DDP Training Steps</figcaption>
 </figure>
 
-### How DDP Works
