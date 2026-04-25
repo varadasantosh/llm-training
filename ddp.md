@@ -52,10 +52,10 @@ In the [previous section]({{ '/' | relative_url }}), we established limiting fac
     training Llama 3 405B on a single H100 (67 TFLOPS FP32) would take ~18,000 years even at 100% utilisation.
 
 > **Static memory** (Parameters + Gradients + Optimizer States) for Llama 3 8B requires **~144 GB** — nearly double the H100's 80 GB VRAM
----
-**Dynamic memory** considering hypotehical one sequence per batch Activations adds another **~38-294 GB** depending on FlashAttention usage. A realistic micro-batch pushes total memory to **~1.2 TB** — more than 15× what a single GPU can hold
 
-time factor is a known problem - solution to this as simple as adding more GPU for
+> **Dynamic memory** considering hypotehical one sequence per batch Activations adds another **~38-294 GB** depending on FlashAttention usage. A realistic micro-batch pushes total memory to **~1.2 TB** — more than 15× what a single GPU can hold
+
+Time Factor -  though the scale of the problem is large , this is a common problem, for problems with time constraints engineers employ solutions like multiple threads or multiple process to divide the work between them, though this solution is straight forward 
 
 ---
 
