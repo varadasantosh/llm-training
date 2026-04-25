@@ -12,4 +12,4 @@ assets/libs/
 assets/rendercv/rendercv_output/*.typ
 Gemfile.lock
 node_modules/
-vendor
+vendor__azurite*
