@@ -907,7 +907,8 @@ While the sequence length increases progressively during training, for simplicit
 
 
 
-### Summary
+### Summary:The Memory Wall
+
 
 Below <a href="#llama-3-config" >table </a>(from the Llama 3 [paper](https://arxiv.org/pdf/2407.21783)) shows how architecture choices scale across model sizes. From 8B to 405B, the number of layers grows from 32 to 126, the hidden dimension from 4,096 to 16,384, and the FFN intermediate size from 14,336 to 53,248.
 
@@ -921,13 +922,13 @@ more memory; it costs closer to 8×.
   {% include figure.liquid path="assets/img/llm-training/section-3/Llama-3-config.png" class="img-medium" caption="Figure-4: Llama 3 Configurations" %}
 </figure>
 
-Architecture is only one side of the memory equation. Dynamic memory — activations — is driven by the data side: how long each sequence is and how many sequences are processed simultaneously.
+Architecture is only one side of the memory equation. Dynamic memory (activations) — is driven by two training choices: sequence length and batch size.
 
 Deep learning models are data-hungry. The more capable we want a model to be,
 the more data it must see during training. The Llama series makes this trend
 concrete: Llama 2 was trained on 1.8 trillion tokens, Llama 3 on 15 trillion,
 and Llama 4 on approximately 30 trillion. More tokens means longer training runs,
-larger batch sizes, and correspondingly larger activation footprints at every step.
+larger batch sizes, and larger activation footprints at every training step.
 
 
 - **Compute alone makes a single GPU infeasible.** At $3.8 \times 10^{25}$ FLOPs,
@@ -942,8 +943,8 @@ larger batch sizes, and correspondingly larger activation footprints at every st
   the H100's 80 GB VRAM before a single activation is stored.
 
 - **Dynamic memory compounds the problem.** For a single sequence (B=1,
-  S=8,192), activation memory per block is ~9.86 GB without FlashAttention and
-  ~1.27 GB with it. Across 32 blocks that is **~315 GB** vs **~41 GB**.
+  S=8,192), activation memory per block is ~9.19 GB without FlashAttention and
+  ~1.19 GB with it. Across 32 blocks that is **~294 GB** vs **~38 GB**.
 
 - **A realistic micro-batch makes it far worse.** In practice, the micro-batch
   on one GPU is not a single sequence. With a global batch of 16 M tokens and
