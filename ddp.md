@@ -95,20 +95,15 @@ _styles: >
 
 In the [previous section]({{ '/' | relative_url }}), we established two fundamental constraints that make training frontier models on a single GPU impossible — time and memory.
 
-<div class="ddp-callout compute">
-  <strong>Compute constraint</strong>
-  At $3.8 \times 10^{25}$ FLOPs, training Llama 3 405B on a single H100 (67 TFLOPS FP32) would take ~18,000 years even at 100% utilisation.
-</div>
+> **Compute constraint** At $3.8 \times 10^{25}$ FLOPs,
+> training Llama 3 405B on a single H100 (67 TFLOPS FP32) would take ~18,000 years even at 100% : utilisation.
 
-<div class="ddp-callout mem-static">
-  <strong>Static memory constraint</strong>
-  Parameters, Gradients, and Optimizer States for Llama 3 8B require ~144 GB — nearly double the H100's 80 GB VRAM.
-</div>
+> **Static Memory constraint:** Parameters, Gradients, and Optimizer States for Llama 3 8B >require ~144 GB — nearly double the H100's 80 GB VRAM.
 
-<div class="ddp-callout mem-dynamic">
-  <strong>Dynamic memory constraint</strong>
-  Even for a single sequence, Activations add another 38 GB (with FlashAttention) to 294 GB (without). A realistic micro-batch pushes total activation memory to ~1.2 TB — more than 15× what a single GPU can hold.
-</div>
+> **Dynamic Memory constraint:** Even for a single sequence, Activations 
+> add another 38 GB (with FlashAttention) to 294 GB (without). 
+> A realistic micro-batch pushes total activation memory to ~1.2 TB — 
+> more than 15× what a single GPU can hold.
 
 These are two distinct problems that require two distinct ways of thinking about the solution.
 
