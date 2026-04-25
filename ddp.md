@@ -83,14 +83,6 @@ For large scale models single approach is not sufficient, In practice, teams com
 
 We will work through each technique in turn, starting with the simplest — Data Parallelism — and building toward the combined approach that makes frontier training possible.
 
-Every parallelism techniques needs splitting data and model across GPU's. Here is where things get interesting. If we split the training data across multiple GPUs — each GPU seeing a different subset — each GPU will compute different gradients after its backward pass. If every GPU then updates its own parameters independently, the model copies diverge. By the next iteration, GPU 0 and GPU 1 are no longer training the same model.
-
-**Our goal is to train one model, not N independent models.**
-
-To achieve this, GPUs cannot work in complete isolation — they need to communicate and coordinate at specific points during training, these communication frameworks or libraries are crucial for parallelism techniques - for NVIDIA GPU's [NCCL](https://developer.nvidia.com/nccl) is underlying library that provides routines for moving data across GPU's in single node or 
-
-GPU's present across nodes, NCCL itself deserves its own topic but here we will cover basic operations used across all of these Parallelism techniques. Llama-3  team has extended the NCCL library and created NCCLX to customize the routines to optimize them for their infrastructure and network topology, please refer to section(3.3.3-Collective Communication) from Lalam-3 [paper](https://arxiv.org/pdf/2407.21783)
-
 **The Coordination Problem**
 
 Splitting data across GPUs introduces an immediate challenge. Each GPU sees a different subset of the data, so after the backward pass each GPU has computed different gradients. If every GPU then updates its own parameters independently, the model copies diverge — by the next iteration, GPU 0 and GPU 1 are no longer training the same model.
@@ -101,10 +93,9 @@ To achieve this, GPUs cannot work in isolation — they need to communicate and 
 
 **NCCL — The Communication Foundation**
 
-Every parallelism technique in this blog relies on a common communication layer. For NVIDIA GPUs, that layer is NCCL — the NVIDIA Collective Communications Library.
+Every parallelism technique in this blog relies on a common communication layer. For NVIDIA GPUs, that layer is [NCCL](https://developer.nvidia.com/nccl) — the NVIDIA Collective Communications Library.
 
-NCCL provides the core routines for moving data across GPUs, whether they share the same node or are spread across multiple nodes connected over a network. Rather than each 
-framework implementing its own communication primitives, PyTorch, DeepSpeed, and Megatron-LM all build on top of NCCL
+NCCL provides the core routines for moving data across GPUs, whether they share the same node or are spread across multiple nodes connected over a network. Rather than each framework implementing its own communication primitives, PyTorch, DeepSpeed, and Megatron-LM all build on top of NCCL
 
 The Llama-3 team extended NCCL into NCCLX, optimizing collective operations specifically for their network topology across large GPU clusters. For a detailed treatment of the collective communication operations used in Llama-3 training, see Section 3.3.3-Collective Communication of the Llama-3 [paper](https://arxiv.org/pdf/2407.21783).
 
