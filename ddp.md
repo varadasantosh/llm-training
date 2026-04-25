@@ -99,7 +99,7 @@ Our goal is to train one model, not N independent models.
 
 To achieve this, GPUs cannot work in isolation — they need to communicate and synchronize at specific points during training. How efficiently they do this determines how well the parallelism strategy scales.
 
-** NCCL — The Communication Foundation **
+**NCCL — The Communication Foundation**
 
 Every parallelism technique in this blog relies on a common communication layer. For NVIDIA GPUs, that layer is NCCL — the NVIDIA Collective Communications Library.
 
