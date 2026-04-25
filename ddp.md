@@ -55,7 +55,9 @@ In the [previous section]({{ '/' | relative_url }}), we established limiting fac
 
 > **Dynamic memory** considering hypotehical one sequence per batch Activations adds another **~38-294 GB** depending on FlashAttention usage. A realistic micro-batch pushes total memory to **~1.2 TB** — more than 15× what a single GPU can hold
 
-Time Factor -  though the scale of the problem is large , this is a common problem, for problems with time constraints engineers employ solutions like multiple threads or multiple process to divide the work between them, though this solution is straight forward 
+Time Factor -  though the scale of the problem is very large(18,000 years) in this context , this is a common problem in software engineering ,for problems related to time constraints engineers employ solutions like multiple threads or multiple processes to divide the work between them.
+
+Applying this solution in our context means trainining large language model on a corpus of 15T tokens, we need to split this training data across different GPU's, each GPU looks at subset of data, trainining process involves forward pass & backward pass, during backward pass we need to update gradients across batches and iterations, when we train a model on different GPU's with access to different datasets without any co-ordination between GPU's this would end up in multiple models each having different parameters(weights & bias), but our objective is 
 
 ---
 
