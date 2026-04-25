@@ -12,6 +12,12 @@ authors:
 
 toc:
   - name: Introduction
+    susections:
+      - name: Time Factor
+      - name: Memory Factor
+      - name: Parallelism Techniques
+      - name: The Coordination Problem
+      - name: NCCL — The Communication Foundation
   - name: Vanilla DDP
     subsections:
       - name: How DDP Works
@@ -62,19 +68,20 @@ In the [previous section]({{ '/' | relative_url }}), we established limiting fac
 
 These are two distinct problems and they require two distinct ways of thinking about the solution.
 
-**Time Factor:-** though the scale of the problem is very large(18,000 years) in this context , But time constraints are a familiar problem in engineering. The standard solution is parallelism: divide the work across multiple workers, threads, or processes, each handling a subset of the problem simultaneously.
+### Time Factor
+Though the scale of the problem is very large(18,000 years) in this context , But time constraints are a familiar problem in engineering. The standard solution is parallelism: divide the work across multiple workers, threads, or processes, each handling a subset of the problem simultaneously.
 
 The same principle applies here. Training on 15 trillion tokens means processing an enormous amount of data. If we split that data across multiple GPUs — each GPU seeing a 
 different subset — and run the forward and backward passes simultaneously, training time scales down proportionally with the number of GPUs. This is the core idea behind Data Parallelism.
 
-**Memory Factor:-**  The memory constraint is harder. Adding more GPUs doesn't 
-automatically solve a memory problem — we need to carefully manage what each GPU holds.
+### Memory Factor  
+The memory constraint is harder. Adding more GPUs doesn't automatically solve a memory problem — we need to carefully manage what each GPU holds.
 
 Let's set activations aside for now and focus on the static components — Parameters, Gradients, and Optimizer States. For Llama 3 8B these alone require 144 GB. A single H100 
 has 80 GB. Even ignoring activations entirely, the model's training state does not fit on one GPU. This means we cannot simply copy the model to multiple GPUs we need to carefully orchestrate how the model's components are distributed across them. 
 
 
-**Parallelism Techniques**
+### Parallelism Techniques
 
 Enter Parallelism techniques - These constraints are addressed through a family of 
 Parallelism techniques — **Data Parallelism,Tensor Parallelism, Context Parallelism, Pipeline Parallelism, Expert Parallelism**.
@@ -83,7 +90,7 @@ For large scale models single approach is not sufficient, In practice, teams com
 
 We will work through each technique in turn, starting with the simplest — Data Parallelism — and building toward the combined approach that makes frontier training possible.
 
-**The Coordination Problem**
+### The Coordination Problem
 
 Splitting data across GPUs introduces an immediate challenge. Each GPU sees a different subset of the data, so after the backward pass each GPU has computed different gradients. If every GPU then updates its own parameters independently, the model copies diverge — by the next iteration, GPU 0 and GPU 1 are no longer training the same model.
 
@@ -91,7 +98,7 @@ Our goal is to train one model, not N independent models.
 
 To achieve this, GPUs cannot work in isolation — they need to communicate and synchronize at specific points during training. How efficiently they do this determines how well the parallelism strategy scales.
 
-**NCCL — The Communication Foundation**
+### NCCL — The Communication Foundation
 
 Every parallelism technique in this blog relies on a common communication layer. For NVIDIA GPUs, that layer is [NCCL](https://developer.nvidia.com/nccl) — the NVIDIA Collective Communications Library.
 
