@@ -3,8 +3,8 @@ const ninja = document.querySelector('ninja-keys');
 
 // add the home and posts menu items
 ninja.data = [{
-    id: "nav-",
-    title: "",
+    id: "nav-llm-training-using-parallelism-techniques",
+    title: "LLM Training using Parallelism Techniques",
     section: "Navigation",
     handler: () => {
       window.location.href = "/llm-training/";
