@@ -45,22 +45,16 @@ series_nav:
 
 ## Introduction
 
-In the [previous section]({{ '/' | relative_url }}), we established why a single GPU cannot train frontier LLMs. The numbers were stark:
+In the [previous section]({{ '/' | relative_url }}), we established limiting factors for training frontier model using GPU, one factor being time & the other factor is memory,
 
-- **Static memory** (Parameters + Gradients + Optimizer States) for Llama 3 8B requires **~144 GB** — nearly double the H100's 80 GB VRAM
-- **Dynamic memory** (Activations) adds another **~38-294 GB** depending on FlashAttention usage
-- A realistic micro-batch pushes total memory to **~1.2 TB** — more than 15× what a single GPU can hold
+ 
+> **Compute alone makes a single GPU infeasible.** At $3.8 \times 10^{25}$ FLOPs,
+    training Llama 3 405B on a single H100 (67 TFLOPS FP32) would take ~18,000 years even at 100% utilisation.
 
-The solution is parallelism — distributing the workload across multiple GPUs. But parallelism comes in different flavors, each addressing different bottlenecks:
+> **Static memory** (Parameters + Gradients + Optimizer States) for Llama 3 8B requires **~144 GB** — nearly double the H100's 80 GB VRAM
 
-| Parallelism Type | What it Distributes | Primary Benefit |
-|------------------|---------------------|-----------------|
-| **Data Parallelism** | Training data (batches) | Faster training via larger effective batch sizes |
-| **Tensor Parallelism** | Individual layers/operations | Enables larger models per layer |
-| **Pipeline Parallelism** | Model layers across GPUs | Enables deeper models |
-| **Sequence Parallelism** | Sequence dimension | Handles longer contexts |
+> **Dynamic memory** considering hypotehical one sequence per batch Activations adds another **~38-294 GB** depending on FlashAttention usage. A realistic micro-batch pushes total memory to **~1.2 TB** — more than 15× what a single GPU can hold
 
-This section focuses on **Data Parallelism** — the most intuitive and widely-used approach. We'll start with vanilla Distributed Data Parallel (DDP), understand its limitations, and then explore how ZeRO (Zero Redundancy Optimizer) progressively eliminates memory redundancy across three stages.
 
 ---
 
