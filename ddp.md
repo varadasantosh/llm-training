@@ -180,3 +180,57 @@ We start with the simplest — **Distributed Data Parallel training** — and bu
   <a href="{{ '/' | relative_url }}" style="font-weight:600;">← Part 1: Memory &amp; The Case for Parallelism</a>
   <span style="color:var(--global-text-color-light,#aaa);">Part 3: Tensor Parallelism (coming soon)</span>
 </div>
+
+
+## Vanilla DDP
+
+Distributed Data Parallelism - as the name suggests this technique of parallelism works by dividing the training data into shards , number of shards are determined by number of GPU's avaialble for training, exact same model is replicated to all GPU's along with respective shard, for initial iteration-1 each GPU has same set of weight & bias with only difference being data shard, training on different shard leads to different loss values , gradients &  optimizer states , this leads to the unwanted behavior of model divergence. 
+
+NCCL communication libray provides AllReduce operation, this operation performs aggregation(Reduction) of loss values, optimizer states, gradients across all GPU's to ensure Parameters are updated equally across all the GPU's, with Parameters, Gradients, Optimizer States being identical across GPU's between iterations, the same steps are repeated until convergence. By the end of training process we have single model with same set of weights & parameters
+
+<figure>
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
+<thead>
+    <tr style="text-align:left;">
+      <th style="padding:10px 12px; border:2px dashed #555;">Step</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">What Happens</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">Communication</th>
+    </tr>
+</thead>
+<tbody>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>1. Initialize</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU gets a complete copy of the model (parameters, gradients, optimizer states)</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Broadcast from rank 0</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>2. Data Split</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Global batch is divided into micro-batches, one per GPU</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">None (data loader handles this)</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>3. Forward Pass</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU computes forward pass on its micro-batch independently</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">None</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>4. Backward Pass</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU computes gradients for its micro-batch</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">None</td>
+    </tr>
+    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>5. Gradient Sync</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Gradients are averaged across all GPUs</td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>AllReduce</strong></td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>6. Optimizer Step</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU updates its local parameters using averaged gradients</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">None</td>
+    </tr>
+  </tbody>
+</table>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 1: Vanilla DDP Training Steps</figcaption>
+</figure>
+
+### How DDP Works
