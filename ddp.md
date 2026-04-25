@@ -31,16 +31,17 @@ toc:
     subsections:
       - name: Parameter Partitioning
 
+series_nav:
+  title: "LLM Training Parallelism"
+  prev:
+    label: "Part 1: Memory & The Case for Parallelism"
+    url: "/"
+  next:
+    label: "Part 3: Tensor Parallelism"
+    url: "/tensor-parallelism/"
+
 # bibliography: references.bib
 ---
-
-<div style="background:var(--global-code-bg-color,#f8f9fa); border:1px solid var(--global-divider-color,#dee2e6); border-radius:6px; padding:14px 20px; margin:0 0 36px 0; font-size:0.87rem;">
-  <div style="color:var(--global-text-color-light,#6c757d); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px;">LLM Training Parallelism Series</div>
-  <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px;">
-    <a href="{{ '/' | relative_url }}">← <strong>Part 1:</strong> Memory &amp; The Case for Parallelism</a>
-    <span style="color:var(--global-text-color-light,#aaa);"><strong>Part 3:</strong> Tensor Parallelism <em>(coming soon)</em></span>
-  </div>
-</div>
 
 ## Introduction
 

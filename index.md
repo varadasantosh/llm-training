@@ -21,16 +21,14 @@ toc:
           - name: Activations
       - name: Putting it All Together
 
+series_nav:
+  title: "LLM Training Parallelism"
+  next:
+    label: "Part 2: Data Parallelism & ZeRO"
+    url: "/ddp/"
+
 # bibliography: references.bib
 ---
-
-<div style="background:var(--global-code-bg-color,#f8f9fa); border:1px solid var(--global-divider-color,#dee2e6); border-radius:6px; padding:14px 20px; margin:0 0 36px 0; font-size:0.87rem;">
-  <div style="color:var(--global-text-color-light,#6c757d); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px;">LLM Training Parallelism Series</div>
-  <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px;">
-    <span><strong>Part 1:</strong> Memory &amp; The Case for Parallelism</span>
-    <a href="{{ '/ddp/' | relative_url }}"><strong>Part 2:</strong> Data Parallelism &amp; ZeRO →</a>
-  </div>
-</div>
 
 ## Introduction
 
