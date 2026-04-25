@@ -110,4 +110,12 @@ The Llama-3 team extended NCCL into NCCLX, optimizing collective operations spec
 
 NCCL exposes a set of collective operations — each one designed for a specific communication pattern. We will introduce them as they are needed, but here is the full set we will encounter across the parallelism techniques:
 
+| Operation | What it does | First appears in |
+|---|---|---|
+| Broadcast | Send from one GPU to all others | DDP initialization |
+| AllReduce | Sum/average across all GPUs, result to all | DDP gradient sync |
+| ReduceScatter | Reduce then distribute different shards | ZeRO-1/2/3 |
+| AllGather | Collect shards from all GPUs, result to all | ZeRO-1/2/3 |
+| Send/Recv | Point-to-point between two GPUs | Pipeline Parallelism |
+
 We start with the simplest approach — Distributed Data Parallel training — and build from there.
