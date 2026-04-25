@@ -98,7 +98,8 @@ In the [previous section]({{ '/' | relative_url }}), we established two fundamen
 > **Compute constraint** At $3.8 \times 10^{25}$ FLOPs,
 > training Llama 3 405B on a single H100 (67 TFLOPS FP32) would take ~18,000 years even at 100% : utilisation.
 
-> **Static Memory constraint:** Parameters, Gradients, and Optimizer States for Llama 3 8B >require ~144 GB — nearly double the H100's 80 GB VRAM.
+> **Static Memory constraint:** Parameters, Gradients, and Optimizer States for Llama 3 8B 
+> require ~144 GB — nearly double the H100's 80 GB VRAM.
 
 > **Dynamic Memory constraint:** Even for a single sequence, Activations 
 > add another 38 GB (with FlashAttention) to 294 GB (without). 
