@@ -49,16 +49,35 @@ In the [previous section]({{ '/' | relative_url }}), we established limiting fac
 
  
 > **Compute alone makes a single GPU infeasible.** At $3.8 \times 10^{25}$ FLOPs,
-    training Llama 3 405B on a single H100 (67 TFLOPS FP32) would take ~18,000 years even at 100% utilisation.
+> training Llama 3 405B on a single H100 (67 TFLOPS FP32) would take ~18,000 years even at 100% > utilisation.
 
-> **Static memory** (Parameters + Gradients + Optimizer States) for Llama 3 8B requires **~144 GB** — nearly double the H100's 80 GB VRAM
+> **Static Memory:** Parameters, Gradients, and Optimizer 
+> States for Llama 3 8B require ~144 GB — nearly double 
+> the H100's 80 GB VRAM.
 
-> **Dynamic memory** considering hypotehical one sequence per batch Activations adds another **~38-294 GB** depending on FlashAttention usage. A realistic micro-batch pushes total memory to **~1.2 TB** — more than 15× what a single GPU can hold
+> **Dynamic Memory:** Even for a single sequence, Activations 
+> add another 38 GB (with FlashAttention) to 312 GB (without). 
+> A realistic micro-batch pushes total memory to ~1.2 TB — 
+> more than 15× what a single GPU can hold.
 
-**Time Factor:-** though the scale of the problem is very large(18,000 years) in this context , this is a common problem across different domains & software engineering ,for problems related to time constraints engineers employ solutions like multiple workers, threads, processes etc... to divide the work between them thus reducing time taken to process the entire dataset.
+These are two distinct problems and they require two distinct ways of thinking about the solution.
 
-Applying this solution in our context means to train a large language model on a corpus of 15T tokens, we need to split this training data into different buckets with each GPU having access to a bucket or subset of data, trainining process involves forward pass & backward pass during backward pass we need to update gradients across batches and iterations, when we train a model on different GPU's with access to different datasets , in the absence of co-ordination between GPU's this would end up in producing multiple models each having different parameters(weights & bias). Our objective is to train single model rather than multiple models. to achieve training of single model with multiple GPU's being trained on different subsets of data we clearly need communication & co-ordniation between them, we will look into this in next sections.kkkkl 
+**Time Factor:-** though the scale of the problem is very large(18,000 years) in this context , But time constraints are a familiar problem in engineering. The standard solution is parallelism: divide the work across multiple workers, threads, or processes, each handling a subset of the problem simultaneously.
 
-**Memory Factor:-**  The problem with time constraint can be addressed with multiple GPU's, but for a memory constraint this is not straight forward, for a model to be trained on GPU it should be present on GPU & when we refer to a model in the context of training it involves both static & dynamic components, like mentioned in earlier sections activations occupy large portion of memory. there are different solutions to handle activations for now let us keep them out of the equation, consider placing only static components Parameters + Gradients + Optimizer States on single GPU, due to sheer size of **144 GB** in the case of 8B model even this is not possible to place the model on single GPU, these static components need to be distributed across multiple GPU's, here again each GPU has access to subset of training data , to update the weights which are distributed across multiple GPU's it require certain steps to co-ordinate and communicate between them
+The same principle applies here. Training on 15 trillion tokens means processing an enormous amount of data. If we split that data across multiple GPUs — each GPU seeing a 
+different subset — and run the forward and backward passes simultaneously, training time scales down proportionally with the number of GPUs. This is the core idea behind Data Parallelism.
 
-Whether we only distribute data between GPU
+**Memory Factor:-**  The memory constraint is harder. Adding more GPUs doesn't 
+automatically solve a memory problem — it only helps if we carefully manage what each GPU holds.
+
+Let's set activations aside for now and focus on the static components — Parameters, Gradients, and Optimizer States. For Llama 3 8B these alone require 144 GB. A single H100 
+has 80 GB. Even ignoring activations entirely, the model's training state does not fit on one GPU. This means we cannot simply copy the model to multiple GPUs we need to carefully orchestrate how the model's components are distributed across them.
+
+Solution to these problems can be implemented using different Parallelism techniques like **Data Parallelism,Tensor Parallelism, Context Parallelism, Pipeline Parallelism, Expert Parallelism** etc, for large scale models one approach is not sufficient most of the times, they employ combination of different techniques to achieve higher GPU utilization and faster training times,  section (3.3.2) of Llama-3 [paper](https://arxiv.org/pdf/2407.21783) describes 4 dimensions of Parallelism were used to train the model series, we will start with simplest approach of **Data Parallelelism** in this section and continue to build on this.
+
+Every parallelism techniques needs splitting data and model across GPU's. Here is where things get interesting. If we split the training data across multiple GPUs — each GPU seeing a different subset — each GPU will compute different gradients after its backward pass. If every GPU then updates its own parameters independently, the model copies diverge. By the next iteration, GPU 0 and GPU 1 are no longer training the same model.
+
+**Our goal is to train one model, not N independent models.**
+
+To achieve this, GPUs cannot work in complete isolation — they need to communicate and coordinate at specific points during training, these communication frameworks or libraries are crucial for parallelism techniques - for NVIDIA GPU's [NCCL](https://developer.nvidia.com/nccl) is underlying library that provides routines for moving data across GPU's in single node or 
+GPU's present across nodes, NCCL itself deserves its own topic , here we will cover basic operations used across all of these Parallelism techniques.
