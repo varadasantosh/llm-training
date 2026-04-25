@@ -277,7 +277,7 @@ But even if we had infinite time, there's another fundamental constraint: **memo
     </tr>
     <tr>
       <td style="padding:10px 12px; border:2px dashed #555;">High-End CPU</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">~11.37 TFLOPS (11.37 \times 10^{12}$ FLOPS)</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$11.37 TFLOPS (11.37 \times 10^{12}$ FLOPS)</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$\frac{3.8 \times 10^{25}}{11.37 \times 10^{12}} = 3.342 \times 10^{12}$ sec</td>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>~105,900 Years</strong></td>
     </tr>
@@ -392,12 +392,12 @@ architecture.<d-cite key="dubey2024llama3"></d-cite>
 For a gallery of OSS LLM architectures and how their configurations differ, see the
 OSS LLM Architecture Gallery section.
 
-Steps common to both architectures
+Steps common to both architectures:
 
 - Tokenisation — each sentence in the training corpus is split into tokens.
 - Vocabulary — the set of unique tokens across the entire corpus, of size $$V$$.
 - Token Embeddings — each token index is mapped to a dense vector of dimension
-- $$H$$ via a learnable table of shape $$(V \times H)$$.
+  $$H$$ via a learnable table of shape $$(V \times H)$$.
 - Positional information — how position is encoded differs between the two architectures and is discussed below.
 - $$L \times$$ Transformer Block — the core repeated unit.
 - Final normalisation.
@@ -632,10 +632,9 @@ memory cost for each training component. Parameters in FP32 occupy 4 bytes each 
 
 Inference only requires a forward pass — no gradients, no optimizer updates — so storing parameters in a single precision works fine. Training is a different story.
 
-During training we need to run both forward and backward passes, compute gradients, and update parameters using optimizer states. If we store everything in BF16, we get a real speed advantage — GPU architectures from Volta onwards include Tensor Cores that deliver significantly higher throughput for matrix multiplications. Later architectures from A100 added native BF16/FP16 support via Tensor Cores. However, using BF16 everywhere we are trading accuracy for throughput .
+During training we need to run both forward and backward passes, compute gradients, and update parameters using optimizer states. If we store everything in BF16, we get a real speed advantage — GPU architectures from Volta onwards include Tensor Cores that deliver significantly higher throughput for matrix multiplications. Later architectures from A100 added native BF16/FP16 support via Tensor Cores. However, using BF16 everywhere, we are trading numerical precision for throughput.
 
-Gradient values can be very small, and BF16's limited precision rounds small values to zero — losing the update entirely. The same applies to optimizer states, where Adam's moment estimates need to track subtle changes across millions of steps. Lost precision here 
-leads directly to training instability and poor convergence.
+Gradient values can be very small, and BF16's limited precision rounds small values to zero — losing the update entirely. The same applies to optimizer states, where Adam's moment estimates need to track subtle changes across millions of steps. Lost precision here leads directly to training instability and poor convergence.
 
 The solution is mixed precision — use BF16 where speed matters, FP32 where precision matters. The steps below show how this plays out across one training step:
 
@@ -673,7 +672,7 @@ Since Gradients and Optimizer States scale directly with parameter count, we can
 >
 > $\text{Total Static Memory} \quad = \quad 18\phi \text{ bytes}$
 
-This sums up to **18 bytes per parameter** for mixed precision training with Adam Optimizer For Llama-3 8B with $$\phi \approx 8.03\text{B}$$ parameters, static components alone require approximately **144GB** — nearly double the H100's 80GB VRAM, 144GB memory is required before a single activation is stored.
+This sums up to **18 bytes per parameter** for mixed precision training with Adam Optimizer. For Llama-3 8B with $$\phi \approx 8.03\text{B}$$ parameters, static components alone require approximately **144GB** — nearly double the H100's 80GB VRAM, 144GB memory is required before a single activation is stored.
 
 Next we look at Activations — the dynamic component whose memory cost changes with every training configuration (**Batch Size, Sequence Length**).
 
@@ -843,7 +842,7 @@ the table below breaks this down operation by operation for one Llama 3 block.
 
 > **FlashAttention Optimization:** Llama 3 uses [FlashAttention](https://arxiv.org/abs/2205.14135), which computes attention in tiles without materializing the full S×S score matrix. Steps 2.d (Score) and 2.e (Softmax) are never stored — it uses online softmax calculations to reduce memory for attention scores & softmax from O(S²) to O(S).
 
-The [Llama 3 paper (Section 3.4)](https://arxiv.org/pdf/2407.21783#section.3.4) details the pre-training recipe used for training the Llama 3 series of models. For Llama 3 405B, they use a **progressive batch size schedule**, Similar recipes are used for the 8B and 70B models.
+The [Llama 3 paper (Section 3.4)](https://arxiv.org/pdf/2407.21783#section.3.4) details the pre-training recipe used for training the Llama 3 series of models. For Llama 3 405B, they use a **progressive batch size schedule**, similar recipes are used for 8B and 70B models.
 
 | Training Phase | Global Batch Size | Sequence Length | Training Tokens |
 |----------------|-------------------|-----------------|-----------------|
@@ -855,34 +854,65 @@ The [Llama 3 paper (Section 3.4)](https://arxiv.org/pdf/2407.21783#section.3.4) 
 
 **Example Calculation for Llama-3 8B:**
 
-while the sequence length is gradually increased, for simplicity let us consider that Llama-3 8B uses configurations **S=8192, H=4096, f=14,336**. Considering a batch of single sequence **(B=1)** with BF16/FP16 precision: -  without **FlashAttention** Activation memory per transformer block ≈ **9.78GB**. For L=32 blocks: **32 × 9.78GB = 312.96 GB** -  with **FlashAttention:** this reduces to approximately **~37GB** (eliminating the O(S²) attention score storage)
+While the sequence length increases progressively during training, for simplicity we fix **S=8,192**, **H=4,096**, **f=14,336** and consider a single sequence **(B=1)** in BF16 precision (2 bytes per element).
 
-```
-Term 1: 17 × 8192 × 4096  =  570,425,344 bytes   ≈  0.53 GB
-Term 2: 4 × 32 × 8192²    =  8,589,934,592 bytes ≈  8.59 GB
-Term 3: 6 × 8192 × 14336  =  704,643,072 bytes   ≈  0.65 GB
-─────────────────────────────────────────────────────────────
-Per block total            ≈  9.78 GB
-× 32 blocks                ≈  312.96 GB  (baseline, no FA)
+<figure>
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
+<thead>
+    <tr style="text-align:left;">
+      <th style="padding:10px 12px; border:2px dashed #555; width:25%;">Component</th>
+      <th style="padding:10px 12px; border:2px dashed #555; width:35%;">Formula & Calculation</th>
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:right;">W/o FlashAttn</th>
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:right;">With FlashAttn</th>
+    </tr>
+</thead>
+<tbody>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>Linear projections</strong><br><span style="font-size:0.8rem; color:#666;">Q, K, V, O, Norms, etc.</span></td>
+      <td style="padding:10px 12px; border:2px dashed #555; font-family:monospace; font-size:0.85rem;">17 · BSH<br>= 17 × 1 × 8192 × 4096<br>= 570,425,344 bytes</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:right;"><strong>0.53 GB</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:right;"><strong>0.53 GB</strong></td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>Attention scores</strong><br><span style="font-size:0.8rem; color:#666;">Score + Softmax matrices</span></td>
+      <td style="padding:10px 12px; border:2px dashed #555; font-family:monospace; font-size:0.85rem;">
+        <span style="color:#666;">Standard:</span> 4 · BnS²<br>
+        = 4 × 1 × 32 × 8192²<br>
+        = 8,589,934,592 bytes<br><br>
+        <span style="color:#28a745;">FlashAttn:</span> O(BnS)<br>
+        ≈ negligible (tiled)
+      </td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:right; color:#dc3545;"><strong>8.0 GB</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:right; color:#28a745;"><strong>~0.001 GB</strong></td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>FFN activations</strong><br><span style="font-size:0.8rem; color:#666;">Gate, Up, SiLU outputs</span></td>
+      <td style="padding:10px 12px; border:2px dashed #555; font-family:monospace; font-size:0.85rem;">6 · BSf<br>= 6 × 1 × 8192 × 14336<br>= 704,643,072 bytes</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:right;"><strong>0.66 GB</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:right;"><strong>0.66 GB</strong></td>
+    </tr>
+    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>Per block total</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Sum of above</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:right;"><strong>9.19 GB</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:right;"><strong>1.19 GB</strong></td>
+    </tr>
+    <tr style="background:var(--global-code-bg-color, #f0f0f0);">
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>All 32 blocks</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">× L (32 layers)</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:right; font-size:1.1rem;"><strong style="color:#dc3545;">~294 GB</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:right; font-size:1.1rem;"><strong style="color:#28a745;">~38 GB</strong></td>
+    </tr>
+  </tbody>
+</table>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 8: Activation Memory Breakdown — Llama 3 8B (B=1, S=8192, BF16)</figcaption>
+</figure>
+
+> **Key Insight:** The attention score matrices (O(S²)) dominate memory without FlashAttention — accounting for **87%** of per-block activation memory. FlashAttention's tiled computation eliminates this bottleneck, reducing total activation memory by **~8×**.
 
 
-Term 1: 17 × 8192 × 4096  =  57,04,25,344 bytes  ≈  0.53 GB
-Term 2: 4 × 32 × 8192     =  1,048,576 bytes    ≈  0.001 GB
-Term 3: 6 × 8192 × 14336  =  704,643,072 bytes  ≈  0.66 GB
-─────────────────────────────────────────────────────────────
-Per block total            ≈  1.19 GB
-× 32 blocks                ≈  38.10 GB  (FA)
 
-```
-
-| Configuration | Per Block | Total (×32)  |
-|----------------|-------------------|-----------------|
-| W/o Flash Attention | 9.78 GB| 312.96 GB | 
-| Flash Attention |  1.19 GB| 38.10 GB |
-
-
-
-### Putting it All Together
+### Summary
 
 Below <a href="#llama-3-config" >table </a>(from the Llama 3 [paper](https://arxiv.org/pdf/2407.21783)) shows how architecture choices scale across model sizes. From 8B to 405B, the number of layers grows from 32 to 126, the hidden dimension from 4,096 to 16,384, and the FFN intermediate size from 14,336 to 53,248.
 
@@ -892,6 +922,10 @@ hidden dimension makes every one of those matrices wider. These factors do not
 add — they compound. A model that is 2× deeper *and* 4× wider does not cost 6×
 more memory; it costs closer to 8×.
 
+<figure id="llama-3-config">
+  {% include figure.liquid path="assets/img/llm-training/section-3/Llama-3-config.png" class="img-medium" caption="Figure-4: Llama 3 Configurations" %}
+</figure>
+
 Architecture is only one side of the memory equation. Dynamic memory — activations — is driven by the data side: how long each sequence is and how many sequences are processed simultaneously.
 
 Deep learning models are data-hungry. The more capable we want a model to be,
@@ -900,14 +934,9 @@ concrete: Llama 2 was trained on 1.8 trillion tokens, Llama 3 on 15 trillion,
 and Llama 4 on approximately 30 trillion. More tokens means longer training runs,
 larger batch sizes, and correspondingly larger activation footprints at every step.
 
-<figure id="llama-3-config">
-  {% include figure.liquid path="assets/img/llm-training/section-3/Llama-3-config.png" class="img-medium" caption="Figure-4: Llama 3 Configurations" %}
-</figure>
-
-To summarize what we have covered in this section:
 
 - **Compute alone makes a single GPU infeasible.** At $3.8 \times 10^{25}$ FLOPs,
-    training Llama 3 405B on a single H100 (67 TFLOPS FP32) would take ~18,000 year even at 100% utilisation.
+    training Llama 3 405B on a single H100 (67 TFLOPS FP32) would take ~18,000 years even at 100% utilisation.
 
 - **Memory is the harder constraint.** GPU components fall into two categories:
   *static* (Parameters, Gradients, Optimizer States — fixed by architecture) and
