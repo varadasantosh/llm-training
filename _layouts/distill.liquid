@@ -58,6 +58,25 @@
 
     <!-- Content -->
     <div class="post distill">
+
+      {% if page.series_nav %}
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 24px; background:var(--global-code-bg-color,#f8f9fa); border-bottom:1px solid var(--global-divider-color,#dee2e6); font-size:0.85rem; flex-wrap:wrap; gap:8px;">
+          <span style="color:var(--global-text-color-light,#6c757d); font-weight:600; letter-spacing:0.02em;">{{ page.series_nav.title }}</span>
+          <div style="display:flex; gap:20px; align-items:center;">
+            {% if page.series_nav.prev %}
+              <a href="{{ page.series_nav.prev.url | relative_url }}" style="color:var(--global-theme-color);">← {{ page.series_nav.prev.label }}</a>
+            {% else %}
+              <span style="color:var(--global-text-color-light,#ccc);">← Previous</span>
+            {% endif %}
+            {% if page.series_nav.next %}
+              <a href="{{ page.series_nav.next.url | relative_url }}" style="color:var(--global-theme-color);">{{ page.series_nav.next.label }} →</a>
+            {% else %}
+              <span style="color:var(--global-text-color-light,#ccc);">Next →</span>
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
+
       <d-title>
         <h1>{{ page.title }}</h1>
         <p>{{ page.description }}</p>
