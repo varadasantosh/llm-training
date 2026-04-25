@@ -953,3 +953,7 @@ To put the numbers together:
 
 This is why no single GPU can train a frontier LLM. The following sections explore how parallelism techniques distribute these memory and compute requirements across thousands of GPUs.
 
+---
+
+**Next:** [Data Parallelism — From Vanilla DDP to ZeRO](/ddp/) →
+
