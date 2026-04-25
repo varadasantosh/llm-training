@@ -34,13 +34,21 @@ toc:
 # bibliography: references.bib
 ---
 
+<div style="background:var(--global-code-bg-color,#f8f9fa); border:1px solid var(--global-divider-color,#dee2e6); border-radius:6px; padding:14px 20px; margin:0 0 36px 0; font-size:0.87rem;">
+  <div style="color:var(--global-text-color-light,#6c757d); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px;">LLM Training Parallelism Series</div>
+  <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px;">
+    <a href="/">← <strong>Part 1:</strong> Memory &amp; The Case for Parallelism</a>
+    <span style="color:var(--global-text-color-light,#aaa);"><strong>Part 3:</strong> Tensor Parallelism <em>(coming soon)</em></span>
+  </div>
+</div>
+
 ## Introduction
 
 In the [previous section](/), we established why a single GPU cannot train frontier LLMs. The numbers were stark:
 
 - **Static memory** (Parameters + Gradients + Optimizer States) for Llama 3 8B requires **~144 GB** — nearly double the H100's 80 GB VRAM
 - **Dynamic memory** (Activations) adds another **~38-294 GB** depending on FlashAttention usage
-- A realistic micro-batch pushes total memory to **~1.3 TB** — more than 16× what a single GPU can hold
+- A realistic micro-batch pushes total memory to **~1.2 TB** — more than 15× what a single GPU can hold
 
 The solution is parallelism — distributing the workload across multiple GPUs. But parallelism comes in different flavors, each addressing different bottlenecks:
 
@@ -483,4 +491,7 @@ ZeRO Stage 3 completes the picture by partitioning **parameters** themselves.
 
 ---
 
-*Next section: Tensor Parallelism — when even ZeRO-3 isn't enough and you need to split individual layers across GPUs.*
+<div style="display:flex; justify-content:space-between; align-items:center; margin-top:48px; padding-top:20px; border-top:1px solid var(--global-divider-color,#dee2e6); font-size:0.9rem;">
+  <a href="/" style="font-weight:600;">← Part 1: Memory &amp; The Case for Parallelism</a>
+  <span style="color:var(--global-text-color-light,#aaa);">Part 3: Tensor Parallelism (coming soon)</span>
+</div>
