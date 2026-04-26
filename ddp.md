@@ -21,6 +21,7 @@ toc:
   - name: Vanilla DDP
     subsections:
       - name: How DDP Works
+      - name: DDP Step by Step 
       - name: The Redundancy Problem
   - name: NCCL Operations
     subsections:
@@ -36,15 +37,6 @@ toc:
   - name: ZeRO Stage 3
     subsections:
       - name: Parameter Partitioning
-
-series_nav:
-  title: "LLM Training Parallelism"
-  prev:
-    label: "Part 1: Memory & The Case for Parallelism"
-    url: "/"
-  next:
-    label: "Part 3: Tensor Parallelism"
-    url: "/tensor-parallelism/"
 
 # bibliography: references.bib
 
@@ -248,7 +240,7 @@ is needed here — the GPUs work in complete isolation.
 
 **Backward Pass and the Divergence Problem**
 
-Each GPU runs its backward pass independently, computing gradients based on what it saw. This is where the problem appears. GPU 0 saw sequences 0-127. GPU 1 saw sequences 128-255. Each GPU computed different gradients — and if each GPU now updates its own parameters independently,the model copies diverge. By the next iteration, GPU 0 and GPU 1 are no longer training the same model.
+Each GPU runs its backward pass independently, computing gradients based on what it saw. This is where the problem appears. GPU 0 saw sequences 0-127. GPU 1 saw sequences 128-255. Each GPU computed different gradients — and if each GPU now updates its own parameters independently, the model copies diverge. By the next iteration, GPU 0 and GPU 1 are no longer training the same model.
 
 Our goal is one model, not N independent models.
 
@@ -256,7 +248,13 @@ Our goal is one model, not N independent models.
 
 The solution is to synchronize gradients before the optimizer step. This is what AllReduce does.
 
-AllReduce is a collective operation — every GPU participates simultaneously, to perform data movement efficiently AllReduce Operation is further divided into two other NCCL operations ReduceScatter & AllGather.
+AllReduce is a collective operation — every GPU participates simultaneously. AllReduce happens in two phases:
+
+ReduceScatter — each GPU sends its gradients around the ring. As gradients travel, they are summed. At the end each GPU holds the reduced sum for only one shard of the gradients — not the full tensor.
+
+AllGather — each GPU then broadcasts its reduced shard to all other GPUs. At the end every GPU holds the complete averaged gradient tensor.
+
+Together these two operations achieve what a naive AllReduce would do — but with half the communication volume.
 
 ```
 NCCL Routine Signature:
@@ -266,25 +264,26 @@ ncclResult_t ncclAllReduce(const void* sendbuff, void* recvbuff, size_t count,
                            ncclComm_t comm, cudaStream_t stream);
 
 1. Every GPU sends its gradients (sendbuff)
-2. NCCL computes the average across all GPUs (ncclReOp_t op)
+2. NCCL computes the average across all GPUs (ncclRedOp_t op)
 3. Every GPU receives the averaged gradient (recvbuff)
 
 ```
 
-{% include figure.liquid path="assets/img/llm-training/ddp/Vanilla-DDP-Before-AllReduce.svg" class="img-medium" caption="Figure 1: ReduceScatter — Each GPU perform Reduction on Gradients" %}
+{% include figure.liquid path="assets/img/llm-training/ddp/Vanilla-DDP-Before-AllReduce.svg" class="img-medium" caption="Figure 1: ReduceScatter — Gradients reduced and 
+distributed as shards across GPUs" %}
 
-{% include figure.liquid path="assets/img/llm-training/ddp/Vanilla-DDP-After-AllReduce.svg" class="img-medium" caption="Figure 2: After AllReduce — All GPUs exchange Reduced Gradients" %}
+{% include figure.liquid path="assets/img/llm-training/ddp/Vanilla-DDP-After-AllReduce.svg" class="img-medium" caption="Figure 2: AllGather — Each GPU broadcasts its 
+reduced shard so all GPUs receive complete averaged gradients" %}
 
-After AllReduce every GPU has identical gradients. Every GPU runs an identical optimizer step. Every GPU arrives at the next iteration with identical parameters. The model stays in sync.
+Once AllGather completes, every GPU holds the complete averaged gradient — as if the AllReduce had been done in a single step.Every GPU runs an identical optimizer step. Every GPU begins next iteration with identical parameters. The model stays in sync.
 
 **Optimizer Step**
 
-With identical averaged gradients on every GPU, each GPU runs its optimizer step locally — no communication needed. Because every GPU started with the same gradients and runs 
-the same update rule, Parameters and Optimizer States remain perfectly consistent across all GPUs.
+With identical averaged gradients on every GPU, each GPU runs its optimizer step locally — no communication needed. Because every GPU started with the same gradients and runs the same update rule, Parameters and Optimizer States remain perfectly consistent across all GPUs.
 
-### What DDP Gives Us
+### DDP Redundancy Problem
 
-DDP is effective at solving the time problem. By splitting the batch across N GPUs and running forward and backward passes simultaneously, training throughput scales nearly linearly with the number of GPUs.
+DDP is effective at solving the time problem. By splitting the batch across N GPUs and running forward and backward passes simultaneously, training throughput scales nearly linearly with the number of GPUs, but this comes at the cost of communication overhead introduced between GPUs.
 
 But look carefully at what every GPU is holding:
 
