@@ -273,23 +273,26 @@ The solution is to synchronize gradients before the optimizer step. This is what
 
 **ReduceScatter** — each GPU sends its gradients around the ring. As gradients travel, they are summed. At the end, each GPU holds the reduced sum for only one shard of the gradients — not the full tensor.
 
+{% include figure.liquid path="assets/img/llm-training/ddp/Vanilla-DDP-Before-AllReduce.svg" class="img-medium" caption="Figure 1: ReduceScatter — Gradients reduced and distributed as shards across GPUs" %}
+
 **AllGather** — each GPU then broadcasts its reduced shard to every other GPU. At the end, every GPU holds the complete averaged gradient tensor.
 
 Together these two operations achieve a full AllReduce without any single GPU becoming a bottleneck.
 
-```
-NCCL Routine Signature:
----------------------
-ncclResult_t ncclAllReduce(const void* sendbuff, void* recvbuff, size_t count,
-                           ncclDataType_t datatype, ncclRedOp_t op, // Reduction Operator
-                           ncclComm_t comm, cudaStream_t stream);
+<d-aside>
+  <b>NCCL Routine Signature</b>
+  <pre style="font-size:0.75rem; margin-top:6px;">ncclAllReduce(
+  sendbuff,   // gradients from this GPU
+  recvbuff,   // averaged gradients (output)
+  count,      // number of elements
+  datatype,   // e.g. ncclFloat
+  ncclAvg,    // reduction operator
+  comm,       // communicator
+  stream);    // CUDA stream</pre>
+  PyTorch and DeepSpeed call this internally — practitioners never invoke it directly.
+</d-aside>
 
-1. Every GPU sends its gradients       (sendbuff)
-2. NCCL computes the average           (ncclRedOp_t op)
-3. Every GPU receives averaged result  (recvbuff)
-```
 
-{% include figure.liquid path="assets/img/llm-training/ddp/Vanilla-DDP-Before-AllReduce.svg" class="img-medium" caption="Figure 1: ReduceScatter — Gradients reduced and distributed as shards across GPUs" %}
 
 {% include figure.liquid path="assets/img/llm-training/ddp/Vanilla-DDP-After-AllReduce.svg" class="img-medium" caption="Figure 2: AllGather — Each GPU broadcasts its reduced shard so all GPUs receive complete averaged gradients" %}
 
