@@ -256,9 +256,16 @@ The solution is to synchronize gradients before the optimizer step. This is what
 AllReduce is a collective operation — every GPU participates simultaneously:
 
 ```
-1. Every GPU sends its gradients
-2. NCCL computes the average across all GPUs
-3. Every GPU receives the averaged gradient
+NCCL Routine Signature:
+---------------------
+ncclResult_t ncclAllReduce(const void* sendbuff, void* recvbuff, size_t count,
+                           ncclDataType_t datatype, ncclRedOp_t op, // Reduction Operator
+                           ncclComm_t comm, cudaStream_t stream);
+
+1. Every GPU sends its gradients (sendbuff)
+2. NCCL computes the average across all GPUs (ncclReOp_t op)
+3. Every GPU receives the averaged gradient (recvbuff)
+
 ```
 
 Before AllReduce:   GPU 0: $$\abla \text{W}_0$$,  GPU 1: $$\abla \text{W}_1$$,  GPU 2: $$\abla \text{W}_2$
