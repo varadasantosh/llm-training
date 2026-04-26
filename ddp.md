@@ -272,16 +272,29 @@ Each GPU runs its backward pass independently, computing gradients based on what
 The solution is to synchronize gradients before the optimizer step. This is what AllReduce does — every GPU participates simultaneously. AllReduce happens in two phases:
 
 <d-aside>
-  <b>NCCL Routine Signature</b>
-  <pre style="font-size:0.75rem; margin-top:6px;">ncclAllReduce(
-  sendbuff,   // gradients from this GPU
-  recvbuff,   // averaged gradients (output)
-  count,      // number of elements
-  datatype,   // e.g. ncclFloat
-  ncclAvg,    // reduction operator
-  comm,       // communicator
-  stream);    // CUDA stream</pre>
-  PyTorch and DeepSpeed call this internally — practitioners never invoke it directly.
+  <b>NCCL AllReduce — how it works</b>
+  <pre style="font-size:0.72rem; margin-top:6px; line-height:1.5;">ncclResult_t ncclAllReduce(
+  const void*    sendbuff,  // each GPU's local gradients
+  void*          recvbuff,  // averaged gradients (output)
+  size_t         count,     // number of gradient elements
+  ncclDataType_t datatype,  // e.g. ncclFloat32
+  ncclRedOp_t    op,        // ncclSum → then divide by N
+  ncclComm_t     comm,      // communicator (which GPUs participate)
+  cudaStream_t   stream     // CUDA stream to run on
+);</pre>
+  <p style="font-size:0.78rem; margin:8px 0 4px;"><b>What happens under the hood:</b></p>
+  <ol style="font-size:0.75rem; margin:0; padding-left:1.2em; line-height:1.6;">
+    <li>Every GPU writes its gradients into <code>sendbuff</code></li>
+    <li>NCCL performs a ring-based reduction across all GPUs
+      <ul style="margin:2px 0; padding-left:1em;">
+        <li>each GPU passes values to its neighbour in a ring</li>
+        <li>values are summed as they travel around the ring</li>
+      </ul>
+    </li>
+    <li>The sum is divided by N (number of GPUs)</li>
+    <li>Every GPU receives the averaged gradient in <code>recvbuff</code></li>
+  </ol>
+  <p style="font-size:0.75rem; margin:8px 0 0; border-top:1px solid var(--global-divider-color,#ddd); padding-top:6px;">Ring-based AllReduce avoids one GPU becoming a bottleneck — communication cost is O(N) not O(N²)</p>
 </d-aside>
 
 **ReduceScatter** — each GPU sends its gradients around the ring. As gradients travel, they are summed. At the end, each GPU holds the reduced sum for only one shard of the gradients — not the full tensor.
