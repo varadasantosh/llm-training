@@ -184,9 +184,10 @@ We start with the simplest — **Distributed Data Parallel training** — and bu
 
 ## Vanilla DDP
 
-Distributed Data Parallelism - as the name suggests this technique of parallelism works by dividing the training data into shards , number of shards are determined by number of GPU's available for training, exact same model is replicated to all GPU's along with respective shard, for initial iteration-1 each GPU has same set of weight & bias with only difference being data shard, training on different shard leads to different loss values , gradients &  optimizer states , this leads to the unwanted behavior of model divergence. 
+Distributed Data Parallelism - The core idea is straightforward: keep the model identical on every GPU, but split the training data across them into shards, number of shards are determined by number of GPUs available for training, DDP has one pre-requisite that is the complete model must fit on a single GPU. Parameters, Gradients, and Optimizer States all need to reside on each GPU simultaneously. For Llama 3 8B that means 144 GB per GPU — already beyond a single H100. This is DDP's fundamental limitation, and it is exactly what ZeRO is designed to solve.
 
-The solution is to synchronize gradients before the optimizer step. This is where NCCL comes in, AllReduce is one of the operations provied by NCCL library, this operation performs AllReduce averages gradients across all GPUs — every GPU sends its local gradients, receives the average(global gradeints), and proceeds to the optimizer step with identical gradients to ensure Parameters are updated equally across all the GPU's, Because every GPU receives the same averaged gradients and runs the same optimizer step, Parameters and Optimizer States remain identical across all GPUs after each iteration.the same steps are repeated until convergence. By the end of training process we have single model with same set of parameters
+For now, let's understand how DDP works when the model does fit — and why it is such a useful starting point.
+
 
 ### How DDP Works
 
@@ -196,13 +197,13 @@ The solution is to synchronize gradients before the optimizer step. This is wher
     <tr style="text-align:left;">
       <th style="padding:10px 12px; border:2px dashed #555;">Step</th>
       <th style="padding:10px 12px; border:2px dashed #555;">What Happens</th>
-      <th style="padding:10px 12px; border:2px dashed #555;">Communication</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">NCCL Operation</th>
     </tr>
 </thead>
 <tbody>
     <tr>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>1. Initialize</strong></td>
-      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU gets a complete copy of the model (parameters, gradients, optimizer states)</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Model parameters broadcast from rank 0 to all GPUs. Gradients and optimizer states  initialized to zero.</td>
       <td style="padding:10px 12px; border:2px dashed #555;">Broadcast from rank 0</td>
     </tr>
     <tr>
@@ -233,5 +234,32 @@ The solution is to synchronize gradients before the optimizer step. This is wher
   </tbody>
 </table>
 <figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 1: Vanilla DDP Training Steps</figcaption>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Steps 2-6 repeat every iteration until convergence</figcaption>
 </figure>
 
+### DDP Step by Step
+At the start of training, one GPU — rank 0 — holds the initial model. Its parameters are broadcast to every other GPU using NCCL's Broadcast operation. From this point 
+forward, every GPU holds an identical copy of the model.
+
+**Data Split and Forward Pass**
+
+The global batch is divided into micro-batches — one per GPU. Each GPU runs its forward pass independently on its own micro-batch, computing its own loss. No communication 
+is needed here — the GPUs work in complete isolation.
+
+**Backward Pass and the Divergence Problem**
+
+Each GPU runs its backward pass independently, computing gradients based on what it saw. This is where the problem appears. GPU 0 saw sequences 0-127. GPU 1 saw sequences 128-255. Each GPU computed different gradients — and if each GPU now updates its own parameters independently,the model copies diverge. By the next iteration, GPU 0 and GPU 1 are no longer training the same model.
+
+Our goal is one model, not N independent models.
+
+**Gradient Sync — AllReduce**
+
+The solution is to synchronize gradients before the optimizer step. This is what AllReduce does.
+
+AllReduce is a collective operation — every GPU participates simultaneously:
+
+```
+1. Every GPU sends its gradients
+2. NCCL computes the average across all GPUs
+3. Every GPU receives the averaged gradient
+```
