@@ -235,6 +235,9 @@ For now, let's understand how DDP works when the model does fit — and why it i
 > Steps 2-6 repeat every iteration until convergence
 
 ### DDP Step by Step
+
+**Initialization**
+
 At the start of training, one GPU — rank 0 — holds the initial model. Its parameters are broadcast to every other GPU using NCCL's Broadcast operation. From this point 
 forward, every GPU holds an identical copy of the model.
 
@@ -268,8 +271,9 @@ ncclResult_t ncclAllReduce(const void* sendbuff, void* recvbuff, size_t count,
 
 ```
 
-Before AllReduce:   GPU 0: $$\abla \text{W}_0$$,  GPU 1: $$\abla \text{W}_1$$,  GPU 2: $$\abla \text{W}_2$
-After AllReduce:    All GPUs: $$\abla \text{W}_0 + abla \text{W}_1  + abla \text{W}_2 $$  / 3
+{% include figure.liquid path="assets/img/llm-training/ddp/Vanilla-DDP-Before-AllReduce.svg" class="img-medium" caption="Figure 1: Before AllReduce — Each GPU holds its own local gradients" %}
+
+{% include figure.liquid path="assets/img/llm-training/ddp/Vanilla-DDP-After-AllReduce.svg" class="img-medium" caption="Figure 2: After AllReduce — All GPUs hold identical averaged gradients" %}
 
 After AllReduce every GPU has identical gradients. Every GPU runs an identical optimizer step. Every GPU arrives at the next iteration with identical parameters. The model stays in sync.
 
@@ -280,8 +284,7 @@ the same update rule, Parameters and Optimizer States remain perfectly consisten
 
 ### What DDP Gives Us
 
-DDP is effective at solving the time problem. By splitting the batch across N GPUs and running forward and backward passes simultaneously, training throughput scales nearly 
-linearly with the number of GPUs.
+DDP is effective at solving the time problem. By splitting the batch across N GPUs and running forward and backward passes simultaneously, training throughput scales nearly linearly with the number of GPUs.
 
 But look carefully at what every GPU is holding:
 
