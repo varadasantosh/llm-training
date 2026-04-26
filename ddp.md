@@ -22,7 +22,7 @@ toc:
     subsections:
       - name: How DDP Works
       - name: DDP Step by Step 
-      - name: The Redundancy Problem
+      - name: DDP Limitations
   - name: NCCL Operations
     subsections:
       - name: AllReduce
