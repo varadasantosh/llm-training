@@ -26,8 +26,8 @@ toc:
   - name: NCCL Operations
     subsections:
       - name: AllReduce
-      - name: AllGather
       - name: ReduceScatter
+      - name: AllGather
   - name: ZeRO Stage 1
     subsections:
       - name: Optimizer State Partitioning
@@ -271,14 +271,6 @@ Each GPU runs its backward pass independently, computing gradients based on what
 
 The solution is to synchronize gradients before the optimizer step. This is what AllReduce does — every GPU participates simultaneously. AllReduce happens in two phases:
 
-**ReduceScatter** — each GPU sends its gradients around the ring. As gradients travel, they are summed. At the end, each GPU holds the reduced sum for only one shard of the gradients — not the full tensor.
-
-{% include figure.liquid path="assets/img/llm-training/ddp/Vanilla-DDP-Before-AllReduce.svg" class="img-medium" caption="Figure 1: ReduceScatter — Gradients reduced and distributed as shards across GPUs" %}
-
-**AllGather** — each GPU then broadcasts its reduced shard to every other GPU. At the end, every GPU holds the complete averaged gradient tensor.
-
-Together these two operations achieve a full AllReduce without any single GPU becoming a bottleneck.
-
 <d-aside>
   <b>NCCL Routine Signature</b>
   <pre style="font-size:0.75rem; margin-top:6px;">ncclAllReduce(
@@ -292,9 +284,15 @@ Together these two operations achieve a full AllReduce without any single GPU be
   PyTorch and DeepSpeed call this internally — practitioners never invoke it directly.
 </d-aside>
 
+**ReduceScatter** — each GPU sends its gradients around the ring. As gradients travel, they are summed. At the end, each GPU holds the reduced sum for only one shard of the gradients — not the full tensor.
 
+{% include figure.liquid path="assets/img/llm-training/ddp/Vanilla-DDP-Before-AllReduce.svg" class="img-medium" caption="Figure 1: ReduceScatter — Gradients reduced and distributed as shards across GPUs" %}
+
+**AllGather** — each GPU then broadcasts its reduced shard to every other GPU. At the end, every GPU holds the complete averaged gradient tensor.
 
 {% include figure.liquid path="assets/img/llm-training/ddp/Vanilla-DDP-After-AllReduce.svg" class="img-medium" caption="Figure 2: AllGather — Each GPU broadcasts its reduced shard so all GPUs receive complete averaged gradients" %}
+
+Together these two operations achieve a full AllReduce without any single GPU becoming a bottleneck.
 
 Once AllGather completes, every GPU holds the complete averaged gradient. Every GPU runs an identical optimizer step. Every GPU begins the next iteration with identical parameters. The model stays in sync.
 
@@ -320,3 +318,333 @@ But look carefully at what every GPU is holding:
 Every single byte of static memory is duplicated across every GPU. With 8 GPUs the cluster holds 1.15 TB of static memory — when 144 GB would logically suffice. The other 1.0 TB is pure redundancy.
 
 DDP solves the time problem. It does nothing for the memory problem.
+
+## NCCL Operations
+
+Before we look at how ZeRO solves the memory problem, we need to understand the three collective operations it relies on. We used AllReduce in Vanilla DDP — ZeRO replaces it with a more granular pair of operations. Understanding each one precisely is what makes ZeRO's design legible.
+
+All three operations follow the same ring topology. GPUs are arranged in a logical ring. Each GPU only communicates with its two neighbors — its left neighbor sends to it, it sends to its right neighbor. This avoids any single GPU becoming a bottleneck and keeps communication costs predictable as the number of GPUs grows.
+
+### AllReduce
+
+AllReduce takes a tensor that exists on every GPU, applies a reduction (sum or average) across all copies, and writes the result back to every GPU. After AllReduce, every GPU holds the same reduced tensor.
+
+<figure>
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
+<thead>
+  <tr>
+    <th style="padding:10px 12px; border:2px dashed #555;">Phase</th>
+    <th style="padding:10px 12px; border:2px dashed #555;">What happens</th>
+    <th style="padding:10px 12px; border:2px dashed #555;">Result</th>
+  </tr>
+</thead>
+<tbody>
+  <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+    <td style="padding:10px 12px; border:2px dashed #555;"><strong>ReduceScatter</strong></td>
+    <td style="padding:10px 12px; border:2px dashed #555;">Each GPU splits its tensor into N shards and sends them around the ring. Each GPU accumulates the sum for one shard.</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">Each GPU holds the fully reduced sum for 1/N of the tensor</td>
+  </tr>
+  <tr>
+    <td style="padding:10px 12px; border:2px dashed #555;"><strong>AllGather</strong></td>
+    <td style="padding:10px 12px; border:2px dashed #555;">Each GPU broadcasts its reduced shard around the ring. Every GPU receives all N shards.</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">Every GPU holds the complete reduced tensor</td>
+  </tr>
+</tbody>
+</table>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 2: AllReduce as two phases — ReduceScatter followed by AllGather</figcaption>
+</figure>
+
+Total data transferred per GPU: $2 \times \frac{(N-1)}{N} \times \text{tensor\_size}$. For large N this approaches $2 \times \text{tensor\_size}$, and crucially this cost does not grow with N — adding more GPUs does not increase the per-GPU communication volume.
+
+This is exactly what Vanilla DDP uses for gradient synchronization.
+
+### ReduceScatter
+
+ReduceScatter is the first half of AllReduce, but it is also used independently in ZeRO. It takes a tensor from every GPU, reduces (sums) them, and distributes the result so each GPU ends up with a different shard of the reduced tensor.
+
+**Input:** Every GPU holds the full tensor (e.g., all gradients)  
+**Output:** GPU $i$ holds only shard $i$ of the reduced tensor
+
+{% include figure.liquid path="assets/img/llm-training/ddp/ReduceScatter.svg" class="img-medium" caption="Figure 3: ReduceScatter — N GPUs each contribute a full tensor; each GPU receives the reduced sum for its assigned shard" %}
+
+ZeRO Stage 2 uses ReduceScatter instead of AllReduce for gradient synchronization. Rather than every GPU computing and storing the full averaged gradient, each GPU only receives the shard it is responsible for. The gradients that each GPU does not own are never materialized — they are reduced in-flight and discarded.
+
+### AllGather
+
+AllGather is the second half of AllReduce, and the most frequently used operation in ZeRO Stages 1, 2, and 3. It takes a different shard from each GPU and assembles the complete tensor on every GPU.
+
+**Input:** GPU $i$ holds shard $i$ (different on every GPU)  
+**Output:** Every GPU holds the complete tensor (all shards concatenated)
+
+{% include figure.liquid path="assets/img/llm-training/ddp/AllGather.svg" class="img-medium" caption="Figure 4: AllGather — Each GPU contributes its unique shard; every GPU receives the complete assembled tensor" %}
+
+Total data transferred per GPU: $\frac{(N-1)}{N} \times \text{tensor\_size}$, again independent of N.
+
+ZeRO uses AllGather to reconstruct parameters on-demand. Since Stage 3 shards the model parameters themselves across GPUs, parameters must be gathered before each forward and backward pass, then discarded immediately after. AllGather is what makes this reconstruction possible without a dedicated parameter server.
+
+---
+
+These three operations are the entire communication vocabulary of ZeRO. Every stage is a different choice of when to use each one — and what to discard afterward.
+
+## ZeRO Stage 1
+
+ZeRO (Zero Redundancy Optimizer) is a family of memory optimization techniques introduced in the [ZeRO paper](https://arxiv.org/abs/1910.02054) by the DeepSpeed team at Microsoft. The core insight is that in Vanilla DDP, every GPU holds a complete copy of optimizer states, gradients, and parameters — but for a given optimizer step, each parameter only needs to be updated once. The redundancy is not necessary for correctness; it is simply how DDP was designed.
+
+ZeRO eliminates this redundancy progressively across three stages. Each stage shards a different component across GPUs.
+
+### Optimizer State Partitioning
+
+<span class="factor-tag tag-memory">Memory</span>
+
+ZeRO Stage 1 targets the largest single source of static memory: optimizer states. For Adam, this is the first moment $m_t$ and second moment $v_t$ — together $8\phi$ bytes, or 44% of the total $18\phi$ bytes.
+
+**The idea:** Instead of every GPU holding the full optimizer state for all parameters, partition the optimizer states across GPUs. GPU $i$ is responsible for updating only the $1/N$ slice of parameters assigned to it.
+
+<figure>
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
+<thead>
+  <tr>
+    <th style="padding:10px 12px; border:2px dashed #555;">Component</th>
+    <th style="padding:10px 12px; border:2px dashed #555;">Vanilla DDP (per GPU)</th>
+    <th style="padding:10px 12px; border:2px dashed #555;">ZeRO Stage 1 (per GPU)</th>
+  </tr>
+</thead>
+<tbody>
+  <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+    <td style="padding:10px 12px; border:2px dashed #555;">Parameters (BF16 working)</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$2\phi$ bytes</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$2\phi$ bytes</td>
+  </tr>
+  <tr>
+    <td style="padding:10px 12px; border:2px dashed #555;">Parameters (FP32 master)</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$ bytes</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$4\phi/N$ bytes</td>
+  </tr>
+  <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+    <td style="padding:10px 12px; border:2px dashed #555;">Gradients (FP32)</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$ bytes</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$ bytes</td>
+  </tr>
+  <tr>
+    <td style="padding:10px 12px; border:2px dashed #555;">Optimizer State $m_t$ (FP32)</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$ bytes</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$4\phi/N$ bytes</td>
+  </tr>
+  <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+    <td style="padding:10px 12px; border:2px dashed #555;">Optimizer State $v_t$ (FP32)</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$ bytes</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$4\phi/N$ bytes</td>
+  </tr>
+  <tr>
+    <td style="padding:10px 12px; border:2px dashed #555;"><strong>Total</strong></td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$18\phi$ bytes</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$\left(6 + \frac{12}{N}\right)\phi$ bytes</td>
+  </tr>
+</tbody>
+</table>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 3: ZeRO Stage 1 — Optimizer states and FP32 master copy partitioned across N GPUs</figcaption>
+</figure>
+
+With 8 GPUs: $6 + 12/8 = 7.5\phi$ bytes per GPU — a **2.4× reduction** from $18\phi$.
+
+**How training proceeds with Stage 1:**
+
+<span class="step-tag"><span class="step-num">1</span>Forward and Backward Pass</span>
+
+Identical to Vanilla DDP. Every GPU holds the full parameters and computes its forward and backward pass on its micro-batch independently.
+
+<span class="step-tag"><span class="step-num">2</span>Gradient Sync — ReduceScatter</span>
+
+Instead of AllReduce, Stage 1 uses ReduceScatter. Each GPU ends up with the averaged gradients for only the parameters it owns. The gradients for parameters owned by other GPUs are reduced and discarded — never stored in full.
+
+<span class="step-tag"><span class="step-num">3</span>Optimizer Step — Local</span>
+
+Each GPU runs its optimizer step using only its gradient shard and its local optimizer state shard. No cross-GPU communication is needed here.
+
+<span class="step-tag"><span class="step-num">4</span>Parameter Sync — AllGather</span>
+
+After the optimizer step, each GPU has updated its shard of the FP32 master parameters. An AllGather broadcasts each shard to every GPU, so all GPUs end with the complete updated parameters for the next iteration.
+
+**The trade-off:** Stage 1 adds one AllGather per step (to reconstruct parameters after the optimizer step). The ReduceScatter replaces the AllReduce (same total communication volume). So Stage 1 has the same communication cost as Vanilla DDP while significantly reducing memory.
+
+## ZeRO Stage 2
+
+### Gradient Partitioning
+
+<span class="factor-tag tag-memory">Memory</span>
+
+ZeRO Stage 2 extends Stage 1 by also partitioning gradients. In Stage 1, every GPU still stores the full gradient tensor ($4\phi$ bytes) even though each GPU only needs the gradients for the parameters it owns. Stage 2 fixes this.
+
+**The idea:** Since each GPU only runs the optimizer step for its parameter shard, it only needs the gradient shard for those parameters. All other gradients can be discarded immediately after ReduceScatter completes.
+
+<figure>
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
+<thead>
+  <tr>
+    <th style="padding:10px 12px; border:2px dashed #555;">Component</th>
+    <th style="padding:10px 12px; border:2px dashed #555;">ZeRO Stage 1 (per GPU)</th>
+    <th style="padding:10px 12px; border:2px dashed #555;">ZeRO Stage 2 (per GPU)</th>
+  </tr>
+</thead>
+<tbody>
+  <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+    <td style="padding:10px 12px; border:2px dashed #555;">Parameters (BF16 working)</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$2\phi$ bytes</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$2\phi$ bytes</td>
+  </tr>
+  <tr>
+    <td style="padding:10px 12px; border:2px dashed #555;">Parameters (FP32 master)</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$4\phi/N$ bytes</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$4\phi/N$ bytes</td>
+  </tr>
+  <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+    <td style="padding:10px 12px; border:2px dashed #555;">Gradients (FP32)</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$ bytes</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$4\phi/N$ bytes</td>
+  </tr>
+  <tr>
+    <td style="padding:10px 12px; border:2px dashed #555;">Optimizer State $m_t$ (FP32)</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$4\phi/N$ bytes</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$4\phi/N$ bytes</td>
+  </tr>
+  <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+    <td style="padding:10px 12px; border:2px dashed #555;">Optimizer State $v_t$ (FP32)</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$4\phi/N$ bytes</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$4\phi/N$ bytes</td>
+  </tr>
+  <tr>
+    <td style="padding:10px 12px; border:2px dashed #555;"><strong>Total</strong></td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$\left(6 + \frac{12}{N}\right)\phi$ bytes</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$\left(2 + \frac{16}{N}\right)\phi$ bytes</td>
+  </tr>
+</tbody>
+</table>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 4: ZeRO Stage 2 — Gradients also partitioned; each GPU stores only what it needs for its optimizer step</figcaption>
+</figure>
+
+With 8 GPUs: $2 + 16/8 = 4\phi$ bytes per GPU — a **4.5× reduction** from $18\phi$, and **1.9×** improvement over Stage 1.
+
+**How gradient partitioning works during the backward pass:**
+
+Rather than accumulating the full gradient buffer and then running ReduceScatter, Stage 2 integrates ReduceScatter into the backward pass itself. As each layer's gradients are computed, they are immediately reduced and sent to the owning GPU. By the time the backward pass completes, each GPU holds only its gradient shard — the full gradient tensor was never assembled in memory.
+
+This is the key implementation insight: ReduceScatter is pipelined with computation, so the communication and computation overlap. The memory saving is not just at the end of the backward pass — the peak gradient memory during the pass is also reduced.
+
+The communication pattern remains unchanged from Stage 1: ReduceScatter for gradient sync, AllGather after the optimizer step to reconstruct full parameters.
+
+## ZeRO Stage 3
+
+### Parameter Partitioning
+
+<span class="factor-tag tag-memory">Memory</span>
+
+ZeRO Stage 3 completes the sharding by also partitioning the model parameters themselves. Stages 1 and 2 left every GPU holding the full BF16 working copy of all parameters ($2\phi$ bytes) — the dominant remaining cost. Stage 3 shards this across GPUs as well.
+
+**The idea:** Each GPU only holds $1/N$ of the BF16 working parameters at rest. Parameters are reconstructed via AllGather before each layer's forward or backward pass, then immediately discarded.
+
+<figure>
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
+<thead>
+  <tr>
+    <th style="padding:10px 12px; border:2px dashed #555;">Component</th>
+    <th style="padding:10px 12px; border:2px dashed #555;">ZeRO Stage 2 (per GPU)</th>
+    <th style="padding:10px 12px; border:2px dashed #555;">ZeRO Stage 3 (per GPU)</th>
+  </tr>
+</thead>
+<tbody>
+  <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+    <td style="padding:10px 12px; border:2px dashed #555;">Parameters (BF16 working)</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$2\phi$ bytes</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$2\phi/N$ bytes</td>
+  </tr>
+  <tr>
+    <td style="padding:10px 12px; border:2px dashed #555;">Parameters (FP32 master)</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$4\phi/N$ bytes</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$4\phi/N$ bytes</td>
+  </tr>
+  <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+    <td style="padding:10px 12px; border:2px dashed #555;">Gradients (FP32)</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$4\phi/N$ bytes</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$4\phi/N$ bytes</td>
+  </tr>
+  <tr>
+    <td style="padding:10px 12px; border:2px dashed #555;">Optimizer State $m_t$ (FP32)</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$4\phi/N$ bytes</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$4\phi/N$ bytes</td>
+  </tr>
+  <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+    <td style="padding:10px 12px; border:2px dashed #555;">Optimizer State $v_t$ (FP32)</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$4\phi/N$ bytes</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$4\phi/N$ bytes</td>
+  </tr>
+  <tr>
+    <td style="padding:10px 12px; border:2px dashed #555;"><strong>Total</strong></td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$\left(2 + \frac{16}{N}\right)\phi$ bytes</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$\frac{18\phi}{N}$ bytes</td>
+  </tr>
+</tbody>
+</table>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 5: ZeRO Stage 3 — All components partitioned; memory scales linearly with N GPUs</figcaption>
+</figure>
+
+With 8 GPUs: $18\phi/8 = 2.25\phi$ bytes per GPU — an **8× reduction** from Vanilla DDP. For Llama 3 8B, that is 18 GB per GPU instead of 144 GB.
+
+This is the theoretical maximum: every byte of static memory is shared across GPUs. The cluster's aggregate memory now matches what a single GPU would need for DDP, with no redundancy.
+
+**The cost: increased communication**
+
+Stage 3 exchanges memory savings for additional AllGather calls. Every forward pass through a layer requires an AllGather to reconstruct that layer's parameters. After the forward pass, the gathered parameters are freed. The backward pass requires another AllGather for each layer. In total, Stage 3 performs roughly $3\times$ the AllGather volume of Stage 2.
+
+<figure>
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
+<thead>
+  <tr>
+    <th style="padding:10px 12px; border:2px dashed #555;">Stage</th>
+    <th style="padding:10px 12px; border:2px dashed #555;">Memory per GPU (N=8)</th>
+    <th style="padding:10px 12px; border:2px dashed #555;">Reduction vs DDP</th>
+    <th style="padding:10px 12px; border:2px dashed #555;">Communication vs DDP</th>
+  </tr>
+</thead>
+<tbody>
+  <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+    <td style="padding:10px 12px; border:2px dashed #555;"><strong>Vanilla DDP</strong></td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$18\phi$ bytes</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">1×</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">1× (AllReduce)</td>
+  </tr>
+  <tr>
+    <td style="padding:10px 12px; border:2px dashed #555;"><strong>ZeRO Stage 1</strong></td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$7.5\phi$ bytes</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">2.4×</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">1× (RS + AG)</td>
+  </tr>
+  <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+    <td style="padding:10px 12px; border:2px dashed #555;"><strong>ZeRO Stage 2</strong></td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$ bytes</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">4.5×</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">1× (RS + AG)</td>
+  </tr>
+  <tr>
+    <td style="padding:10px 12px; border:2px dashed #555;"><strong>ZeRO Stage 3</strong></td>
+    <td style="padding:10px 12px; border:2px dashed #555;">$2.25\phi$ bytes</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">8×</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">~1.5× (extra AG per layer)</td>
+  </tr>
+</tbody>
+</table>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 6: ZeRO stages compared — memory savings vs. communication overhead</figcaption>
+</figure>
+
+In practice, whether Stage 3's extra communication is acceptable depends on the interconnect bandwidth between GPUs. On NVLink (within a single node), the bandwidth is high enough that the extra AllGathers are rarely a bottleneck. Across nodes over InfiniBand, the increased communication volume can slow training — which is why practitioners often combine Stage 2 within nodes and Stage 3 across nodes, or use ZeRO with activation checkpointing to stay within Stage 2.
+
+<div class="ddp-note">
+  <span class="note-label">Further Reading</span>
+  ZeRO is described in detail in <a href="https://arxiv.org/abs/1910.02054">ZeRO: Memory Optimizations Toward Training Trillion Parameter Models</a> (Rajbhandari et al., 2020). DeepSpeed's <a href="https://www.deepspeed.ai/tutorials/zero/">ZeRO tutorial</a> covers practical configuration for all three stages.
+</div>
+
+Data parallelism — both Vanilla DDP and ZeRO — addresses the time constraint and partially the memory constraint. But ZeRO still requires that activations fit on each GPU during the forward pass. For very large models or long sequences, activations remain the dominant memory pressure. That is where tensor parallelism enters — splitting not the data, but the model itself, across GPUs.
+
+<div style="display:flex; justify-content:space-between; margin-top:48px; padding-top:20px; border-top:1px solid var(--global-divider-color,#dee2e6);">
+  <a href="{{ '/' | relative_url }}" style="font-size:0.9rem; font-weight:600;">← Part 1: Memory &amp; The Case for Parallelism</a>
+  <a href="{{ '/tensor-parallelism/' | relative_url }}" style="font-size:0.9rem; font-weight:600;">Next: Tensor Parallelism →</a>
+</div>
