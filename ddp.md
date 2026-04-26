@@ -196,7 +196,7 @@ For now, let's understand how DDP works when the model does fit — and why it i
     </tr>
 </thead>
 <tbody>
-    <tr>
+    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>1. Initialize</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Model parameters broadcast from rank 0 to all GPUs. Gradients and optimizer states  initialized to zero.</td>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>Broadcast from rank 0</strong></td>
