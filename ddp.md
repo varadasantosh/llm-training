@@ -179,7 +179,7 @@ Every parallelism technique listed above relies on a common communication layer.
   The Llama 3 team extended NCCL into <strong>NCCLX</strong>, optimizing collective operations for their specific network topology across large GPU clusters. See Section 3.3.3 (Collective Communication) of the Llama 3 <a href="https://arxiv.org/pdf/2407.21783">paper</a> for details.
 </div>
 
-NCCL exposes a set of collective operations — each designed for a specific communication pattern. We will introduce them as they are needed, but here is the full set we will encounter across all parallelism techniques:
+NCCL exposes a set of collective operations — each designed for a specific communication pattern. These operations are core of the distributted training process, frameworks like PyTorch create warppers around these libraries to abstract communication frameworks, this is the core software engineering practice, if there are no abstractions provided by PyTorch, we need to implement seperate logic for each ML accelerators (NVIDIA GPU, AMD GPU, Google TPU, Apple , Intel XPU etc...), this allows us to use `torch.distributed` or `torch.nn.DistributedDataParallel` without worrying about accelerator being used, while it is important for performance and other aspects, ML researcher can solely focus on algorithm and architecture. 
 
 | Operation | What it does | First appears in |
 |---|---|---|
@@ -188,6 +188,17 @@ NCCL exposes a set of collective operations — each designed for a specific com
 | ReduceScatter | Reduce then distribute different shards | ZeRO-1/2/3 |
 | AllGather | Collect shards from all GPUs, result to all | ZeRO-1/2/3 |
 | Send/Recv | Point-to-point between two GPUs | Pipeline Parallelism |
+
+**Braodcast**
+Broadcast operation - A single GPU sends the same copy of data or tensors to all GPU , generally a GPU with Rank-0 send tensors to all other Ranks, this means data transfer is limited by bandwidth of Rank-0 GPU, also GPU-0 becomes bottle neck. NCCL tries to reduce this dependency on single GPU by creating logical tree structure on top of flat network topology.
+
+This is generally used in DDP to place replicate model on ALL GPUs before training process starts.
+
+**Reduce Scatter**
+
+**All Gather**
+
+**All Reduce**
 
 In practice, frontier teams do not rely on a single technique — they combine multiple dimensions simultaneously. The Llama 3 paper (Section 3.3.2) describes how Meta used four dimensions of parallelism — Tensor, Pipeline, Context, and Data — across 16,000 GPUs to train the 405B model. That combined approach is where this series is headed.
 
@@ -315,9 +326,9 @@ With identical averaged gradients on every GPU, each GPU runs its optimizer step
 
 ### DDP Limitations
 
-DDP is effective at solving the time problem. By splitting the batch across N GPUs and running forward and backward passes simultaneously, training throughput approaches linear scaling — but every GPU still holds a complete copy of all static memory.
+DDP is effective at solving the time problem. By splitting the batch across N GPUs and running forward and backward passes simultaneously, training throughput approaches linear scaling — but one major drawback with DDP is that model should fit on single GPU, which is not the case with large scale models , entire model can't fit on a single GPU, even though a model can fit on single GPU we are copying all parmeters, gradients, optimizers states to each of the GPU which causes redundancy
 
-But look carefully at what every GPU is holding:
+But look carefully at what every GPU is holding, it is evident that every single byte of static memory is duplicated across every GPU. With 8 GPUs the cluster holds 1.15 TB of static memory — when 144 GB would logically suffice. The other 1.0 TB is pure redundancy. Next few sections focus on reducing the redundacy by using Zero-I, Zero-II, Zero-III
 
 | Component | Precision | Memory per GPU | Replicated? |
 |---|---|---|---|
@@ -328,9 +339,17 @@ But look carefully at what every GPU is holding:
 | Optimizer State $v_t$ | FP32 | $4\phi$ bytes | ✓ Every GPU |
 | **Total** | | $18\phi$ **bytes** | **✓ Every GPU** |
 
-Every single byte of static memory is duplicated across every GPU. With 8 GPUs the cluster holds 1.15 TB of static memory — when 144 GB would logically suffice. The other 1.0 TB is pure redundancy.
 
-DDP solves the time problem. It does nothing for the memory problem.
+## Zero Stage 1
+
+
+
+## Zero Stage 2
+
+
+
+## Zero Stage 3
+
 
 ## NCCL Operations
 
