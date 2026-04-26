@@ -294,7 +294,6 @@ But look carefully at what every GPU is holding:
 | Optimizer State v | FP32 | 4$\phi$ bytes | ✓ Every GPU |
 | **Total** | | **18$\phi$ bytes** | **✓ Every GPU** |
 
-
 Every single byte of static memory is duplicated across every GPU. With 8 GPUs the cluster holds 1.15 TB of static memory — when 144 GB would logically suffice. The other 1.0 TB is pure redundancy.
 
 DDP solves the time problem. It does nothing for the memory problem.
