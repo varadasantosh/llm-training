@@ -261,8 +261,8 @@ AllReduce is a collective operation — every GPU participates simultaneously:
 3. Every GPU receives the averaged gradient
 ```
 
-Before AllReduce:   GPU 0: $\abla\text{W}_0$,  GPU 1: $\abla\text{W}_1$,  GPU 2: $\abla \text{W}_2$
-After AllReduce:    All GPUs: ($\abla\text{W}_0 + abla\text{W}_1  + abla\text{W}_2 ) / 3
+Before AllReduce:   GPU 0: $$\abla \text{W}_0$$,  GPU 1: $$\abla \text{W}_1$$,  GPU 2: $$\abla \text{W}_2$
+After AllReduce:    All GPUs: $$\abla \text{W}_0 + abla \text{W}_1  + abla \text{W}_2 $$  / 3
 
 After AllReduce every GPU has identical gradients. Every GPU runs an identical optimizer step. Every GPU arrives at the next iteration with identical parameters. The model stays in sync.
 
