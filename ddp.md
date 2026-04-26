@@ -256,7 +256,7 @@ Our goal is one model, not N independent models.
 
 The solution is to synchronize gradients before the optimizer step. This is what AllReduce does.
 
-AllReduce is a collective operation — every GPU participates simultaneously:
+AllReduce is a collective operation — every GPU participates simultaneously, AllReduce Operation optimizes the communication using two other NCCL operations ReduceScatter & AllGather.
 
 ```
 NCCL Routine Signature:
@@ -271,9 +271,9 @@ ncclResult_t ncclAllReduce(const void* sendbuff, void* recvbuff, size_t count,
 
 ```
 
-{% include figure.liquid path="assets/img/llm-training/ddp/Vanilla-DDP-Before-AllReduce.svg" class="img-medium" caption="Figure 1: Before AllReduce — Each GPU holds its own local gradients" %}
+{% include figure.liquid path="assets/img/llm-training/ddp/Vanilla-DDP-Before-AllReduce.svg" class="img-medium" caption="Figure 1: ReduceScatter — Each GPU perform Reduction on Gradients" %}
 
-{% include figure.liquid path="assets/img/llm-training/ddp/Vanilla-DDP-After-AllReduce.svg" class="img-medium" caption="Figure 2: After AllReduce — All GPUs hold identical averaged gradients" %}
+{% include figure.liquid path="assets/img/llm-training/ddp/Vanilla-DDP-After-AllReduce.svg" class="img-medium" caption="Figure 2: After AllReduce — All GPUs exchange Reduced Gradients" %}
 
 After AllReduce every GPU has identical gradients. Every GPU runs an identical optimizer step. Every GPU arrives at the next iteration with identical parameters. The model stays in sync.
 
