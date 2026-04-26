@@ -256,7 +256,7 @@ Our goal is one model, not N independent models.
 
 The solution is to synchronize gradients before the optimizer step. This is what AllReduce does.
 
-AllReduce is a collective operation — every GPU participates simultaneously, AllReduce Operation optimizes the communication using two other NCCL operations ReduceScatter & AllGather.
+AllReduce is a collective operation — every GPU participates simultaneously, to perform data movement efficiently AllReduce Operation is further divided into two other NCCL operations ReduceScatter & AllGather.
 
 ```
 NCCL Routine Signature:
