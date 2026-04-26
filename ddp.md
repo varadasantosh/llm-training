@@ -176,11 +176,6 @@ In practice, frontier teams do not rely on a single technique — they combine m
 
 We start with the simplest — **Distributed Data Parallel training** — and build from there.
 
-<div style="display:flex; justify-content:space-between; align-items:center; margin-top:48px; padding-top:20px; border-top:1px solid var(--global-divider-color,#dee2e6); font-size:0.9rem;">
-  <a href="{{ '/' | relative_url }}" style="font-weight:600;">← Part 1: Memory &amp; The Case for Parallelism</a>
-  <span style="color:var(--global-text-color-light,#aaa);">Part 3: Tensor Parallelism (coming soon)</span>
-</div>
-
 
 ## Vanilla DDP
 
@@ -204,7 +199,7 @@ For now, let's understand how DDP works when the model does fit — and why it i
     <tr>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>1. Initialize</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Model parameters broadcast from rank 0 to all GPUs. Gradients and optimizer states  initialized to zero.</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">Broadcast from rank 0</td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>Broadcast from rank 0</strong></td>
     </tr>
     <tr>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>2. Data Split</strong></td>
@@ -234,8 +229,10 @@ For now, let's understand how DDP works when the model does fit — and why it i
   </tbody>
 </table>
 <figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 1: Vanilla DDP Training Steps</figcaption>
-<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Steps 2-6 repeat every iteration until convergence</figcaption>
+
 </figure>
+
+> Steps 2-6 repeat every iteration until convergence
 
 ### DDP Step by Step
 At the start of training, one GPU — rank 0 — holds the initial model. Its parameters are broadcast to every other GPU using NCCL's Broadcast operation. From this point 
