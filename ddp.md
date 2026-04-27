@@ -440,7 +440,7 @@ In vanilla DDP, gradient synchronization uses AllReduce — a single operation t
 
 ZeRO Stage-1 replaces this with two sequential operations:
 
-**Step 1 — ReduceScatter**
+<span class="step-tag"><span class="step-num">1</span>ReduceScatter</span>
 
 Each GPU computes its local gradients during the backward pass. ReduceScatter then averages these gradients across all GPUs — but instead of returning the full averaged tensor to everyone, it distributes different shards to different GPUs:
 
@@ -458,12 +458,12 @@ After ReduceScatter:
 
 Each GPU receives the globally averaged gradient — just for its own shard. The averaging is identical to what AllReduce would have produced.
 
-**Step 2 — Local Optimizer Step**
+<span class="step-tag"><span class="step-num">2</span>Local Optimizer Step</span>
 
 Each GPU now has exactly what it needs — the globally averaged gradient for its parameter shard and its local optimizer states for that same shard. It updates its parameter shard locally. 
 No communication needed.
 
-**Step 3 — AllGather**
+<span class="step-tag"><span class="step-num">3</span>AllGather</span>
 
 After the optimizer step, each GPU holds an updated version of its parameter shard. But every GPU needs the complete updated model for the next forward pass. AllGather broadcasts 
 each GPU's updated shard to all other GPUs, reconstructing the full parameter set on every GPU.
