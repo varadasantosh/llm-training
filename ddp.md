@@ -330,14 +330,57 @@ DDP is effective at solving the time problem. By splitting the batch across N GP
 
 But look carefully at what every GPU is holding, it is evident that every single byte of static memory is duplicated across every GPU. With 8 GPUs the cluster holds 1.15 TB of static memory — when 144 GB would logically suffice. The other 1.0 TB is pure redundancy. Next few sections focus on reducing the redundacy by using Zero-I, Zero-II, Zero-III
 
-| Component | Precision | Memory per GPU | Replicated? |
-|---|---|---|---|
-| Parameters — working copy | BF16 | $2\phi$ bytes | ✓ Every GPU |
-| Parameters — master copy | FP32 | $4\phi$ bytes | ✓ Every GPU |
-| Gradients | FP32 | $4\phi$ bytes | ✓ Every GPU |
-| Optimizer State $m_t$ | FP32 | $4\phi$ bytes | ✓ Every GPU |
-| Optimizer State $v_t$ | FP32 | $4\phi$ bytes | ✓ Every GPU |
-| **Total** | | $18\phi$ **bytes** | **✓ Every GPU** |
+<figure>
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
+<thead>
+    <tr style="text-align:left;">
+      <th style="padding:10px 12px; border:2px dashed #555;">Component</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">Precision</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">Memory per GPU</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">Replicated?</th>
+    </tr>
+</thead>
+<tbody>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">Parameters — working copy</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">BF16</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$2\phi$ bytes</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">✓ Every GPU</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">Parameters — master copy</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">FP32</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$ bytes</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">✓ Every GPU</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">Gradients</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">FP32</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$ bytes</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">✓ Every GPU</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">Optimizer State $m_t$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">FP32</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$ bytes</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">✓ Every GPU</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">Optimizer State $v_t$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">FP32</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$ bytes</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">✓ Every GPU</td>
+    </tr>
+    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>Total</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>$18\phi$ bytes</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>✓ Every GPU</strong></td>
+    </tr>
+</tbody>
+</table>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 2: DDP Memory Requirements per GPU</figcaption>
+</figure>
 
 
 ## ZeRO Stage-1 - Sharding Optimizer States
@@ -348,13 +391,45 @@ holds an identical copy of the model, processes a different slice of data, and s
 But the memory problem remained untouched — for models like Llama 3 8B whose static components alone require 144 GB, 144 GB is replicated across GPUs. With 8 GPUs the cluster holds 1.15 TB of static memory. ZeRO addresses this directly by sharding model state across GPUs.Looking at memory requirements of the model components
 
 
-| Component | Memory | Share of Total |
-|---|---|---|
-| Parameters BF16 | $2\phi$ = 16 GB | 11% |
-| Parameters FP32 | $4\phi$ = 32 GB | 22% |
-| Gradients FP32 | $4\phi$ = 32 GB | 22% |
-| Optimizer State m,v | $8\phi$ = 64 GB | 44% |
-| **Total** | **$18\phi$ = 144 GB** | |
+<figure>
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
+<thead>
+    <tr style="text-align:left;">
+      <th style="padding:10px 12px; border:2px dashed #555;">Component</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">Memory</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">Share of Total</th>
+    </tr>
+</thead>
+<tbody>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">Parameters BF16</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$2\phi$ = 16 GB</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">11%</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">Parameters FP32</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$ = 32 GB</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">22%</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">Gradients FP32</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$ = 32 GB</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">22%</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">Optimizer State m,v</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$8\phi$ = 64 GB</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">44%</td>
+    </tr>
+    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>Total</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>$18\phi$ = 144 GB</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"></td>
+    </tr>
+</tbody>
+</table>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 3: Static Memory Breakdown for Llama 3 8B</figcaption>
+</figure>
 
 Optimizer states — Adam's m and v vectors — consume $8\phi$ bytes per GPU, accounting for 44% of total static memory, they are fully replicated on every GPU despite each GPU only needing 
 the optimizer states for the parameters it is responsible for updating. This is exactly what ZeRO Stage-1 addresses.
@@ -415,22 +490,6 @@ The final parameters are identical across GPU. The optimizer states are updated 
 
 ### Training Steps
 
-| Step | What Happens | NCCL Operation |
-|---|---|---|
-| 1. Initialize | Model parameters broadcast from rank 0 to all GPUs. Each GPU initializes only its own optimizer state shard locally | Broadcast from rank 0 |
-| 2. Data Split | Global batch divided into micro-batches, one per GPU | None |
-| 3. Forward Pass | Each GPU runs forward pass on its micro-batch independently | None |
-| 4. Backward Pass | Each GPU computes gradients for its micro-batch locally | None |
-| 5. Gradient Sync | Gradients averaged and distributed — each GPU receives averaged gradient for its assigned shard | ReduceScatter |
-| 6. Optimizer Step | Each GPU updates its parameter shard using its local optimizer states and averaged gradient shard | None |
-| 7. Parameter Sync | Each GPU broadcasts its updated shard — all GPUs reconstruct the complete updated model | AllGather |
-| 8. Discard | Gathered parameter shards used for next forward pass. Each GPU retains only its own optimizer state shard | None |
-
-> Steps 2-8 repeat every iteration until convergence* 
-
-
-
-
 <figure>
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
 <thead>
@@ -490,7 +549,7 @@ The final parameters are identical across GPU. The optimizer states are updated 
     </tr>
   </tbody>
 </table>
-<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 3: Zero Stage-1 Training Steps</figcaption>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 4: ZeRO Stage-1 Training Steps</figcaption>
 
 </figure>
 
@@ -499,18 +558,69 @@ The final parameters are identical across GPU. The optimizer states are updated 
 [Table](#) captures the memory requirements for Zero Stage-1, memory required for storing optimizer states is now reduced by the factor of number of GPUs
 
 
-| Component | Precision | DDP | ZeRO-1 | Replicated? |
-|---|---|---|---|---|
-| Parameters — working copy | BF16 | 2φ | 2φ | ✓ Every GPU |
-| Parameters — master copy | FP32 | 4φ | 4φ | ✓ Every GPU |
-| Gradients | FP32 | 4φ | 4φ | ✓ Every GPU |
-| Optimizer State m | FP32 | 4φ | 4φ/N | ✗ Sharded across N GPUs |
-| Optimizer State v | FP32 | 4φ | 4φ/N | ✗ Sharded across N GPUs |
-| **Total** | | **18φ** | **(10 + 8/N)φ** | |
+<figure>
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
+<thead>
+    <tr style="text-align:left;">
+      <th style="padding:10px 12px; border:2px dashed #555;">Component</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">Precision</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">DDP</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">ZeRO-1</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">Replicated?</th>
+    </tr>
+</thead>
+<tbody>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">Parameters — working copy</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">BF16</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$2\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$2\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">✓ Every GPU</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">Parameters — master copy</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">FP32</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">✓ Every GPU</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">Gradients</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">FP32</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">✓ Every GPU</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">Optimizer State $m_t$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">FP32</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$4\phi/N$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">✗ Sharded across N GPUs</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">Optimizer State $v_t$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">FP32</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$4\phi/N$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">✗ Sharded across N GPUs</td>
+    </tr>
+    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>Total</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>$18\phi$</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>$(10 + 8/N)\phi$</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"></td>
+    </tr>
+</tbody>
+</table>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 5: ZeRO Stage-1 Memory Savings Comparison</figcaption>
+</figure>
 
-DDP:    $18*\phi$ = 144 GB per GPU
-ZeRO-1: (10 + 8/8)$\phi$ = 11$\phi$ ≈ 88 GB per GPU
-Saving: 38% reduction — 56 GB freed per GPU
+**Memory Calculation for Llama 3 8B (8 GPUs):**
+- DDP: $18\phi$ = 144 GB per GPU
+- ZeRO-1: $(10 + 8/8)\phi = 11\phi$ ≈ 88 GB per GPU
+- **Saving: 38% reduction — 56 GB freed per GPU**
 
 ## Zero Stage-2
 
@@ -551,7 +661,7 @@ AllReduce takes a tensor that exists on every GPU, applies a reduction (sum or a
   </tr>
 </tbody>
 </table>
-<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 2: AllReduce as two phases — ReduceScatter followed by AllGather</figcaption>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 6: AllReduce as Two Phases — ReduceScatter followed by AllGather</figcaption>
 </figure>
 
 Total data transferred per GPU: $2 \times \frac{(N-1)}{N} \times \text{tensor\_size}$. For large N this approaches $2 \times \text{tensor\_size}$, and crucially this cost does not grow with N — adding more GPUs does not increase the per-GPU communication volume.
@@ -565,7 +675,7 @@ ReduceScatter is the first half of AllReduce, but it is also used independently 
 **Input:** Every GPU holds the full tensor (e.g., all gradients)  
 **Output:** GPU $i$ holds only shard $i$ of the reduced tensor
 
-{% include figure.liquid path="assets/img/llm-training/ddp/ReduceScatter.svg" class="img-medium" caption="Figure 3: ReduceScatter — N GPUs each contribute a full tensor; each GPU receives the reduced sum for its assigned shard" %}
+<!-- Figure 3: ReduceScatter diagram - TODO: Add image -->
 
 ZeRO Stage 2 uses ReduceScatter instead of AllReduce for gradient synchronization. Rather than every GPU computing and storing the full averaged gradient, each GPU only receives the shard it is responsible for. The gradients that each GPU does not own are never materialized — they are reduced in-flight and discarded.
 
@@ -576,7 +686,7 @@ AllGather is the second half of AllReduce, and the most frequently used operatio
 **Input:** GPU $i$ holds shard $i$ (different on every GPU)  
 **Output:** Every GPU holds the complete tensor (all shards concatenated)
 
-{% include figure.liquid path="assets/img/llm-training/ddp/AllGather.svg" class="img-medium" caption="Figure 4: AllGather — Each GPU contributes its unique shard; every GPU receives the complete assembled tensor" %}
+<!-- Figure 4: AllGather diagram - TODO: Add image -->
 
 Total data transferred per GPU: $\frac{(N-1)}{N} \times \text{tensor\_size}$, again independent of N.
 
