@@ -344,8 +344,20 @@ But look carefully at what every GPU is holding, it is evident that every single
 
 Zero extends DDP by sharding state of the model - **parameters, gradients & optimizer states** along with data sharding.Vanilla DDP addressed the time problem effectively. The memory problem remained untouched — for models like Llama 3 8B whose static components alone require 144 GB, a single GPU cannot hold the full training state. ZeRO addresses this directly by sharding model state across GPUs.
 
-State of the model includes three components - **parameters, gradients & optimizer states** in each stage we shard one component across GPUs participating in training process. Looking at memory requirements of the components from [table](#) it is evident that largest portion of memory is required by optimizer states. Zero Stage-1 shards optimizer states across GPUs, in Vanilla DDP though all these components are present on every GPU still gradients ($\abla$) had to be shared between them to synchronize the model across GPUs. After the optimizer step, each GPU has updated only its own parameter shard. But every GPU needs the complete updated parameters for the next forward pass. This is where AllGather comes in — each GPU broadcasts 
-its updated shard and receives all other shards, reconstructing the full parameter set.
+State of the model includes three components - **parameters, gradients & optimizer states** in each stage we shard one component across GPUs participating in training process. Looking at memory requirements of the components from [table](#) it is evident that largest portion of memory is required by optimizer states. Zero Stage-1 shards optimizer states across GPUs by initializing the only required portion of optimizer states on each GPU. Vanilla DDP implements **AllReduce** operation to synchronize gradients and parameters across GPU, as described in NCCL section **AllReduce** is composed of **ReduceScatter** & **AllGather** in case of Zero Stage-1, these two steps are performed at different stages once for reducing gradients of respective optimizer shards,  optimizers present on each GPU update respective parameters. After optimizer step each GPU has parameters updated partially, inorder to synchronize parameters across all GPUs we perform **AllGather** — each GPU broadcasts 
+its updated parameters shard and receives parameter shards from other GPUs, reconstructing the full parameter set for next iteration.
+
+> All parameters, Gradients & subset of Optimizer States -> Shard Input data -> forward pass -> 
+> backward pass(calculate local gradients) -> ReduceScatter Gradients (Average Gradients for 
+> respective Optimizers on each GPU) -> Update respective Parameters for which optimizer 
+> states & gradients are avaialble on each GPU -> perform All Gather to synchronize parameters 
+> across all GPUs.
+
+Before ReduceScatter (4 GPUs):
+  GPU 0: [$\abla$ $\text{W}_0$_local, $\abla$ $\text{W}_1$_local, $\abla$ $text{W}_2$_local, $abla$ $\text{W}_3$_local]
+  GPU 1: [∇W₀_local, ∇W₁_local, ∇W₂_local, ∇W₃_local]
+  GPU 2: [∇W₀_local, ∇W₁_local, ∇W₂_local, ∇W₃_local]
+  GPU 3: [∇W₀_local, ∇W₁_local, ∇W₂_local, ∇W₃_local]
 
 
 
