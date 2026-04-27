@@ -477,18 +477,76 @@ GPU 3: updated $\text{W}_3$ shard
 After AllGather:
 All GPUs: complete updated W₀ + W₁ + W₂ + W₃ 
 
-Ex work flow:
+### Example Workflow:
 
- 1. Parameters w₁,w₂,w₃,w₄ present on all GPUs (considering Llama-3 does not have bias)
- 2. Gradients $\nabla\text{W}_1$,$\nabla \text{W}_2$,$\nabla \text{W}_3$,$\nabla \text{W}_4$ replicated on all GPUs
- 3. Optimizer States are sharded to each GPU GPU-0=>(m₁,v₁), GPU-1=>(m₂,v₂),GPU-2=>(m₃,v₃) & GPU-3=>(m₄,v₄)
- 4. Gradients are reduced and updated on each GPU GPU-0=>$\nabla\text{W}_1$, GPU-1=>$\nabla\text{W}_2$, GPU-2=>$\nabla\text{W}_3$ , GPU-3=> $\nabla\text{W}_4$
- 5. Optimizer states & gradient shards present on each GPU update respective parameter shards 
-    - (m₁,v₁) & $\nabla\text{W}_1$ => w₁ (GPU-0)
-    - (m₂,v₂) & $\nabla\text{W}_2$ => w₂ (GPU-1)
-    - (m₃,v₃) & $\nabla\text{W}_3$ => w₃ (GPU-2)
-    - (m₄,v₄) & $\nabla\text{W}_4$ => w₄ (GPU-3) 
- 6. Parameters are gathered from all the other GPUs
+For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W₃, W₄. We use 4 GPUs. Llama 3 uses no bias terms so we omit bias here.
+
+ 1. All GPUs hold identical Parameters w₁,w₂,w₃,w₄ -> Fully replicated on all GPUs.
+
+ 2. Optimizer state shards (unique per GPU):
+
+    - GPU-0: (m₁, v₁)  ← owns optimizer states for W₁
+    - GPU-1: (m₂, v₂)  ← owns optimizer states for W₂
+    - GPU-2: (m₃, v₃)  ← owns optimizer states for W₃
+    - GPU-3: (m₄, v₄)  ← owns optimizer states for W₄
+
+3. Each GPU processes its data shard independently.
+
+   - GPU-0: X₀ → forward(W₁,W₂,W₃,W₄) → Ŷ₀ → Loss₀
+   - GPU-1: X₁ → forward(W₁,W₂,W₃,W₄) → Ŷ₁ → Loss₁
+   - GPU-2: X₂ → forward(W₁,W₂,W₃,W₄) → Ŷ₂ → Loss₂
+   - GPU-3: X₃ → forward(W₁,W₂,W₃,W₄) → Ŷ₃ → Loss₃
+
+4. Every GPU computes local gradients for **all** parameters.
+   - GPU-0: [∇W₁⁰, ∇W₂⁰, ∇W₃⁰, ∇W₄⁰]  ← based on X₀
+   - GPU-1: [∇W₁¹, ∇W₂¹, ∇W₃¹, ∇W₄¹]  ← based on X₁
+   - GPU-2: [∇W₁², ∇W₂², ∇W₃², ∇W₄²]  ← based on X₂
+   - GPU-3: [∇W₁³, ∇W₂³, ∇W₃³, ∇W₄³]  ← based on X₃
+
+5. Each GPU has different gradients — the model will diverge if these are not synchronized.
+   ReduceScatter averages gradients across all GPUs and distributes each shard to its responsible GPU:
+
+   Before ReduceScatter — every GPU holds all local gradients:
+
+   - GPU-0: [∇W₁⁰, ∇W₂⁰, ∇W₃⁰, ∇W₄⁰]
+   - GPU-1: [∇W₁¹, ∇W₂¹, ∇W₃¹, ∇W₄¹]
+   - GPU-2: [∇W₁², ∇W₂², ∇W₃², ∇W₄²]
+   - GPU-3: [∇W₁³, ∇W₂³, ∇W₃³, ∇W₄³]
+
+  After ReduceScatter — each GPU holds only its averaged shard:
+  - GPU-0: ∇W₁_avg = (∇W₁⁰ + ∇W₁¹ + ∇W₁² + ∇W₁³) / 4
+  - GPU-1: ∇W₂_avg = (∇W₂⁰ + ∇W₂¹ + ∇W₂² + ∇W₂³) / 4
+  - GPU-2: ∇W₃_avg = (∇W₃⁰ + ∇W₃¹ + ∇W₃² + ∇W₃³) / 4
+  - GPU-3: ∇W₄_avg = (∇W₄⁰ + ∇W₄¹ + ∇W₄² + ∇W₄³) / 4
+
+6. Each GPU receives the globally averaged gradient — identical to what AllReduce would have  produced — just for its own shard.  
+
+   Each GPU now has two components required to update parameters for next iteration
+
+   - The globally averaged gradient for its shard
+   - Its local optimizer states for that same shard
+
+   GPU-0 updates W₁ using (m₁, v₁) and ∇W₁_avg:
+
+   m₁ = β₁ · m₁ + (1 - β₁) · ∇W₁_avg  ← update 1st moment
+   v₁ = β₂ · v₁ + (1 - β₂) · (∇W₁_avg)² ← update 2nd moment
+
+   m̂₁ = m₁ / (1 - β₁ᵗ) ← bias correction
+   v̂₁ = v₁ / (1 - β₂ᵗ)
+   W₁ = W₁ - η · m̂₁ / (√v̂₁ + ε) ← parameter update
+
+   Similar operations are performed on each GPU to update parameters
+
+7. AllGather - After the optimizer step each GPU holds only its updated parameter shard. AllGather reconstructs the complete model:
+
+   Before AllGather:
+   - GPU-0: updated W₁  
+   - GPU-1: updated W₂
+   - GPU-2: updated W₃  
+   - GPU-3: updated W₄
+  
+  After AllGather:
+  All GPUs: [updated W₁, updated W₂, updated W₃, updated W₄] ✓ 
 
 **ZeRO Stage-1 Path:**
 
