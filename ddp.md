@@ -511,19 +511,19 @@ For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W
 
 6. Each GPU receives the globally averaged gradient — identical to what AllReduce would have  produced — just for its own shard.  Each GPU now has two components required to update parameters for next iteration
 
-  - The globally averaged gradient for its shard
-  - Its local optimizer states for that same shard
+   - The globally averaged gradient for its shard
+   - Its local optimizer states for that same shard
 
-  GPU-0 updates W₁ using (m₁, v₁) and ∇W₁_avg:
+   GPU-0 updates W₁ using (m₁, v₁) and ∇W₁_avg:
 
-  m₁ = β₁ · m₁ + (1 - β₁) · ∇W₁_avg  ← update 1st moment
-  v₁ = β₂ · v₁ + (1 - β₂) · (∇W₁_avg)² ← update 2nd moment
+    m₁ = β₁ · m₁ + (1 - β₁) · ∇W₁_avg  ← update 1st moment
+    v₁ = β₂ · v₁ + (1 - β₂) · (∇W₁_avg)² ← update 2nd moment
 
-  m̂₁ = m₁ / (1 - β₁ᵗ) ← bias correction
-  v̂₁ = v₁ / (1 - β₂ᵗ)
-  W₁ = W₁ - η · m̂₁ / (√v̂₁ + ε) ← parameter update
+    m̂₁ = m₁ / (1 - β₁ᵗ) ← bias correction
+    v̂₁ = v₁ / (1 - β₂ᵗ)
+    W₁ = W₁ - η · m̂₁ / (√v̂₁ + ε) ← parameter update
 
-  Similar operations are performed on each GPU to update parameters
+    Similar operations are performed on each GPU to update parameters
 
 7. AllGather - After the optimizer step each GPU holds only its updated parameter shard. AllGather reconstructs the complete model:
 
