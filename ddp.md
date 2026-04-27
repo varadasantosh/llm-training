@@ -382,13 +382,18 @@ Vanilla DDP shards data across GPUs — each GPU sees a different slice of the t
 
 Vanilla DDP addressed the time problem effectively but the memory problem remained untouched — for models like Llama 3 8B whose static components alone require 144 GB, these are replicated across GPUs. With 8 GPUs the cluster holds 1.15 TB of static memory when 144GB would be sufficient.
 
-Looking at memory requirements of the model components from [table](#table-2-ddp-memory). The largest single component is optimizer states. Adam's m and v vectors consume $8\phi$ bytes per GPU — 44% of total static memory — fully replicated across every GPU despite each GPU only needing the states for the parameters it owns. This is exactly what ZeRO Stage-1 addresses."
+Looking at memory requirements of the model components from [table](#table-2-ddp-memory). The largest single component is optimizer states. Adam's m and v vectors consume $8\phi$ bytes per GPU — 44% of total static memory — fully replicated across every GPU despite each GPU only needing the states for the parameters it owns.
+
+ZeRO Stage-1 targets optimizer states first for two reasons: they are the largest component, and sharding them has no impact on the forward or backward pass — optimizer states are only read and written during the optimizer step. This makes them the safest component to shard without changing any other part of the training loop.
 
 ### The Communication Pattern
 
 In vanilla DDP, gradient synchronization uses AllReduce — a single operation that averages gradients and returns the full averaged tensor to every GPU.
 
-ZeRO Stage-1 replaces this with three sequential operations:
+ZeRO Stage-1 does not replace AllReduce conceptually — it decomposes it into its two constituent operations, ReduceScatter and AllGather, and inserts the optimizer step between them. This seemingly small change is what enables the memory saving: each GPU only needs to retain the gradient shard it is responsible for, discarding the rest before the optimizer step.
+
+**Training path:**
+> Forward Pass → Backward Pass → ReduceScatter → Local Optimizer Step → AllGather
 
 <span class="step-tag"><span class="step-num">1</span>ReduceScatter</span>
 
@@ -429,7 +434,7 @@ GPU 3: updated $\text{W}_3$ shard <br>
 After AllGather: <br>
 All GPUs: complete updated [ W₀ , W₁ , W₂ , W₃ ]
 
-### Example Workflow:
+### Example Workflow
 
 For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W₃, W₄, we use 4 GPUs. Llama 3 uses no bias terms so we omit bias here.
 
@@ -476,16 +481,19 @@ For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W
    - The globally averaged gradient for its shard
    - Its local optimizer states for that same shard
 
-   GPU-0 updates W₁ using (m₁, v₁) and ∇W₁_avg:
+   GPU-0 updates W₁ using its local (m₁, v₁) and ∇W₁_avg. Each GPU applies the same Adam update rule to its own shard — the mechanics are identical, only the parameters differ.
 
-    m₁ = β₁ · m₁ + (1 - β₁) · ∇W₁_avg  ← update 1st moment
-    v₁ = β₂ · v₁ + (1 - β₂) · (∇W₁_avg)² ← update 2nd moment
+<d-aside>
+  <b>Adam update — GPU-0 updating W₁</b>
+  <pre style="font-size:0.75rem; margin-top:6px; line-height:1.6;">m₁ = β₁·m₁ + (1-β₁)·∇W₁_avg   ← 1st moment
+v₁ = β₂·v₁ + (1-β₂)·(∇W₁_avg)² ← 2nd moment
 
-    m̂₁ = m₁ / (1 - β₁ᵗ) ← bias correction
-    v̂₁ = v₁ / (1 - β₂ᵗ)
-    W₁ = W₁ - η · m̂₁ / (√v̂₁ + ε) ← parameter update
+m̂₁ = m₁ / (1-β₁ᵗ)  ← bias correction
+v̂₁ = v₁ / (1-β₂ᵗ)
 
-    Similar operations are performed on each GPU to update parameters
+W₁ = W₁ - η·m̂₁/(√v̂₁+ε)  ← parameter update</pre>
+  <p style="font-size:0.75rem; margin:6px 0 0;">$\beta_1$, $\beta_2$ — moment decay rates; $\eta$ — learning rate; $\epsilon$ — numerical stability constant. Each GPU runs this identically for its own shard.</p>
+</d-aside>
 
 7. AllGather - After the optimizer step each GPU holds only its updated parameter shard. AllGather reconstructs the complete model:
 
@@ -498,16 +506,9 @@ For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W
    After AllGather:
    All GPUs: [updated W₁, updated W₂, updated W₃, updated W₄]
 
-**ZeRO Stage-1 Path:**
+The final parameters are identical across GPUs. Each GPU applies the same Adam update rule to its own optimizer state shard — the mechanics are identical, only the slice of the model differs. The model does not diverge.
 
-> Input data shard
-> → Forward Pass
-> → Backward Pass (local gradients computed)
-> → ReduceScatter (each GPU receives averaged gradient for its shard)
-> → Local Optimizer Step (each GPU updates its parameter shard)
-> → AllGather (full updated parameters reconstructed on all GPUs)
-
-The final parameters are identical across GPUs. The optimizer states are updated identically. The model does not diverge. The only difference is that no single GPU ever holds the full optimizer state simultaneously —  this approach helps us save memory.
+Critically, each GPU carries its optimizer state shard forward across iterations. GPU-0 always owns and updates $(m_1, v_1)$; those states accumulate momentum across every training step just as they would in DDP — the only difference is that no single GPU ever holds the full optimizer state simultaneously.
 
 ### Training Steps
 <figure>
@@ -521,44 +522,43 @@ The final parameters are identical across GPUs. The optimizer states are updated
 </thead>
 <tbody>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>1.Initialize</strong></td>
-      <td style="padding:10px 12px; border:2px dashed #555;">Model parameters broadcast from rank 0 to all GPUs. Gradients and optimizer states are initialized to zero.</td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>1. Initialize</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Model parameters broadcast from rank 0 to all GPUs. Gradients initialized to zero.</td>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>Broadcast from rank 0</strong></td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>2.Data Split</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>2. Data Split</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Global batch is divided into micro-batches, one per GPU</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None (data loader handles this)</td>
     </tr>
-    <tr >
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>3.Initialize Optimizer States
-        </strong></td>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>3. Initialize Optimizer State Shards</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Each GPU initializes only its assigned optimizer state shard to zero</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None</td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>4.Forward Pass</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>4. Forward Pass</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Each GPU computes forward pass on its micro-batch independently</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None</td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>5.Backward Pass</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>5. Backward Pass</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Each GPU locally computes gradients for its micro-batch</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None</td>
     </tr>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>6.Gradient Sync</strong></td>
-      <td style="padding:10px 12px; border:2px dashed #555;">Gradients are averaged across all GPUs for respective Parameter Shards</td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>6. Gradient Sync</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Gradients averaged across all GPUs; each GPU receives only its assigned gradient shard</td>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>ReduceScatter</strong></td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>7.Optimizer Step</strong></td>
-      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU updates its shard locally</td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>7. Optimizer Step</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU updates its parameter shard using its local gradient and optimizer state shards</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None</td>
     </tr>
-    <tr  style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>8.Gather Updated Params</strong></td>
-      <td style="padding:10px 12px; border:2px dashed #555;">AllGather — updated parameters gathered to all GPUs </td>
+    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>8. Gather Updated Params</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Updated parameter shards broadcast to all GPUs; full model reconstructed</td>
       <td style="padding:10px 12px; border:2px dashed #555;">AllGather</td>
     </tr>
     
