@@ -340,18 +340,34 @@ But look carefully at what every GPU is holding, it is evident that every single
 | **Total** | | $18\phi$ **bytes** | **✓ Every GPU** |
 
 
-## Zero Stage-1
+## ZeRO Stage-1 - Sharding Optimizer States
 
-Zero extends DDP by sharding state of the model - **parameters, gradients & optimizer states** along with data sharding.Vanilla DDP addressed the time problem effectively. The memory problem remained untouched — for models like Llama 3 8B whose static components alone require 144 GB, a single GPU cannot hold the full training state. ZeRO addresses this directly by sharding model state across GPUs.
+Zero extends DDP by sharding state of the model - **parameters, gradients & optimizer states** along with data sharding.Vanilla DDP addressed the time problem effectively. Every GPU 
+holds an identical copy of the model, processes a different slice of data, and synchronizes gradients via AllReduce. Training throughput scales with the number of GPUs.
 
-State of the model includes three components - **parameters, gradients & optimizer states** in each stage we shard one component across GPUs participating in training process. Looking at memory requirements of the components from [table](#) it is evident that largest portion of memory is required by optimizer states. Zero Stage-1 shards optimizer states across GPUs by initializing the only required portion of optimizer states on each GPU. Vanilla DDP implements **AllReduce** operation to synchronize gradients and parameters across GPU, as described in NCCL section **AllReduce** is composed of **ReduceScatter** & **AllGather** in case of Zero Stage-1, these two steps are performed at different stages once for reducing gradients of respective optimizer shards,  optimizers present on each GPU update respective parameters. After optimizer step each GPU has parameters updated partially, inorder to synchronize parameters across all GPUs we perform **AllGather** — each GPU broadcasts 
-its updated parameters shard and receives parameter shards from other GPUs, reconstructing the full parameter set for next iteration.
+But the memory problem remained untouched — for models like Llama 3 8B whose static components alone require 144 GB, 144 GB is replicated across GPUs. With 8 GPUs the cluster holds 1.15 TB of static memory. ZeRO addresses this directly by sharding model state across GPUs.Looking at memory requirements of the component
 
-> All parameters, Gradients & subset of Optimizer States -> Shard Input data -> forward pass -> 
-> backward pass(calculate local gradients) -> ReduceScatter Gradients (Average Gradients for 
-> respective Optimizers on each GPU) -> Update respective Parameters for which optimizer 
-> states & gradients are avaialble on each GPU -> perform All Gather to synchronize parameters 
-> across all GPUs.
+
+| Component | Memory | Share of Total |
+|---|---|---|
+| Parameters BF16 | $2*\phi$ = 16 GB | 11% |
+| Parameters FP32 | $4*\phi$ = 32 GB | 22% |
+| Gradients FP32 | $4*\phi$ = 32 GB | 22% |
+| Optimizer State m,v | $8*\phi$ = 64 GB | 44% |
+| **Total** | **$18\phi$ = 144 GB** | |
+
+Optimizer states — Adam's m and v vectors — consume $8*\phi$ bytes per GPU, accounting for 44% of total static memory, they are fully replicated on every GPU despite each GPU only needing 
+the optimizer states for the parameters it is responsible for updating. This is exactly what ZeRO Stage-1 addresses.
+
+### The Communication Pattern
+
+In vanilla DDP, gradient synchronization uses AllReduce — a single operation that averages gradients and returns the full averaged tensor to every GPU.
+
+ZeRO Stage-1 replaces this with two sequential operations:
+
+**Step 1 — ReduceScatter**
+
+Each GPU computes its local gradients during the backward pass. ReduceScatter then averages these gradients across all GPUs — but instead of returning the full averaged tensor to everyone, it distributes different shards to different GPUs:
 
 Before ReduceScatter (4 GPUs):
   GPU 0: [$\nabla$ $\text{W}_0$_local, $\nabla$ $\text{W}_1$_local, $\nabla$ $\text{W}_2$_local, $nabla$ $\text{W}_3$_local] <br>
@@ -364,6 +380,54 @@ After ReduceScatter:
   GPU 1: averaged($\nabla$ $\text{W}_1$) ← globally averaged, just for shard 1
   GPU 2: averaged($\nabla$ $\text{W}_2$) ← globally averaged, just for shard 2
   GPU 3: averaged($\nabla$ $\text{W}_3$) ← globally averaged, just for shard 3
+
+Each GPU receives the globally averaged gradient — just for its own shard. The averaging is identical to what AllReduce would have produced.
+
+**Step 2 — Local Optimizer Step**
+
+Each GPU now has exactly what it needs — the globally averaged gradient for its parameter shard and its local optimizer states for that same shard. It updates its parameter shard locally. 
+No communication needed.
+
+**Step 3 — AllGather**
+
+After the optimizer step, each GPU holds an updated version of its parameter shard. But every GPU needs the complete updated model for the next forward pass. AllGather broadcasts 
+each GPU's updated shard to all other GPUs, reconstructing the full parameter set on every GPU.
+
+After optimizer step:
+GPU 0: updated $\text{W}_0 shard
+GPU 1: updated $\text{W}_1$ shard
+GPU 2: updated $\text{W}_2$ shard
+GPU 3: updated $\text{W}_3$ shard
+
+After AllGather:
+All GPUs: complete updated W₀ + W₁ + W₂ + W₃ 
+
+**ZeRO Stage-1 Path:**
+
+> Input data shard
+>  ⃗ Forward Pass
+>  ⃗ Backward Pass (local gradients computed)
+>  ⃗ ReduceScatter (each GPU receives averaged gradient for its shard)
+>  ⃗ Local Optimizer Step (each GPU updates its parameter shard)
+>  ⃗ AllGather (full updated parameters reconstructed on all GPUs)
+
+The final parameters are identical across GPU. The optimizer states are updated identically. The model does not diverge. The only difference is that no single GPU ever holds the full optimizer state simultaneously —  this approach helps us save memory.
+
+### Training Steps
+
+| Step | What Happens | NCCL Operation |
+|---|---|---|
+| 1. Initialize | Model parameters broadcast from rank 0 to all GPUs. Each GPU initializes only its own optimizer state shard locally | Broadcast from rank 0 |
+| 2. Data Split | Global batch divided into micro-batches, one per GPU | None |
+| 3. Forward Pass | Each GPU runs forward pass on its micro-batch independently | None |
+| 4. Backward Pass | Each GPU computes gradients for its micro-batch locally | None |
+| 5. Gradient Sync | Gradients averaged and distributed — each GPU receives averaged gradient for its assigned shard | ReduceScatter |
+| 6. Optimizer Step | Each GPU updates its parameter shard using its local optimizer states and averaged gradient shard | None |
+| 7. Parameter Sync | Each GPU broadcasts its updated shard — all GPUs reconstruct the complete updated model | AllGather |
+| 8. Discard | Gathered parameter shards used for next forward pass. Each GPU retains only its own optimizer state shard | None |
+
+> Steps 2-8 repeat every iteration until convergence* 
+
 
 
 
@@ -430,17 +494,23 @@ After ReduceScatter:
 
 </figure>
 
+
+### Memory Savings
 [Table](#) captures the memory requirements for Zero Stage-1, memory required for storing optimizer states is now reduced by the factor of number of GPUs
 
-| Component | Precision | Memory per GPU | Replicated? |
-|---|---|---|---|
-| Parameters — working copy | BF16 | $2\phi$ bytes | ✓ Every GPU |
-| Parameters — master copy | FP32 | $4\phi$ bytes | ✓ Every GPU |
-| Gradients | FP32 | $4\phi$ bytes | ✓ Every GPU |
-| Optimizer State $m_t$ | FP32 | $4\phi$/n bytes | ｘ Sharded on N GPUs |
-| Optimizer State $v_t$ | FP32 | $4\phi$/n bytes | ｘ Sharded on N GPUs  |
-| **Total** | | $(10+8/N)\phi$ **bytes** | **✓ Every GPU** |
 
+| Component | Precision | DDP | ZeRO-1 | Replicated? |
+|---|---|---|---|---|
+| Parameters — working copy | BF16 | 2φ | 2φ | ✓ Every GPU |
+| Parameters — master copy | FP32 | 4φ | 4φ | ✓ Every GPU |
+| Gradients | FP32 | 4φ | 4φ | ✓ Every GPU |
+| Optimizer State m | FP32 | 4φ | 4φ/N | ✗ Sharded across N GPUs |
+| Optimizer State v | FP32 | 4φ | 4φ/N | ✗ Sharded across N GPUs |
+| **Total** | | **18φ** | **(10 + 8/N)φ** | |
+
+DDP:    $18*\phi$ = 144 GB per GPU
+ZeRO-1: (10 + 8/8)$\phi$ = 11$\phi$ ≈ 88 GB per GPU
+Saving: 38% reduction — 56 GB freed per GPU
 
 ## Zero Stage-2
 
