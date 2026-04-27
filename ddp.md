@@ -225,32 +225,32 @@ For now, let's understand how DDP works when the model does fit — and why it i
 </thead>
 <tbody>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>1. Initialize</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>1.Initialize</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Model parameters broadcast from rank 0 to all GPUs. Gradients and optimizer states are initialized to zero.</td>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>Broadcast from rank 0</strong></td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>2. Data Split</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>2.Data Split</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Global batch is divided into micro-batches, one per GPU</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None (data loader handles this)</td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>3. Forward Pass</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>3.Forward Pass</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Each GPU computes forward pass on its micro-batch independently</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None</td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>4. Backward Pass</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>4.Backward Pass</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Each GPU computes gradients for its micro-batch</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None</td>
     </tr>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>5. Gradient Sync</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>5.Gradient Sync</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Gradients are averaged across all GPUs</td>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>AllReduce</strong></td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>6. Optimizer Step</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>6.Optimizer Step</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Each GPU updates its local parameters using averaged gradients</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None</td>
     </tr>
@@ -378,11 +378,11 @@ But looking carefully at what every GPU is holding, it is evident that static me
 
 ## ZeRO Stage-1 - Sharding Optimizer States
 
-ZeRO extends DDP by sharding state of the model - **parameters, gradients & optimizer states** along with data sharding. Vanilla DDP addressed the time problem effectively. Every GPU 
-holds an identical copy of the model and processes a different slice of data, and synchronizes gradients via AllReduce. Training throughput scales with the number of GPUs.
+Vanilla DDP shards data across GPUs — each GPU sees a different slice of the training data. ZeRO extends this by also sharding the model state itself:▎ parameters, gradients, and optimizer states. 
 
-But the memory problem remained untouched — for models like Llama 3 8B whose static components alone require 144 GB, these are replicated across GPUs. With 8 GPUs the cluster holds 1.15 TB of static memory. ZeRO addresses this directly by sharding model state across GPUs. Looking at memory requirements of the model [components](#table-2-ddp-memory)  Optimizer states — Adam's m and v vectors — consume $8\phi$ bytes per GPU, accounting for 44% of total static memory, they are fully replicated on every GPU despite each GPU only needing 
-the optimizer states for the parameters it is responsible for updating. This is exactly what ZeRO Stage-1 addresses.
+Vanilla DDP addressed the time problem effectively but the memory problem remained untouched — for models like Llama 3 8B whose static components alone require 144 GB, these are replicated across GPUs. With 8 GPUs the cluster holds 1.15 TB of static memory when 144GB would be sufficient.
+
+Looking at memory requirements of the model components from [table](#table-2-ddp-memory). The largest single component is optimizer states. Adam's m and v vectors consume $8\phi$ bytes per GPU — 44% of total static memory — fully replicated across every GPU despite each GPU only needing the states for the parameters it owns. This is exactly what ZeRO Stage-1 addresses."
 
 ### The Communication Pattern
 
@@ -471,7 +471,7 @@ For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W
    - GPU-2: ∇W₃_avg = (∇W₃⁰ + ∇W₃¹ + ∇W₃² + ∇W₃³) / 4
    - GPU-3: ∇W₄_avg = (∇W₄⁰ + ∇W₄¹ + ∇W₄² + ∇W₄³) / 4
 
-6. Each GPU receives the globally averaged gradient — identical to what AllReduce would have  produced — just for its own shard.  Each GPU now has two components required to update parameters for next iteration
+6. Each GPU receives the globally averaged gradient — identical to what AllReduce would have produced — just for its own shard. Each GPU now has two components required to update parameters for next iteration
 
    - The globally averaged gradient for its shard
    - Its local optimizer states for that same shard
@@ -507,7 +507,7 @@ For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W
 > → Local Optimizer Step (each GPU updates its parameter shard)
 > → AllGather (full updated parameters reconstructed on all GPUs)
 
-The final parameters are identical across GPU. The optimizer states are updated identically. The model does not diverge. The only difference is that no single GPU ever holds the full optimizer state simultaneously —  this approach helps us save memory.
+The final parameters are identical across GPUs. The optimizer states are updated identically. The model does not diverge. The only difference is that no single GPU ever holds the full optimizer state simultaneously —  this approach helps us save memory.
 
 ### Training Steps
 <figure>
@@ -531,10 +531,9 @@ The final parameters are identical across GPU. The optimizer states are updated 
       <td style="padding:10px 12px; border:2px dashed #555;">None (data loader handles this)</td>
     </tr>
     <tr >
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>3.Initializes Optimizer States
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>3.Initialize Optimizer States
         </strong></td>
-      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU initializes only its own 
-        shard of optimizer states locally</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU initializes only its assigned optimizer state shard to zero</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None</td>
     </tr>
     <tr>
@@ -568,7 +567,7 @@ The final parameters are identical across GPU. The optimizer states are updated 
 <figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 4: ZeRO Stage-1 Training Steps</figcaption>
 </figure>
 
-### Memory Savings
+### Memory Requirements
 Table below captures the memory requirements for ZeRO Stage-1, memory required for storing optimizer states is now reduced by the factor of number of GPUs
 
 <figure>
@@ -587,7 +586,7 @@ Table below captures the memory requirements for ZeRO Stage-1, memory required f
       <td style="padding:10px 12px; border:2px dashed #555;">✓ Every GPU</td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;">Parameters F32 (master copy) </td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Parameters FP32 (master copy) </td>
       <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$</td>
       <td style="padding:10px 12px; border:2px dashed #555;">✓ Every GPU</td>
     </tr>
@@ -609,7 +608,7 @@ Table below captures the memory requirements for ZeRO Stage-1, memory required f
     </tr>
 </tbody>
 </table>
-<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 5: ZeRO Stage-1 Memory Savings Comparison</figcaption>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 5: ZeRO Stage-1 Memory Requirements</figcaption>
 </figure>
 
 **Memory Calculation for Llama 3 8B (8 GPUs):**
