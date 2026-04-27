@@ -345,18 +345,18 @@ But look carefully at what every GPU is holding, it is evident that every single
 Zero extends DDP by sharding state of the model - **parameters, gradients & optimizer states** along with data sharding.Vanilla DDP addressed the time problem effectively. Every GPU 
 holds an identical copy of the model, processes a different slice of data, and synchronizes gradients via AllReduce. Training throughput scales with the number of GPUs.
 
-But the memory problem remained untouched — for models like Llama 3 8B whose static components alone require 144 GB, 144 GB is replicated across GPUs. With 8 GPUs the cluster holds 1.15 TB of static memory. ZeRO addresses this directly by sharding model state across GPUs.Looking at memory requirements of the component
+But the memory problem remained untouched — for models like Llama 3 8B whose static components alone require 144 GB, 144 GB is replicated across GPUs. With 8 GPUs the cluster holds 1.15 TB of static memory. ZeRO addresses this directly by sharding model state across GPUs.Looking at memory requirements of the model components
 
 
 | Component | Memory | Share of Total |
 |---|---|---|
-| Parameters BF16 | $2*\phi$ = 16 GB | 11% |
-| Parameters FP32 | $4*\phi$ = 32 GB | 22% |
-| Gradients FP32 | $4*\phi$ = 32 GB | 22% |
-| Optimizer State m,v | $8*\phi$ = 64 GB | 44% |
+| Parameters BF16 | $2\phi$ = 16 GB | 11% |
+| Parameters FP32 | $4\phi$ = 32 GB | 22% |
+| Gradients FP32 | $4\phi$ = 32 GB | 22% |
+| Optimizer State m,v | $8\phi$ = 64 GB | 44% |
 | **Total** | **$18\phi$ = 144 GB** | |
 
-Optimizer states — Adam's m and v vectors — consume $8*\phi$ bytes per GPU, accounting for 44% of total static memory, they are fully replicated on every GPU despite each GPU only needing 
+Optimizer states — Adam's m and v vectors — consume $8\phi$ bytes per GPU, accounting for 44% of total static memory, they are fully replicated on every GPU despite each GPU only needing 
 the optimizer states for the parameters it is responsible for updating. This is exactly what ZeRO Stage-1 addresses.
 
 ### The Communication Pattern
@@ -405,11 +405,11 @@ All GPUs: complete updated W₀ + W₁ + W₂ + W₃
 **ZeRO Stage-1 Path:**
 
 > Input data shard
->  ⃗ Forward Pass
->  ⃗ Backward Pass (local gradients computed)
->  ⃗ ReduceScatter (each GPU receives averaged gradient for its shard)
->  ⃗ Local Optimizer Step (each GPU updates its parameter shard)
->  ⃗ AllGather (full updated parameters reconstructed on all GPUs)
+> → Forward Pass
+> → Backward Pass (local gradients computed)
+> → ReduceScatter (each GPU receives averaged gradient for its shard)
+> → Local Optimizer Step (each GPU updates its parameter shard)
+> → AllGather (full updated parameters reconstructed on all GPUs)
 
 The final parameters are identical across GPU. The optimizer states are updated identically. The model does not diverge. The only difference is that no single GPU ever holds the full optimizer state simultaneously —  this approach helps us save memory.
 
