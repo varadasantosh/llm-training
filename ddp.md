@@ -446,9 +446,9 @@ Each GPU computes its local gradients during the backward pass. ReduceScatter th
 
 Before ReduceScatter (4 GPUs): <br>
   GPU 0: [$\nabla \text{W}_0$_local, $\nabla \text{W}_1$_local, $\nabla \text{W}_2$_local, $\nabla \text{W}_3$_local] <br>
-  GPU 1: [$\nabla \text{W}_0$_local, $\nabla \text{W}_1$_local, $\nabla\text{W}_2$_local, $nabla$$\text{W}_3$_local] <br>
-  GPU 2: [$\nabla \text{W}_0$_local, $\nabla \text{W}_1$_local, $\nabla \text{W}_2$_local, $nabla$$\text{W}_3$_local] <br>
-  GPU 3: [$\nabla \text{W}_0$_local, $\nabla \text{W}_1$_local, $\nabla \text{W}_2$_local, $nabla \text{W}_3$_local] <br>
+  GPU 1: [$\nabla \text{W}_0$_local, $\nabla \text{W}_1$_local, $\nabla\text{W}_2$_local, $\nabla \text{W}_3$_local] <br>
+  GPU 2: [$\nabla \text{W}_0$_local, $\nabla \text{W}_1$_local, $\nabla \text{W}_2$_local, $\nabla \text{W}_3$_local] <br>
+  GPU 3: [$\nabla \text{W}_0$_local, $\nabla \text{W}_1$_local, $\nabla \text{W}_2$_local, $\nabla \text{W}_3$_local] <br>
 
 After ReduceScatter:
   GPU 0: averaged($\nabla \text{W}_0$) ← globally averaged, just for shard 0
