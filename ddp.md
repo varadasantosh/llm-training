@@ -571,49 +571,49 @@ The final parameters are identical across GPU. The optimizer states are updated 
 </thead>
 <tbody>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>1. Initialize</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>1.Initialize</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Model parameters broadcast from rank 0 to all GPUs. Gradients and optimizer states are initialized to zero.</td>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>Broadcast from rank 0</strong></td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>2. Data Split</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>2.Data Split</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Global batch is divided into micro-batches, one per GPU</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None (data loader handles this)</td>
     </tr>
     <tr >
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>3. initializes Optimizer States
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>3.Initializes Optimizer States
         </strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Each GPU initializes only its own 
         shard of optimizer states locally</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None</td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>4. Forward Pass</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>4.Forward Pass</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Each GPU computes forward pass on its micro-batch independently</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None</td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>5. Backward Pass</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>5.Backward Pass</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Each GPU locally computes gradients for its micro-batch</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None</td>
     </tr>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>6. Gradient Sync</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>6.Gradient Sync</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Gradients are averaged across all GPUs</td>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>ReduceScatter</strong></td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>7. Optimizer Step</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>7.Optimizer Step</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Each GPU updates its shard locally</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None</td>
     </tr>
     <tr  style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>8. Gather Updated Params</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>8.Gather Updated Params</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">AllGather — updated parameters gathered to all GPUs </td>
       <td style="padding:10px 12px; border:2px dashed #555;">AllGather</td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>9. Discard Optimizer States</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>9.Discard Optimizer States</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Each GPU keeps its local optimizer states and discard optimizer states gathered from other GPUs</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None</td>
     </tr>
