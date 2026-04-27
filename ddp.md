@@ -564,7 +564,7 @@ The final parameters are identical across GPUs. The optimizer states are updated
     
   </tbody>
 </table>
-<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 4: ZeRO Stage-1 Training Steps</figcaption>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 3: ZeRO Stage-1 Training Steps</figcaption>
 </figure>
 
 ### Memory Requirements
@@ -608,7 +608,7 @@ Table below captures the memory requirements for ZeRO Stage-1, memory required f
     </tr>
 </tbody>
 </table>
-<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 5: ZeRO Stage-1 Memory Requirements</figcaption>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 4: ZeRO Stage-1 Memory Requirements</figcaption>
 </figure>
 
 **Memory Calculation for Llama 3 8B (8 GPUs):**
