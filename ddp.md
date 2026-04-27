@@ -378,8 +378,8 @@ But looking carefully at what every GPU is holding, it is evident that static me
 
 ## ZeRO Stage-1 - Sharding Optimizer States
 
-Zero extends DDP by sharding state of the model - **parameters, gradients & optimizer states** along with data sharding.Vanilla DDP addressed the time problem effectively. Every GPU 
-holds an identical copy of the model, processes a different slice of data, and synchronizes gradients via AllReduce. Training throughput scales with the number of GPUs.
+Zero extends DDP by sharding state of the model - **parameters, gradients & optimizer states** along with data sharding. Vanilla DDP addressed the time problem effectively. Every GPU 
+holds an identical copy of the model and processes a different slice of data, and synchronizes gradients via AllReduce. Training throughput scales with the number of GPUs.
 
 But the memory problem remained untouched — for models like Llama 3 8B whose static components alone require 144 GB, these are replicated across GPUs. With 8 GPUs the cluster holds 1.15 TB of static memory. ZeRO addresses this directly by sharding model state across GPUs. Looking at memory requirements of the model [components](#table-2-ddp-memory)  Optimizer states — Adam's m and v vectors — consume $8\phi$ bytes per GPU, accounting for 44% of total static memory, they are fully replicated on every GPU despite each GPU only needing 
 the optimizer states for the parameters it is responsible for updating. This is exactly what ZeRO Stage-1 addresses.
@@ -396,10 +396,10 @@ Each GPU computes its local gradients during the backward pass. ReduceScatter th
 
 **Before ReduceScatter (4 GPUs):** <br>
 
-  GPU 0: [$\nabla \text{W}_0$_local, $\nabla \text{W}_1$_local, $\nabla \text{W}_2$_local, $\nabla \text{W}_3$_local] <br>
-  GPU 1: [$\nabla \text{W}_0$_local, $\nabla \text{W}_1$_local, $\nabla\text{W}_2$_local, $\nabla \text{W}_3$_local] <br>
-  GPU 2: [$\nabla \text{W}_0$_local, $\nabla \text{W}_1$_local, $\nabla \text{W}_2$_local, $\nabla \text{W}_3$_local] <br>
-  GPU 3: [$\nabla \text{W}_0$_local, $\nabla \text{W}_1$_local, $\nabla \text{W}_2$_local, $\nabla \text{W}_3$_local] <br>
+  GPU 0: [$\nabla \text{W}_0^{\text{local}}$, $\nabla \text{W}_1^{\text{local}}$, $\nabla \text{W}_2^{\text{local}}$, $\nabla \text{W}_3^{\text{local}}$] <br>
+  GPU 1: [$\nabla \text{W}_0^{\text{local}}$, $\nabla \text{W}_1^{\text{local}}$, $\nabla \text{W}_2^{\text{local}}$, $\nabla \text{W}_3^{\text{local}}$] <br>
+  GPU 2: [$\nabla \text{W}_0^{\text{local}}$, $\nabla \text{W}_1^{\text{local}}$, $\nabla \text{W}_2^{\text{local}}$, $\nabla \text{W}_3^{\text{local}}$] <br>
+  GPU 3: [$\nabla \text{W}_0^{\text{local}}$, $\nabla \text{W}_1^{\text{local}}$, $\nabla \text{W}_2^{\text{local}}$, $\nabla \text{W}_3^{\text{local}}$] <br>
 
 **After ReduceScatter:** <br>
 
@@ -510,7 +510,6 @@ For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W
 The final parameters are identical across GPU. The optimizer states are updated identically. The model does not diverge. The only difference is that no single GPU ever holds the full optimizer state simultaneously —  this approach helps us save memory.
 
 ### Training Steps
-
 <figure>
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
 <thead>
@@ -550,7 +549,7 @@ The final parameters are identical across GPU. The optimizer states are updated 
     </tr>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>6.Gradient Sync</strong></td>
-      <td style="padding:10px 12px; border:2px dashed #555;">Gradients are averaged across all GPUs</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Gradients are averaged across all GPUs for respective Parameter Shards</td>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>ReduceScatter</strong></td>
     </tr>
     <tr>
@@ -570,7 +569,7 @@ The final parameters are identical across GPU. The optimizer states are updated 
 </figure>
 
 ### Memory Savings
-[Table](#) captures the memory requirements for Zero Stage-1, memory required for storing optimizer states is now reduced by the factor of number of GPUs
+Table below captures the memory requirements for Zero Stage-1, memory required for storing optimizer states is now reduced by the factor of number of GPUs
 
 <figure>
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
