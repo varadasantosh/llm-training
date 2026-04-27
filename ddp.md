@@ -328,7 +328,7 @@ With identical averaged gradients on every GPU, each GPU runs its optimizer step
 
 DDP is effective at solving the time problem. By splitting the batch across N GPUs and running forward and backward passes simultaneously, training throughput approaches linear scaling — but one major drawback with DDP is that model should fit on single GPU, which is not the case with large scale models , entire model can't fit on a single GPU, even though a model can fit on single GPU we are copying all parmeters, gradients, optimizers states to each of the GPU which causes redundancy
 
-But looking carefully at what every GPU is holding, it is evident that static memory is duplicated across every GPU. With 8 GPUs the cluster holds 1.15 TB of static memory. This shows redundant memory issue. Next few sections focus on reducing the redundacy by using Zero-I, Zero-II, Zero-III
+But looking carefully at what every GPU is holding, it is evident that static memory is duplicated across every GPU. With 8 GPUs the cluster holds 1.15 TB of static memory. This shows redundant memory issue. Next few sections focus on reducing the redundacy by using ZeRO-I, ZeRO-II, ZeRO-III
 
 <figure id="table-2-ddp-memory">
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
@@ -378,7 +378,7 @@ But looking carefully at what every GPU is holding, it is evident that static me
 
 ## ZeRO Stage-1 - Sharding Optimizer States
 
-Zero extends DDP by sharding state of the model - **parameters, gradients & optimizer states** along with data sharding. Vanilla DDP addressed the time problem effectively. Every GPU 
+ZeRO extends DDP by sharding state of the model - **parameters, gradients & optimizer states** along with data sharding. Vanilla DDP addressed the time problem effectively. Every GPU 
 holds an identical copy of the model and processes a different slice of data, and synchronizes gradients via AllReduce. Training throughput scales with the number of GPUs.
 
 But the memory problem remained untouched — for models like Llama 3 8B whose static components alone require 144 GB, these are replicated across GPUs. With 8 GPUs the cluster holds 1.15 TB of static memory. ZeRO addresses this directly by sharding model state across GPUs. Looking at memory requirements of the model [components](#table-2-ddp-memory)  Optimizer states — Adam's m and v vectors — consume $8\phi$ bytes per GPU, accounting for 44% of total static memory, they are fully replicated on every GPU despite each GPU only needing 
@@ -569,7 +569,7 @@ The final parameters are identical across GPU. The optimizer states are updated 
 </figure>
 
 ### Memory Savings
-Table below captures the memory requirements for Zero Stage-1, memory required for storing optimizer states is now reduced by the factor of number of GPUs
+Table below captures the memory requirements for ZeRO Stage-1, memory required for storing optimizer states is now reduced by the factor of number of GPUs
 
 <figure>
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
@@ -617,10 +617,10 @@ Table below captures the memory requirements for Zero Stage-1, memory required f
 - ZeRO-1: $(10 + 8/8)\phi = 11\phi$ ≈ 88 GB per GPU
 - **Saving: 38% reduction — 56 GB freed per GPU**
 
-## Zero Stage-2
+## ZeRO Stage-2
 
 
-## Zero Stage-3
+## ZeRO Stage-3
 
 
 ## NCCL Operations
