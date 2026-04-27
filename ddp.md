@@ -336,6 +336,7 @@ But look carefully at what every GPU is holding, it is evident that every single
     <tr style="text-align:left;">
       <th style="padding:10px 12px; border:2px dashed #555;">Component</th>
       <th style="padding:10px 12px; border:2px dashed #555;">Memory per GPU</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">Share of Total</th>
       <th style="padding:10px 12px; border:2px dashed #555;">Replicated?</th>
     </tr>
 </thead>
@@ -343,21 +344,25 @@ But look carefully at what every GPU is holding, it is evident that every single
     <tr>
       <td style="padding:10px 12px; border:2px dashed #555;">Parameters BF16 (working copy)</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$2\phi$ bytes</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">11%</td>
       <td style="padding:10px 12px; border:2px dashed #555;">✓ Every GPU</td>
     </tr>
     <tr>
       <td style="padding:10px 12px; border:2px dashed #555;">Parameters FP32 (master copy)</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$ bytes</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">22%</td>
       <td style="padding:10px 12px; border:2px dashed #555;">✓ Every GPU</td>
     </tr>
     <tr>
       <td style="padding:10px 12px; border:2px dashed #555;">Gradients FP32</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$ bytes</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">22%</td>
       <td style="padding:10px 12px; border:2px dashed #555;">✓ Every GPU</td>
     </tr>
     <tr>
       <td style="padding:10px 12px; border:2px dashed #555;">Optimizer State $m_t$, $v_t FP32$</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$8\phi$ bytes</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">44%</td>
       <td style="padding:10px 12px; border:2px dashed #555;">✓ Every GPU</td>
     </tr>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
@@ -600,11 +605,7 @@ The final parameters are identical across GPU. The optimizer states are updated 
       <td style="padding:10px 12px; border:2px dashed #555;">AllGather — updated parameters gathered to all GPUs </td>
       <td style="padding:10px 12px; border:2px dashed #555;">AllGather</td>
     </tr>
-    <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>9.Discard Optimizer States</strong></td>
-      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU keeps its local optimizer states and discard optimizer states gathered from other GPUs</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">None</td>
-    </tr>
+    
   </tbody>
 </table>
 <figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 4: ZeRO Stage-1 Training Steps</figcaption>
@@ -657,8 +658,8 @@ The final parameters are identical across GPU. The optimizer states are updated 
 
 **Memory Calculation for Llama 3 8B (8 GPUs):**
 - DDP: $18\phi$ = 144 GB per GPU
-- ZeRO-1: $(10 + 8/4)\phi = 12\phi$ ≈ 96 GB per GPU
-- **Saving: 33% reduction — 48 GB freed per GPU**
+- ZeRO-1: $(10 + 8/8)\phi = 11\phi$ ≈ 88 GB per GPU
+- **Saving: 38% reduction — 56 GB freed per GPU**
 
 ## Zero Stage-2
 
