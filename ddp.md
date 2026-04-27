@@ -513,11 +513,11 @@ For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W
    - GPU-2: [∇W₁², ∇W₂², ∇W₃², ∇W₄²]
    - GPU-3: [∇W₁³, ∇W₂³, ∇W₃³, ∇W₄³]
 
-  After ReduceScatter — each GPU holds only its averaged shard:
-  - GPU-0: ∇W₁_avg = (∇W₁⁰ + ∇W₁¹ + ∇W₁² + ∇W₁³) / 4
-  - GPU-1: ∇W₂_avg = (∇W₂⁰ + ∇W₂¹ + ∇W₂² + ∇W₂³) / 4
-  - GPU-2: ∇W₃_avg = (∇W₃⁰ + ∇W₃¹ + ∇W₃² + ∇W₃³) / 4
-  - GPU-3: ∇W₄_avg = (∇W₄⁰ + ∇W₄¹ + ∇W₄² + ∇W₄³) / 4
+   After ReduceScatter — each GPU holds only its averaged shard:
+   - GPU-0: ∇W₁_avg = (∇W₁⁰ + ∇W₁¹ + ∇W₁² + ∇W₁³) / 4
+   - GPU-1: ∇W₂_avg = (∇W₂⁰ + ∇W₂¹ + ∇W₂² + ∇W₂³) / 4
+   - GPU-2: ∇W₃_avg = (∇W₃⁰ + ∇W₃¹ + ∇W₃² + ∇W₃³) / 4
+   - GPU-3: ∇W₄_avg = (∇W₄⁰ + ∇W₄¹ + ∇W₄² + ∇W₄³) / 4
 
 6. Each GPU receives the globally averaged gradient — identical to what AllReduce would have  produced — just for its own shard.  
 
