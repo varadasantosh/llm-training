@@ -330,7 +330,7 @@ DDP is effective at solving the time problem. By splitting the batch across N GP
 
 But look carefully at what every GPU is holding, it is evident that every single byte of static memory is duplicated across every GPU. With 8 GPUs the cluster holds 1.15 TB of static memory — when 144 GB would logically suffice. The other 1.0 TB is pure redundancy. Next few sections focus on reducing the redundacy by using Zero-I, Zero-II, Zero-III
 
-<figure>
+<figure id="table-2-ddp-memory">
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
 <thead>
     <tr style="text-align:left;">
@@ -381,7 +381,7 @@ But look carefully at what every GPU is holding, it is evident that every single
 Zero extends DDP by sharding state of the model - **parameters, gradients & optimizer states** along with data sharding.Vanilla DDP addressed the time problem effectively. Every GPU 
 holds an identical copy of the model, processes a different slice of data, and synchronizes gradients via AllReduce. Training throughput scales with the number of GPUs.
 
-But the memory problem remained untouched — for models like Llama 3 8B whose static components alone require 144 GB, 144 GB is replicated across GPUs. With 8 GPUs the cluster holds 1.15 TB of static memory. ZeRO addresses this directly by sharding model state across GPUs.Looking at memory requirements of the model components
+But the memory problem remained untouched — for models like Llama 3 8B whose static components alone require 144 GB ([Table 2](#table-2-ddp-memory)), 144 GB is replicated across GPUs. With 8 GPUs the cluster holds 1.15 TB of static memory. ZeRO addresses this directly by sharding model state across GPUs. Looking at memory requirements of the model components:
 
 
 <figure>
