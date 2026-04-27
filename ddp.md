@@ -451,10 +451,10 @@ Before ReduceScatter (4 GPUs): <br>
   GPU 3: [$\nabla \text{W}_0$_local, $\nabla \text{W}_1$_local, $\nabla \text{W}_2$_local, $\nabla \text{W}_3$_local] <br>
 
 After ReduceScatter:
-  GPU 0: averaged($\nabla \text{W}_0$) ← globally averaged, just for shard 0
-  GPU 1: averaged($\nabla \text{W}_1$) ← globally averaged, just for shard 1
-  GPU 2: averaged($\nabla \text{W}_2$) ← globally averaged, just for shard 2
-  GPU 3: averaged($\nabla \text{W}_3$) ← globally averaged, just for shard 3
+  GPU 0: averaged($\nabla \text{W}_0$) ← globally averaged, just for shard 0 <br>
+  GPU 1: averaged($\nabla \text{W}_1$) ← globally averaged, just for shard 1 <br>
+  GPU 2: averaged($\nabla \text{W}_2$) ← globally averaged, just for shard 2 <br>
+  GPU 3: averaged($\nabla \text{W}_3$) ← globally averaged, just for shard 3 <br>
 
 Each GPU receives the globally averaged gradient — just for its own shard. The averaging is identical to what AllReduce would have produced.
 
