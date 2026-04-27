@@ -469,13 +469,13 @@ After the optimizer step, each GPU holds an updated version of its parameter sha
 each GPU's updated shard to all other GPUs, reconstructing the full parameter set on every GPU.
 
 After optimizer step:
-GPU 0: updated $\text{W}_0$ shard
-GPU 1: updated $\text{W}_1$ shard
-GPU 2: updated $\text{W}_2$ shard
-GPU 3: updated $\text{W}_3$ shard
+GPU 0: updated $\text{W}_0$ shard <br>
+GPU 1: updated $\text{W}_1$ shard <br>
+GPU 2: updated $\text{W}_2$ shard <br>
+GPU 3: updated $\text{W}_3$ shard <br>
 
 After AllGather:
-All GPUs: complete updated W₀ + W₁ + W₂ + W₃ 
+All GPUs: complete updated [ W₀ , W₁ , W₂ , W₃ ]
 
 ### Example Workflow:
 
@@ -521,21 +521,21 @@ For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W
 
 6. Each GPU receives the globally averaged gradient — identical to what AllReduce would have  produced — just for its own shard.  
 
-   Each GPU now has two components required to update parameters for next iteration
+  Each GPU now has two components required to update parameters for next iteration
 
-   - The globally averaged gradient for its shard
-   - Its local optimizer states for that same shard
+  - The globally averaged gradient for its shard
+  - Its local optimizer states for that same shard
 
-   GPU-0 updates W₁ using (m₁, v₁) and ∇W₁_avg:
+  GPU-0 updates W₁ using (m₁, v₁) and ∇W₁_avg:
 
-   m₁ = β₁ · m₁ + (1 - β₁) · ∇W₁_avg  ← update 1st moment
-   v₁ = β₂ · v₁ + (1 - β₂) · (∇W₁_avg)² ← update 2nd moment
+  m₁ = β₁ · m₁ + (1 - β₁) · ∇W₁_avg  ← update 1st moment
+  v₁ = β₂ · v₁ + (1 - β₂) · (∇W₁_avg)² ← update 2nd moment
 
-   m̂₁ = m₁ / (1 - β₁ᵗ) ← bias correction
-   v̂₁ = v₁ / (1 - β₂ᵗ)
-   W₁ = W₁ - η · m̂₁ / (√v̂₁ + ε) ← parameter update
+  m̂₁ = m₁ / (1 - β₁ᵗ) ← bias correction
+  v̂₁ = v₁ / (1 - β₂ᵗ)
+  W₁ = W₁ - η · m̂₁ / (√v̂₁ + ε) ← parameter update
 
-   Similar operations are performed on each GPU to update parameters
+  Similar operations are performed on each GPU to update parameters
 
 7. AllGather - After the optimizer step each GPU holds only its updated parameter shard. AllGather reconstructs the complete model:
 
@@ -545,8 +545,8 @@ For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W
    - GPU-2: updated W₃  
    - GPU-3: updated W₄
   
-  After AllGather:
-  All GPUs: [updated W₁, updated W₂, updated W₃, updated W₄] ✓ 
+   After AllGather:
+   All GPUs: [updated W₁, updated W₂, updated W₃, updated W₄] ✓ 
 
 **ZeRO Stage-1 Path:**
 
