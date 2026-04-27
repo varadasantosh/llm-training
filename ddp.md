@@ -328,7 +328,7 @@ With identical averaged gradients on every GPU, each GPU runs its optimizer step
 
 DDP is effective at solving the time problem. By splitting the batch across N GPUs and running forward and backward passes simultaneously, training throughput approaches linear scaling — but one major drawback with DDP is that model should fit on single GPU, which is not the case with large scale models , entire model can't fit on a single GPU, even though a model can fit on single GPU we are copying all parmeters, gradients, optimizers states to each of the GPU which causes redundancy
 
-But look carefully at what every GPU is holding, it is evident that every single byte of static memory is duplicated across every GPU. With 8 GPUs the cluster holds 1.15 TB of static memory — when 144 GB would logically suffice. The other 1.0 TB is pure redundancy. Next few sections focus on reducing the redundacy by using Zero-I, Zero-II, Zero-III
+But looking carefully at what every GPU is holding, it is evident that static memory is duplicated across every GPU. With 8 GPUs the cluster holds 1.15 TB of static memory. This shows redundant memory issue. Next few sections focus on reducing the redundacy by using Zero-I, Zero-II, Zero-III
 
 <figure id="table-2-ddp-memory">
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
@@ -381,9 +381,7 @@ But look carefully at what every GPU is holding, it is evident that every single
 Zero extends DDP by sharding state of the model - **parameters, gradients & optimizer states** along with data sharding.Vanilla DDP addressed the time problem effectively. Every GPU 
 holds an identical copy of the model, processes a different slice of data, and synchronizes gradients via AllReduce. Training throughput scales with the number of GPUs.
 
-But the memory problem remained untouched — for models like Llama 3 8B whose static components alone require 144 GB, these are replicated across GPUs. With 8 GPUs the cluster holds 1.15 TB of static memory. ZeRO addresses this directly by sharding model state across GPUs. Looking at memory requirements of the model [components](#table-2-ddp-memory):
-
-Optimizer states — Adam's m and v vectors — consume $8\phi$ bytes per GPU, accounting for 44% of total static memory, they are fully replicated on every GPU despite each GPU only needing 
+But the memory problem remained untouched — for models like Llama 3 8B whose static components alone require 144 GB, these are replicated across GPUs. With 8 GPUs the cluster holds 1.15 TB of static memory. ZeRO addresses this directly by sharding model state across GPUs. Looking at memory requirements of the model [components](#table-2-ddp-memory)  Optimizer states — Adam's m and v vectors — consume $8\phi$ bytes per GPU, accounting for 44% of total static memory, they are fully replicated on every GPU despite each GPU only needing 
 the optimizer states for the parameters it is responsible for updating. This is exactly what ZeRO Stage-1 addresses.
 
 ### The Communication Pattern
@@ -410,7 +408,7 @@ Each GPU computes its local gradients during the backward pass. ReduceScatter th
   GPU 2: averaged($\nabla \text{W}_2$) ← globally averaged, just for shard 2 <br>
   GPU 3: averaged($\nabla \text{W}_3$) ← globally averaged, just for shard 3 <br>
 
-Each GPU receives the globally averaged gradient — just for its own shard. The averaging is identical to what AllReduce would have produced.
+Each GPU receives the globally averaged gradient — just for its own shard. The averaging is numerically identical to what AllReduce would have produced.
 
 <span class="step-tag"><span class="step-num">2</span>Local Optimizer Step</span>
 
@@ -433,7 +431,7 @@ All GPUs: complete updated [ W₀ , W₁ , W₂ , W₃ ]
 
 ### Example Workflow:
 
-For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W₃, W₄. We use 4 GPUs. Llama 3 uses no bias terms so we omit bias here.
+For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W₃, W₄, we use 4 GPUs. Llama 3 uses no bias terms so we omit bias here.
 
  1. All GPUs hold identical Parameters w₁,w₂,w₃,w₄ -> Fully replicated on all GPUs.
 
