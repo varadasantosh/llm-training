@@ -546,7 +546,7 @@ For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W
    - GPU-3: updated W₄
   
    After AllGather:
-   All GPUs: [updated W₁, updated W₂, updated W₃, updated W₄] ✓ 
+   All GPUs: [updated W₁, updated W₂, updated W₃, updated W₄]
 
 **ZeRO Stage-1 Path:**
 
@@ -653,13 +653,12 @@ The final parameters are identical across GPU. The optimizer states are updated 
     </tr>
     <tr>
       <td style="padding:10px 12px; border:2px dashed #555;">Optimizer State $m_t$ ,$v_t$ FP32 </td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$4\phi/N$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$8\phi/N$</td>
       <td style="padding:10px 12px; border:2px dashed #555;">✗ Sharded across N GPUs</td>
     </tr>
     
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>Total</strong></td>
-      <td style="padding:10px 12px; border:2px dashed #555;"></td>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>$(10 + 8/N)\phi$</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;"></td>
     </tr>
