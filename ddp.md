@@ -434,8 +434,8 @@ GPU 3: updated $\text{W}_3$ shard <br>
 After AllGather: <br>
 All GPUs: complete updated [ W₀ , W₁ , W₂ , W₃ ]
 
-<div style="width: 100%; max-width: 1200px; margin: 0 auto;">
-{% include figure.liquid path="assets/img/llm-training/ddp/ZeRO-Stage-1-Pipeline.svg" class="img-fluid" zoomable=true caption="Figure 3: ZeRO Stage-1 Pipeline" %}
+<div style="width: 100%; margin: 24px 0;">
+{% include figure.liquid path="assets/img/llm-training/ddp/ZeRO-Stage-1-Pipeline.svg" class="img-fluid w-100" zoomable=true caption="Figure 3: ZeRO Stage-1 Pipeline" %}
 </div>
 
 ### Example Workflow
