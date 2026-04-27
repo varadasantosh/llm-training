@@ -489,7 +489,6 @@ All GPUs: complete updated W₀ + W₁ + W₂ + W₃
 The final parameters are identical across GPU. The optimizer states are updated identically. The model does not diverge. The only difference is that no single GPU ever holds the full optimizer state simultaneously —  this approach helps us save memory.
 
 ### Training Steps
-
 <figure>
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
 <thead>
@@ -621,7 +620,6 @@ The final parameters are identical across GPU. The optimizer states are updated 
 - **Saving: 38% reduction — 56 GB freed per GPU**
 
 ## Zero Stage-2
-
 
 
 ## Zero Stage-3
