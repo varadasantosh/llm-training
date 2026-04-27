@@ -285,7 +285,7 @@ The solution is to synchronize gradients before the optimizer step. This is what
 <d-aside>
   <b>NCCL AllReduce — how it works</b>
   <pre style="font-size:0.72rem; margin-top:6px; line-height:1.5;">ncclResult_t ncclAllReduce(
-  const void*    sendbuff,  // each GPU's local gradients
+  const void*    sendbuff,  // each GPUs local gradients
   void*          recvbuff,  // averaged gradients (output)
   size_t         count,     // number of gradient elements
   ncclDataType_t datatype,  // e.g. ncclFloat32
@@ -342,9 +342,10 @@ But look carefully at what every GPU is holding, it is evident that every single
 
 ## Zero Stage-1
 
-Zero extends DDP by sharding state of the model - **parameters, gradients & optimizer states** along with data sharding, Vanilla DDP addressed the challenges with time factor which we discussed at the beginning of this section, limitations posed by memory factor was  untouched, they still remain point of concern for large scale models like Llama-8B which does not fit on single GPU. if a model can't be placed on GPU they can't be trained. Zero parallelism exactly address this concern by sharding state of the model across GPU.
+Zero extends DDP by sharding state of the model - **parameters, gradients & optimizer states** along with data sharding.Vanilla DDP addressed the time problem effectively. The memory problem remained untouched — for models like Llama 3 8B whose static components alone require 144 GB, a single GPU cannot hold the full training state. ZeRO addresses this directly by sharding model state across GPUs.
 
-State of the model includes three components - **parameters, gradients & optimizer states** in each stage we shard one component across GPUs participating in training process. Looking at memory requirements of the components from [table](#) it is evident that largest portion of memory is required by optimizer states. Zero Stage-1 shards optimizer states across GPUs, in Vanilla DDP though all these components are present on every GPU still gradients ($\abla$) had to be shared between them to synchronize the model across GPUs. Since we shard the optimizer states across GPUs, to perform gradient updates on each GPU optimizer states need to be present on all the GPU's this requires **AllGather** to get optimizer states from other GPUs.This is in addition to the **AllReduce** operation required for synchronizing gradients.
+State of the model includes three components - **parameters, gradients & optimizer states** in each stage we shard one component across GPUs participating in training process. Looking at memory requirements of the components from [table](#) it is evident that largest portion of memory is required by optimizer states. Zero Stage-1 shards optimizer states across GPUs, in Vanilla DDP though all these components are present on every GPU still gradients ($\abla$) had to be shared between them to synchronize the model across GPUs. After the optimizer step, each GPU has updated only its own parameter shard. But every GPU needs the complete updated parameters for the next forward pass. This is where AllGather comes in — each GPU broadcasts 
+its updated shard and receives all other shards, reconstructing the full parameter set.
 
 
 
@@ -407,7 +408,7 @@ State of the model includes three components - **parameters, gradients & optimiz
     </tr>
   </tbody>
 </table>
-<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 3: Vanilla DDP Training Steps</figcaption>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 3: Zero Stage-1 Training Steps</figcaption>
 
 </figure>
 
