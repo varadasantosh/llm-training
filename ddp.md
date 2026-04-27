@@ -383,47 +383,6 @@ holds an identical copy of the model, processes a different slice of data, and s
 
 But the memory problem remained untouched — for models like Llama 3 8B whose static components alone require 144 GB ([Table 2](#table-2-ddp-memory)), 144 GB is replicated across GPUs. With 8 GPUs the cluster holds 1.15 TB of static memory. ZeRO addresses this directly by sharding model state across GPUs. Looking at memory requirements of the model components:
 
-
-<figure>
-<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
-<thead>
-    <tr style="text-align:left;">
-      <th style="padding:10px 12px; border:2px dashed #555;">Component</th>
-      <th style="padding:10px 12px; border:2px dashed #555;">Memory</th>
-      <th style="padding:10px 12px; border:2px dashed #555;">Share of Total</th>
-    </tr>
-</thead>
-<tbody>
-    <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;">Parameters BF16</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$2\phi$ = 16 GB</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">11%</td>
-    </tr>
-    <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;">Parameters FP32</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$ = 32 GB</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">22%</td>
-    </tr>
-    <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;">Gradients FP32</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$ = 32 GB</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">22%</td>
-    </tr>
-    <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;">Optimizer State m,v</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$8\phi$ = 64 GB</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">44%</td>
-    </tr>
-    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>Total</strong></td>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>$18\phi$ = 144 GB</strong></td>
-      <td style="padding:10px 12px; border:2px dashed #555;"></td>
-    </tr>
-</tbody>
-</table>
-<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 3: Static Memory Breakdown for Llama 3 8B</figcaption>
-</figure>
-
 Optimizer states — Adam's m and v vectors — consume $8\phi$ bytes per GPU, accounting for 44% of total static memory, they are fully replicated on every GPU despite each GPU only needing 
 the optimizer states for the parameters it is responsible for updating. This is exactly what ZeRO Stage-1 addresses.
 
@@ -437,14 +396,14 @@ ZeRO Stage-1 replaces this with two sequential operations:
 
 Each GPU computes its local gradients during the backward pass. ReduceScatter then averages these gradients across all GPUs — but instead of returning the full averaged tensor to everyone, it distributes different shards to different GPUs:
 
-Before ReduceScatter (4 GPUs): <br>
+**Before ReduceScatter (4 GPUs):** <br>
 
   GPU 0: [$\nabla \text{W}_0$_local, $\nabla \text{W}_1$_local, $\nabla \text{W}_2$_local, $\nabla \text{W}_3$_local] <br>
   GPU 1: [$\nabla \text{W}_0$_local, $\nabla \text{W}_1$_local, $\nabla\text{W}_2$_local, $\nabla \text{W}_3$_local] <br>
   GPU 2: [$\nabla \text{W}_0$_local, $\nabla \text{W}_1$_local, $\nabla \text{W}_2$_local, $\nabla \text{W}_3$_local] <br>
   GPU 3: [$\nabla \text{W}_0$_local, $\nabla \text{W}_1$_local, $\nabla \text{W}_2$_local, $\nabla \text{W}_3$_local] <br>
 
-After ReduceScatter:<br>
+**After ReduceScatter:** <br>
 
   GPU 0: averaged($\nabla \text{W}_0$) ← globally averaged, just for shard 0 <br>
   GPU 1: averaged($\nabla \text{W}_1$) ← globally averaged, just for shard 1 <br>
@@ -553,6 +512,7 @@ For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W
 The final parameters are identical across GPU. The optimizer states are updated identically. The model does not diverge. The only difference is that no single GPU ever holds the full optimizer state simultaneously —  this approach helps us save memory.
 
 ### Training Steps
+
 <figure>
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
 <thead>
@@ -609,7 +569,6 @@ The final parameters are identical across GPU. The optimizer states are updated 
   </tbody>
 </table>
 <figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 4: ZeRO Stage-1 Training Steps</figcaption>
-
 </figure>
 
 ### Memory Savings
