@@ -340,15 +340,83 @@ But look carefully at what every GPU is holding, it is evident that every single
 | **Total** | | $18\phi$ **bytes** | **✓ Every GPU** |
 
 
-## Zero Stage 1
+## Zero Stage-1
+
+Zero extends DDP by sharding state of the model - **parameters, gradients & optimizer states** along with data sharding, Vanilla DDP addressed the challenges with time factor which we discussed at the beginning of this section, limitations posed by memory factor was  untouched, they still remain point of concern for large scale models like Llama-8B which does not fit on single GPU. if a model can't be placed on GPU they can't be trained. Zero parallelism exactly address this concern by sharding state of the model across GPU.
+
+State of the model includes three components - **parameters, gradients & optimizer states** in each stage we shard one component across GPUs participating in training process. Looking at memory requirements of the components from [table](#) it is evident that largest portion of memory is required by optimizer states. Zero Stage-1 shards optimizer states across GPUs, in Vanilla DDP though all these components are present on every GPU still gradients ($\abla$) had to be shared between them to synchronize the model across GPUs. Since we shard the optimizer states across GPUs, to perform gradient updates on each GPU optimizer states need to be present on all the GPU's this requires **AllGather** to get optimizer states from other GPUs.This is in addition to the **AllReduce** operation required for synchronizing gradients.
 
 
 
-## Zero Stage 2
+<figure>
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
+<thead>
+    <tr style="text-align:left;">
+      <th style="padding:10px 12px; border:2px dashed #555;">Step</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">What Happens</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">NCCL Operation</th>
+    </tr>
+</thead>
+<tbody>
+    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>1. Initialize</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Model parameters broadcast from rank 0 to all GPUs. Gradients and optimizer states are initialized to zero.</td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>Broadcast from rank 0</strong></td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>2. Data Split</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Global batch is divided into micro-batches, one per GPU</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">None (data loader handles this)</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>3. Shard Opitmizer States</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Optimizer States are Sharded & Portion is Send to All GPU</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Scatter from Rank-0</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>4. Forward Pass</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU computes forward pass on its micro-batch independently</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">None</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>5. Backward Pass</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU computes gradients for its micro-batch</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">None</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>6. Backward Pass</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU gathers gradients from others using Ring algorithm</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">All Gather</td>
+    </tr>
+    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>7. Gradient Sync</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Gradients are averaged across all GPUs</td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>AllReduce</strong></td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>8. Optimizer Step</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU updates its local parameters using averaged gradients</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">None</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>9. Discard Optimizer States</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU keeps its local optimizer states and discard optimizer states gathered from other GPUs</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">None</td>
+    </tr>
+  </tbody>
+</table>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 3: Vanilla DDP Training Steps</figcaption>
+
+</figure>
 
 
 
-## Zero Stage 3
+
+## Zero Stage-2
+
+
+
+## Zero Stage-3
 
 
 ## NCCL Operations
