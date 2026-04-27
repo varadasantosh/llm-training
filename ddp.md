@@ -631,7 +631,6 @@ The final parameters are identical across GPU. The optimizer states are updated 
 <thead>
     <tr style="text-align:left;">
       <th style="padding:10px 12px; border:2px dashed #555;">Component</th>
-      <th style="padding:10px 12px; border:2px dashed #555;">DDP</th>
       <th style="padding:10px 12px; border:2px dashed #555;">ZeRO-1</th>
       <th style="padding:10px 12px; border:2px dashed #555;">Replicated?</th>
     </tr>
