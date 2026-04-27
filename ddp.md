@@ -335,45 +335,33 @@ But look carefully at what every GPU is holding, it is evident that every single
 <thead>
     <tr style="text-align:left;">
       <th style="padding:10px 12px; border:2px dashed #555;">Component</th>
-      <th style="padding:10px 12px; border:2px dashed #555;">Precision</th>
       <th style="padding:10px 12px; border:2px dashed #555;">Memory per GPU</th>
       <th style="padding:10px 12px; border:2px dashed #555;">Replicated?</th>
     </tr>
 </thead>
 <tbody>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;">Parameters — working copy</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">BF16</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Parameters BF16 (working copy)</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$2\phi$ bytes</td>
       <td style="padding:10px 12px; border:2px dashed #555;">✓ Every GPU</td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;">Parameters — master copy</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">FP32</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Parameters FP32 (master copy)</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$ bytes</td>
       <td style="padding:10px 12px; border:2px dashed #555;">✓ Every GPU</td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;">Gradients</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">FP32</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Gradients FP32</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$ bytes</td>
       <td style="padding:10px 12px; border:2px dashed #555;">✓ Every GPU</td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;">Optimizer State $m_t$</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">FP32</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$ bytes</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">✓ Every GPU</td>
-    </tr>
-    <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;">Optimizer State $v_t$</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">FP32</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$ bytes</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Optimizer State $m_t$, $v_t FP32$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">$8\phi$ bytes</td>
       <td style="padding:10px 12px; border:2px dashed #555;">✓ Every GPU</td>
     </tr>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>Total</strong></td>
-      <td style="padding:10px 12px; border:2px dashed #555;"></td>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>$18\phi$ bytes</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>✓ Every GPU</strong></td>
     </tr>
