@@ -439,7 +439,7 @@ After ReduceScatter:
 | Gradients | FP32 | $4\phi$ bytes | ✓ Every GPU |
 | Optimizer State $m_t$ | FP32 | $4\phi$/n bytes | ｘ Sharded on N GPUs |
 | Optimizer State $v_t$ | FP32 | $4\phi$/n bytes | ｘ Sharded on N GPUs  |
-| **Total** | | $10+8/N\phi$ **bytes** | **✓ Every GPU** |
+| **Total** | | $(10+8/N)\phi$ **bytes** | **✓ Every GPU** |
 
 
 ## Zero Stage-2
