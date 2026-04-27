@@ -445,7 +445,7 @@ ZeRO Stage-1 replaces this with two sequential operations:
 Each GPU computes its local gradients during the backward pass. ReduceScatter then averages these gradients across all GPUs — but instead of returning the full averaged tensor to everyone, it distributes different shards to different GPUs:
 
 Before ReduceScatter (4 GPUs):
-  GPU 0: [$\nabla$$\text{W}_0$_local, $\nabla$$\text{W}_1$_local, $\nabla$$\text{W}_2$_local, $\nabla$$\text{W}_3$_local] <br>
+  GPU 0: [$\nabla \text{W}_0$_local, $\nabla \text{W}_1$_local, $\nabla \text{W}_2$_local, $\nabla \text{W}_3$_local] <br>
   GPU 1: [$\nabla$ $\text{W}_0$_local, $\nabla$$\text{W}_1$_local, $\nabla$$\text{W}_2$_local, $nabla$$\text{W}_3$_local] <br>
   GPU 2: [$\nabla$$\text{W}_0$_local, $\nabla$$\text{W}_1$_local, $\nabla$$\text{W}_2$_local, $nabla$$\text{W}_3$_local] <br>
   GPU 3: [$\nabla$$\text{W}_0$_local, $\nabla$$\text{W}_1$_local, $\nabla$$\text{W}_2$_local, $nabla$$\text{W}_3$_local] <br>
