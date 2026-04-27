@@ -354,10 +354,16 @@ its updated parameters shard and receives parameter shards from other GPUs, reco
 > across all GPUs.
 
 Before ReduceScatter (4 GPUs):
-  GPU 0: [$\nabla$ $\text{W}_0$_local, $\nabla$ $\text{W}_1$_local, $\nabla$ $\text{W}_2$_local, $nabla$ $\text{W}_3$_local] \n
-  GPU 1: [$\nabla$ $\text{W}_0$_local, $\nabla$ $\text{W}_1$_local, $\nabla$ $\text{W}_2$_local, $nabla$ $\text{W}_3$_local] \n
-  GPU 2: [$\nabla$ $\text{W}_0$_local, $\nabla$ $\text{W}_1$_local, $\nabla$ $\text{W}_2$_local, $nabla$ $\text{W}_3$_local] \n
-  GPU 3: [$\nabla$ $\text{W}_0$_local, $\nabla$ $\text{W}_1$_local, $\nabla$ $\text{W}_2$_local, $nabla$ $\text{W}_3$_local]\n
+  GPU 0: [$\nabla$ $\text{W}_0$_local, $\nabla$ $\text{W}_1$_local, $\nabla$ $\text{W}_2$_local, $nabla$ $\text{W}_3$_local] <br>
+  GPU 1: [$\nabla$ $\text{W}_0$_local, $\nabla$ $\text{W}_1$_local, $\nabla$ $\text{W}_2$_local, $nabla$ $\text{W}_3$_local] <br>
+  GPU 2: [$\nabla$ $\text{W}_0$_local, $\nabla$ $\text{W}_1$_local, $\nabla$ $\text{W}_2$_local, $nabla$ $\text{W}_3$_local] <br>
+  GPU 3: [$\nabla$ $\text{W}_0$_local, $\nabla$ $\text{W}_1$_local, $\nabla$ $\text{W}_2$_local, $nabla$ $\text{W}_3$_local] <br>
+
+After ReduceScatter:
+  GPU 0: averaged($\nabla$$\text{W}_0$) ← globally averaged, just for shard 0
+  GPU 1: averaged($\nabla$$\text{W}_1$) ← globally averaged, just for shard 1
+  GPU 2: averaged($\nabla$$\text{W}_2$) ← globally averaged, just for shard 2
+  GPU 3: averaged($\nabla$$\text{W}_3$) ← globally averaged, just for shard 3
 
 
 
@@ -424,7 +430,16 @@ Before ReduceScatter (4 GPUs):
 
 </figure>
 
+[Table](#) captures the memory requirements for Zero Stage-1, memory required for storing optimizer states is now reduced by the factor of number of GPUs
 
+| Component | Precision | Memory per GPU | Replicated? |
+|---|---|---|---|
+| Parameters — working copy | BF16 | $2\phi$ bytes | ✓ Every GPU |
+| Parameters — master copy | FP32 | $4\phi$ bytes | ✓ Every GPU |
+| Gradients | FP32 | $4\phi$ bytes | ✓ Every GPU |
+| Optimizer State $m_t$ | FP32 | $4\phi$/n bytes | ｘ Sharded on N GPUs |
+| Optimizer State $v_t$ | FP32 | $4\phi$/n bytes | ｘ Sharded on N GPUs  |
+| **Total** | | $10+8/N\phi$ **bytes** | **✓ Every GPU** |
 
 
 ## Zero Stage-2
