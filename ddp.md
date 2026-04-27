@@ -368,10 +368,12 @@ State of the model includes three components - **parameters, gradients & optimiz
       <td style="padding:10px 12px; border:2px dashed #555;">Global batch is divided into micro-batches, one per GPU</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None (data loader handles this)</td>
     </tr>
-    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>3. Shard Opitmizer States</strong></td>
-      <td style="padding:10px 12px; border:2px dashed #555;">Optimizer States are Sharded & Portion is Send to All GPU</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">Scatter from Rank-0</td>
+    <tr >
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>3. initializes Optimizer States
+        </strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU initializes only its own 
+        shard of optimizer states locally</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">None</td>
     </tr>
     <tr>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>4. Forward Pass</strong></td>
@@ -380,23 +382,23 @@ State of the model includes three components - **parameters, gradients & optimiz
     </tr>
     <tr>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>5. Backward Pass</strong></td>
-      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU computes gradients for its micro-batch</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU locally computes gradients for its micro-batch</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None</td>
     </tr>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>6. Backward Pass</strong></td>
-      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU gathers optimizer states from others using Ring algorithm</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">All Gather</td>
-    </tr>
-    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>7. Gradient Sync</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>6. Gradient Sync</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Gradients are averaged across all GPUs</td>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>AllReduce</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>ReduceScatter</strong></td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>8. Optimizer Step</strong></td>
-      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU updates its local parameters using optimizer states & averaged gradients </td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>7. Optimizer Step</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU updates its shard locally</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None</td>
+    </tr>
+    <tr  style="background:var(--global-code-bg-color, #f8f8f8);">
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>8. Gather Updated Params</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">AllGather — updated parameters gathered to all GPUs </td>
+      <td style="padding:10px 12px; border:2px dashed #555;">AllGather</td>
     </tr>
     <tr>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>9. Discard Optimizer States</strong></td>
