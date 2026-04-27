@@ -354,10 +354,10 @@ its updated parameters shard and receives parameter shards from other GPUs, reco
 > across all GPUs.
 
 Before ReduceScatter (4 GPUs):
-  GPU 0: [$\nabla$ $\text{W}_0$_local, $\nabla$ $\text{W}_1$_local, $\nabla$ $\text{W}_2$_local, $nabla$ $\text{W}_3$_local]
-  GPU 1: [∇W₀_local, ∇W₁_local, ∇W₂_local, ∇W₃_local]
-  GPU 2: [∇W₀_local, ∇W₁_local, ∇W₂_local, ∇W₃_local]
-  GPU 3: [∇W₀_local, ∇W₁_local, ∇W₂_local, ∇W₃_local]
+  GPU 0: [$\nabla$ $\text{W}_0$_local, $\nabla$ $\text{W}_1$_local, $\nabla$ $\text{W}_2$_local, $nabla$ $\text{W}_3$_local] \n
+  GPU 1: [$\nabla$ $\text{W}_0$_local, $\nabla$ $\text{W}_1$_local, $\nabla$ $\text{W}_2$_local, $nabla$ $\text{W}_3$_local] \n
+  GPU 2: [$\nabla$ $\text{W}_0$_local, $\nabla$ $\text{W}_1$_local, $\nabla$ $\text{W}_2$_local, $nabla$ $\text{W}_3$_local] \n
+  GPU 3: [$\nabla$ $\text{W}_0$_local, $\nabla$ $\text{W}_1$_local, $\nabla$ $\text{W}_2$_local, $nabla$ $\text{W}_3$_local]\n
 
 
 
