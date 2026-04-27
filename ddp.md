@@ -390,7 +390,7 @@ ZeRO Stage-1 targets optimizer states first for two reasons: they are the larges
 
 In vanilla DDP, gradient synchronization uses AllReduce — a single operation that averages gradients and returns the full averaged tensor to every GPU.
 
-ZeRO Stage-1 does not replace AllReduce conceptually — it decomposes it into its two constituent operations, ReduceScatter and AllGather, and inserts the optimizer step between them. This seemingly small change is what enables the memory saving: each GPU only needs to retain the gradient shard it is responsible for, discarding the rest before the optimizer step.
+ZeRO Stage-1  decomposes **AllReduce** it into its two constituent operations, ReduceScatter and AllGather, and inserts the optimizer step between them. This modification is what enables the memory saving: each GPU only needs to retain the gradient shard it is responsible for, discarding the rest before the optimizer step.
 
 **Training path:**
 > Forward Pass → Backward Pass → ReduceScatter → Local Optimizer Step → AllGather
@@ -433,6 +433,8 @@ GPU 3: updated $\text{W}_3$ shard <br>
 
 After AllGather: <br>
 All GPUs: complete updated [ W₀ , W₁ , W₂ , W₃ ]
+
+{% include figure.liquid path="assets/img/llm-training/ddp/ZeRO-Stage-1-Pipeline.svg" class="img-medium" caption="Figure 3: ZeRO Stage-1 Pipeline" %}
 
 ### Example Workflow
 
