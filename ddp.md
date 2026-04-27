@@ -378,7 +378,7 @@ But looking carefully at what every GPU is holding, it is evident that static me
 
 ## ZeRO Stage-1 - Sharding Optimizer States
 
-Vanilla DDP shards data across GPUs — each GPU sees a different slice of the training data. ZeRO extends this by also sharding the model state itself:▎ parameters, gradients, and optimizer states. 
+Vanilla DDP shards data across GPUs — each GPU sees a different slice of the training data. ZeRO extends this by also sharding the model state itself: parameters, gradients, and optimizer states. 
 
 Vanilla DDP addressed the time problem effectively but the memory problem remained untouched — for models like Llama 3 8B whose static components alone require 144 GB, these are replicated across GPUs. With 8 GPUs the cluster holds 1.15 TB of static memory when 144GB would be sufficient.
 
@@ -388,7 +388,7 @@ Looking at memory requirements of the model components from [table](#table-2-ddp
 
 In vanilla DDP, gradient synchronization uses AllReduce — a single operation that averages gradients and returns the full averaged tensor to every GPU.
 
-ZeRO Stage-1 replaces this with two sequential operations:
+ZeRO Stage-1 replaces this with three sequential operations:
 
 <span class="step-tag"><span class="step-num">1</span>ReduceScatter</span>
 
