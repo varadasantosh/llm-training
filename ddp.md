@@ -444,11 +444,11 @@ ZeRO Stage-1 replaces this with two sequential operations:
 
 Each GPU computes its local gradients during the backward pass. ReduceScatter then averages these gradients across all GPUs — but instead of returning the full averaged tensor to everyone, it distributes different shards to different GPUs:
 
-Before ReduceScatter (4 GPUs):
+Before ReduceScatter (4 GPUs): <br>
   GPU 0: [$\nabla \text{W}_0$_local, $\nabla \text{W}_1$_local, $\nabla \text{W}_2$_local, $\nabla \text{W}_3$_local] <br>
-  GPU 1: [$\nabla$ $\text{W}_0$_local, $\nabla$$\text{W}_1$_local, $\nabla$$\text{W}_2$_local, $nabla$$\text{W}_3$_local] <br>
-  GPU 2: [$\nabla$$\text{W}_0$_local, $\nabla$$\text{W}_1$_local, $\nabla$$\text{W}_2$_local, $nabla$$\text{W}_3$_local] <br>
-  GPU 3: [$\nabla$$\text{W}_0$_local, $\nabla$$\text{W}_1$_local, $\nabla$$\text{W}_2$_local, $nabla$$\text{W}_3$_local] <br>
+  GPU 1: [$\nabla \text{W}_0$_local, $\nabla \text{W}_1$_local, $\nabla\text{W}_2$_local, $nabla$$\text{W}_3$_local] <br>
+  GPU 2: [$\nabla \text{W}_0$_local, $\nabla \text{W}_1$_local, $\nabla \text{W}_2$_local, $nabla$$\text{W}_3$_local] <br>
+  GPU 3: [$\nabla \text{W}_0$_local, $\nabla \text{W}_1$_local, $\nabla \text{W}_2$_local, $nabla \text{W}_3$_local] <br>
 
 After ReduceScatter:
   GPU 0: averaged($\nabla$$\text{W}_0$) ← globally averaged, just for shard 0
@@ -478,7 +478,7 @@ After AllGather:
 All GPUs: complete updated W₀ + W₁ + W₂ + W₃ 
 
 Ex work flow:
- 
+
  1. Parameters w₁,w₂,w₃,w₄ present on all GPUs (considering Llama-3 does not have bias)
  2. Gradients $\nabla\text{W}_1$,$\nabla \text{W}_2$,$\nabla \text{W}_3$,$\nabla \text{W}_4$ replicated on all GPUs
  3. Optimizer States are sharded to each GPU GPU-0=>(m₁,v₁), GPU-1=>(m₂,v₂),GPU-2=>(m₃,v₃) & GPU-3=>(m₄,v₄)
