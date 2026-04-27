@@ -622,6 +622,18 @@ Table below captures the memory requirements for ZeRO Stage-1, memory required f
 
 ## ZeRO Stage-2
 
+This stage further continues to optimize memory requirements for a model by further reducing the redundancy present in storing model components, stage-1 reduced memory foot print by 38%  
+
+From looking at the training steps involved in - forward & backward pass for stage-1, we can see that though full set of gradients and parameters copied to all the GPUs but each GPU only updates the parameter shard for which the optimizer states are available on that GPU, which means the gradients related to the parameters not being updated still occupies memory but they are not being used for updating parameters. ZeRO Stage-2 take advantage of this idea and divides the gradients along with optimizer shards.
+
+### Communication Pattern
+
+Except for sharding gradients communication pattern for stage-1 & stage-2 looks exactly similar, in stage-1 as well only gradients for the respective shard are averaged across all GPUs using ReduceScatter, same steps are repeate. Gradient shards are averaged across all GPUs, each GPU contains only gradients for their respective shard and these gradients are again result of loss calculated for microbatch assigned to each GPU.
+
+Since gradients are also sharded, now to calculate local gradients, every GPU needs to share the gradients with other GPUs(scatter phase). Once the local gradients are calculated on each GPU , for averaging(reduce phase) each gradient is moved to GPU it is assigned to and discards the gradients gathered from other GPUs 
+
+
+
 
 ## ZeRO Stage-3
 
