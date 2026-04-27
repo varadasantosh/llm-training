@@ -477,6 +477,19 @@ GPU 3: updated $\text{W}_3$ shard
 After AllGather:
 All GPUs: complete updated W₀ + W₁ + W₂ + W₃ 
 
+Ex work flow:
+ 
+ 1. Parameters w₁,w₂,w₃,w₄ present on all GPUs (considering Llama-3 does not have bias)
+ 2. Gradients $\nabla\text{W}_1$,$\nabla \text{W}_2$,$\nabla \text{W}_3$,$\nabla \text{W}_4$ replicated on all GPUs
+ 3. Optimizer States are sharded to each GPU GPU-0=>(m₁,v₁), GPU-1=>(m₂,v₂),GPU-2=>(m₃,v₃) & GPU-3=>(m₄,v₄)
+ 4. Gradients are reduced and updated on each GPU GPU-0=>$\nabla\text{W}_1$, GPU-1=>$\nabla\text{W}_2$, GPU-2=>$\nabla\text{W}_3$ , GPU-3=> $\nabla\text{W}_4$
+ 5. Optimizer states & gradient shards present on each GPU update respective parameter shards 
+    - (m₁,v₁) & $\nabla\text{W}_1$ => w₁ (GPU-0)
+    - (m₂,v₂) & $\nabla\text{W}_2$ => w₂ (GPU-1)
+    - (m₃,v₃) & $\nabla\text{W}_3$ => w₃ (GPU-2)
+    - (m₄,v₄) & $\nabla\text{W}_4$ => w₄ (GPU-3) 
+ 6. Parameters are gathered from all the other GPUs
+
 **ZeRO Stage-1 Path:**
 
 > Input data shard
