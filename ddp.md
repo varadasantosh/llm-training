@@ -433,12 +433,14 @@ ZeRO Stage-1 replaces this with two sequential operations:
 Each GPU computes its local gradients during the backward pass. ReduceScatter then averages these gradients across all GPUs — but instead of returning the full averaged tensor to everyone, it distributes different shards to different GPUs:
 
 Before ReduceScatter (4 GPUs): <br>
+
   GPU 0: [$\nabla \text{W}_0$_local, $\nabla \text{W}_1$_local, $\nabla \text{W}_2$_local, $\nabla \text{W}_3$_local] <br>
   GPU 1: [$\nabla \text{W}_0$_local, $\nabla \text{W}_1$_local, $\nabla\text{W}_2$_local, $\nabla \text{W}_3$_local] <br>
   GPU 2: [$\nabla \text{W}_0$_local, $\nabla \text{W}_1$_local, $\nabla \text{W}_2$_local, $\nabla \text{W}_3$_local] <br>
   GPU 3: [$\nabla \text{W}_0$_local, $\nabla \text{W}_1$_local, $\nabla \text{W}_2$_local, $\nabla \text{W}_3$_local] <br>
 
-After ReduceScatter:
+After ReduceScatter:<br>
+
   GPU 0: averaged($\nabla \text{W}_0$) ← globally averaged, just for shard 0 <br>
   GPU 1: averaged($\nabla \text{W}_1$) ← globally averaged, just for shard 1 <br>
   GPU 2: averaged($\nabla \text{W}_2$) ← globally averaged, just for shard 2 <br>
@@ -456,13 +458,13 @@ No communication needed.
 After the optimizer step, each GPU holds an updated version of its parameter shard. But every GPU needs the complete updated model for the next forward pass. AllGather broadcasts 
 each GPU's updated shard to all other GPUs, reconstructing the full parameter set on every GPU.
 
-After optimizer step:
+After optimizer step: <br>
 GPU 0: updated $\text{W}_0$ shard <br>
 GPU 1: updated $\text{W}_1$ shard <br>
 GPU 2: updated $\text{W}_2$ shard <br>
 GPU 3: updated $\text{W}_3$ shard <br>
 
-After AllGather:
+After AllGather: <br>
 All GPUs: complete updated [ W₀ , W₁ , W₂ , W₃ ]
 
 ### Example Workflow:
@@ -507,9 +509,7 @@ For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W
    - GPU-2: ∇W₃_avg = (∇W₃⁰ + ∇W₃¹ + ∇W₃² + ∇W₃³) / 4
    - GPU-3: ∇W₄_avg = (∇W₄⁰ + ∇W₄¹ + ∇W₄² + ∇W₄³) / 4
 
-6. Each GPU receives the globally averaged gradient — identical to what AllReduce would have  produced — just for its own shard.  
-
-  Each GPU now has two components required to update parameters for next iteration
+6. Each GPU receives the globally averaged gradient — identical to what AllReduce would have  produced — just for its own shard.  Each GPU now has two components required to update parameters for next iteration
 
   - The globally averaged gradient for its shard
   - Its local optimizer states for that same shard
@@ -657,8 +657,8 @@ The final parameters are identical across GPU. The optimizer states are updated 
 
 **Memory Calculation for Llama 3 8B (8 GPUs):**
 - DDP: $18\phi$ = 144 GB per GPU
-- ZeRO-1: $(10 + 8/8)\phi = 11\phi$ ≈ 88 GB per GPU
-- **Saving: 38% reduction — 56 GB freed per GPU**
+- ZeRO-1: $(10 + 8/4)\phi = 12\phi$ ≈ 96 GB per GPU
+- **Saving: 33% reduction — 48 GB freed per GPU**
 
 ## Zero Stage-2
 
