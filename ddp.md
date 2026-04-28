@@ -34,7 +34,7 @@ toc:
   - name: ZeRO-2 Sharding Gradients
     subsections:
       - name: Gradient Partitioning
-  - name: ZeRO Stage 3
+  - name: ZeRO-3 Sharding Parameters
     subsections:
       - name: Parameter Partitioning
 
@@ -1145,15 +1145,13 @@ This is ZeRO-3's fundamental trade-off: memory is traded for communication.
 </figure>
 
 
-
-
 ### Example Workflow
 
 For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W₃, W₄ distributed across 4 GPUs. Llama 3 uses no bias terms so we omit bias here.
 
 <div class="ddp-note">
   <span class="note-label">Key Difference from ZeRO-1/2</span>
-  In ZeRO-3, parameters are <strong>sharded at rest</strong>. Each GPU holds only 1/N of the model parameters permanently. To compute forward or backward passes, parameters must be gathered <strong>per-layer</strong>, used, then immediately discarded. This is ZeRO-3's fundamental trade-off: memory savings in exchange for increased communication.
+  In ZeRO-3, parameters are <strong>sharded </strong>. Each GPU holds only 1/N of the model parameters permanently. To compute forward or backward passes, parameters must be gathered <strong>per-layer</strong>, used, then immediately discarded. This is ZeRO-3's fundamental trade-off: memory savings in exchange for increased communication.
 </div>
 
 **1. Parameter Sharding (Initialization)**
