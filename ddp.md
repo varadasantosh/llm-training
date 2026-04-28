@@ -1063,7 +1063,7 @@ The communication pattern is identical to ZeRO-1 — ReduceScatter followed by A
 
 ## ZeRO-3 Sharding Parameters
 
-ZeRO-1 shards optimizer states; ZeRO-2 additionally shards gradients. One component remains fully replicated on every GPU after both stages: the parameter tensors — $2\phi$ bytes of BF16 working copy and $4\phi$ bytes of FP32 master copy per device. ZeRO-3 eliminates this final redundancy by partitioning parameters across N GPUs, so each GPU owns and stores only $\phi/N$ parameters at rest. Since the optimizer step updates only owned parameters — and gradients and optimizer states are already aligned to the same ownership boundaries — no full parameter copy is needed between iterations.
+ZeRO-1 shards optimizer states; ZeRO-2 additionally shards gradients. One component remains fully replicated on every GPU after both stages: the parameter tensors — $2\phi$ bytes of BF16 working copy and $4\phi$ bytes of FP32 master copy per device. ZeRO-3 eliminates this final redundancy by partitioning parameters across N GPUs, so each GPU owns and stores only $\phi/N$ parameters. Since the optimizer step updates only owned parameters — and gradients and optimizer states are already aligned to the same ownership boundaries — no full parameter copy is needed between iterations.
 
 ### Communication Pattern
 
@@ -1080,17 +1080,27 @@ This is ZeRO-3's fundamental trade-off: memory is traded for communication.
 > All Gather Parameters → Forward Pass → Backward Pass → ReduceScatter → Local Optimizer Step
 > → All Gather Parameters
 
-<span class="step-tag"><span class="step-num">1</span>AllGather Parameters</span>
+<span class="step-tag"><span class="step-num">1</span>Forward Pass — Per-Layer AllGather</span>
 
-<span class="step-tag"><span class="step-num">2</span>Forward Pass - AllGather Parameters</span>
+Each GPU holds only its parameter shard at rest. To compute the forward pass, parameters must be reconstructed layer-by-layer. For each layer, AllGather collects the parameter shard from its owner GPU and broadcasts it to all GPUs. Once the layer computation completes, non-owned parameters are immediately discarded to free memory. This gather-compute-discard cycle repeats for every layer in the model.
 
-<span class="step-tag"><span class="step-num">3</span>Backward Pass - AllGather Parameters</span>
+<span class="step-tag"><span class="step-num">2</span>Backward Pass — Per-Layer AllGather</span>
 
-<span class="step-tag"><span class="step-num">4</span>ReduceScatter</span>
+The backward pass follows the same pattern in reverse layer order. For each layer, AllGather reconstructs the full parameters, gradients are computed locally, then non-owned parameters are discarded. After the backward pass completes, each GPU holds local gradients for all parameters — but only its own parameter shard.
 
-<span class="step-tag"><span class="step-num">5</span>Optimizer Step</span>
+<span class="step-tag"><span class="step-num">3</span>ReduceScatter — Gradient Synchronization</span>
 
-> Repeat Steps 1-5 until model convergence
+Each GPU computed gradients based on different data, so gradients must be synchronized. ReduceScatter averages gradients across all GPUs and distributes each shard to its responsible GPU. After ReduceScatter, GPU $i$ holds only the globally averaged gradient for shard $i$ — the same result as AllReduce, but without materializing the full gradient tensor on any single GPU.
+
+<span class="step-tag"><span class="step-num">4</span>Local Optimizer Step</span>
+
+Each GPU now has exactly what it needs: its parameter shard, the averaged gradient for that shard, and its optimizer states for that shard. It applies the Adam update locally — no communication required. The parameter shard is updated in place.
+
+<span class="step-tag"><span class="step-num">5</span>End of Iteration — No Final AllGather</span>
+
+Unlike ZeRO-1 and ZeRO-2, there is no AllGather at the end of the iteration. Parameters remain sharded. The full model is never materialized simultaneously on any GPU. The next iteration begins with Step 1, where AllGather reconstructs parameters on-demand during the forward pass.
+
+> Repeat Steps 1–5 until model convergence
 
 ### Training Steps
 <figure>
