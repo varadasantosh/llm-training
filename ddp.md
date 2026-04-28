@@ -718,7 +718,6 @@ After ReduceScatter (ZeRO-2):
       <td style="padding:10px 12px; border:2px dashed #555;">$8\phi/N$</td>
       <td style="padding:10px 12px; border:2px dashed #555;">✗ Sharded across N GPUs</td>
     </tr>
-    
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>Total</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>$(10 + 8/N)\phi$</
