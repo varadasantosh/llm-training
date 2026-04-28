@@ -625,7 +625,7 @@ Table below captures the memory requirements for ZeRO Stage-1, memory required f
 While ZeRO-1 shards optimizer states, ZeRO-2 further optimizes memory by sharding the gradients themselves. DDP setup with ZeRO Stage-1 reduces the memory footprint by approximately 38%, but each GPU still holds a full set of gradients during the backward pass.
 
 ZeRO-2 exploits a key insight from ZeRO-1: After ReduceScatter in ZeRO-1, each GPU's gradient buffer remains allocated at full size ($4\phi$) - but only the owned shard contains 
-meaningful data (average gradients required for training). The remaining $4\nphi$ - $4\nphi/N$ sits allocated but unused until zero_gra() clears it. GPU memory is critical & scarce resource,Holding $4\phi$ when only $4\phi/N$ is needed is not efficient use of memory. After ReduceScatter ZeRO-2 deallocates memory of unused gradients. local optimizer only uses gradient shards & optimizer shards for updating respective parameters. By sharding gradients alongside optimizer states, ZeRO-2 eliminate's this redundancy.
+meaningful data (average gradients required for training). The remaining $4\phi$ - $4\phi/N$ sits allocated but unused until zero_gra() clears it. GPU memory is critical & scarce resource,Holding $4\phi$ when only $4\phi/N$ is needed is not efficient use of memory. After ReduceScatter ZeRO-2 deallocates memory of unused gradients. local optimizer only uses gradient shards & optimizer shards for updating respective parameters. By sharding gradients alongside optimizer states, ZeRO-2 eliminate's this redundancy.
  
 
 
