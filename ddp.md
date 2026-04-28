@@ -944,7 +944,6 @@ The communication pattern is identical to ZeRO-1 — ReduceScatter followed by A
 <p style="text-align:center; font-size:13px; margin-top:16px;"><em>$\bar{\nabla}\text{W}_i$ denotes the globally averaged gradient for shard $i$</em></p>
 
 
-
 ### Memory Comparison: DDP vs ZeRO-1 vs ZeRO-2
 
 <figure>
@@ -1076,7 +1075,7 @@ By going through these steps we will be convinced that ZeRO-3 changes both above
 After backward pass completes calculating local gradients, these parameters collected from other GPUs can be discarded, ReduceScatter averages gradient shards on respective GPUs followed by optimizer step, after optimizer step **AllGather** for parameters is required
 
 **Training path:**
-> All Gather Parameters => Forward Pass → Backward Pass → ReduceScatter → Local Optimizer Step
+> All Gather Parameters → Forward Pass → Backward Pass → ReduceScatter → Local Optimizer Step
 > → All Gather Parameters
 
 <span class="step-tag"><span class="step-num">1</span>AllGather Parameters</span>
@@ -1149,6 +1148,11 @@ For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W
 
  1. Each GPU initializes Parameters w₁,w₂,w₃,w₄ for respective shards owned by GPU
 
+    - GPU-0: W₁ ← owns parameter
+    - GPU-1: W₂ ← owns parameter
+    - GPU-2: W₃ ← owns parameter
+    - GPU-3: W4 ← owns parameter
+
  2. Optimizer state shards (unique per GPU):
 
     - GPU-0: (m₁, v₁)  ← owns optimizer states for W₁
@@ -1158,20 +1162,26 @@ For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W
 
 3. Each GPU requires parameters from other GPUs for forwrad pass , AllGather parameters
 
-   - GPU-0: X₀ → AllGather Parameters →  forward(W₁,W₂,W₃,W₄) → Ŷ₀ → Loss₀
-   - GPU-1: X₁ → AllGather Parameters →  forward(W₁,W₂,W₃,W₄) → Ŷ₁ → Loss₁
-   - GPU-2: X₂ → AllGather Parameters →  forward(W₁,W₂,W₃,W₄) → Ŷ₂ → Loss₂
-   - GPU-3: X₃ → AllGather Parameters →  forward(W₁,W₂,W₃,W₄) → Ŷ₃ → Loss₃
+   - GPU-0: X₀ → AllGather Parameters (W₁,W₂,W₃,W₄) →  forward(W₁,W₂,W₃,W₄) → Ŷ₀ → Loss₀
+   - GPU-1: X₁ → AllGather Parameters (W₁,W₂,W₃,W₄) →  forward(W₁,W₂,W₃,W₄) → Ŷ₁ → Loss₁
+   - GPU-2: X₂ → AllGather Parameters (W₁,W₂,W₃,W₄) →  forward(W₁,W₂,W₃,W₄) → Ŷ₂ → Loss₂
+   - GPU-3: X₃ → AllGather Parameters (W₁,W₂,W₃,W₄) →  forward(W₁,W₂,W₃,W₄) → Ŷ₃ → Loss₃
 
 4. Every GPU requires parameters fo computing local gradients for **all** parameters, requires AllGather parameters
-d
-   - GPU-0: AllGather Parameters → [∇W₁⁰, ∇W₂⁰, ∇W₃⁰, ∇W₄⁰]  ← based on X₀
-   - GPU-1: AllGather Parameters → [∇W₁¹, ∇W₂¹, ∇W₃¹, ∇W₄¹]  ← based on X₁
-   - GPU-2: AllGather Parameters → [∇W₁², ∇W₂², ∇W₃², ∇W₄²]  ← based on X₂
-   - GPU-3: AllGather Parameters → [∇W₁³, ∇W₂³, ∇W₃³, ∇W₄³]  ← based on X₃
+
+   - GPU-0: AllGather Parameters (W₁,W₂,W₃,W₄) → [∇W₁⁰, ∇W₂⁰, ∇W₃⁰, ∇W₄⁰]  ← based on X₀
+   - GPU-1: AllGather Parameters (W₁,W₂,W₃,W₄) → [∇W₁¹, ∇W₂¹, ∇W₃¹, ∇W₄¹]  ← based on X₁
+   - GPU-2: AllGather Parameters (W₁,W₂,W₃,W₄) → [∇W₁², ∇W₂², ∇W₃², ∇W₄²]  ← based on X₂
+   - GPU-3: AllGather Parameters (W₁,W₂,W₃,W₄) → [∇W₁³, ∇W₂³, ∇W₃³, ∇W₄³]  ← based on X₃
 
 5. Each GPU has different gradients — the model will diverge if these are not synchronized.
    ReduceScatter averages gradients across all GPUs and distributes each shard to its responsible GPU:
+
+    GPU-0: $\bar{\nabla}\text{W}_1 = \frac{1}{N}\sum_{i=0}^{N-1}\nabla\text{W}_1^i$
+    GPU-1: $\bar{\nabla}\text{W}_2 = \frac{1}{N}\sum_{i=0}^{N-1}\nabla\text{W}_2^i$
+    GPU-2: $\bar{\nabla}\text{W}_3 = \frac{1}{N}\sum_{i=0}^{N-1}\nabla\text{W}_3^i$
+    GPU-3: $\bar{\nabla}\text{W}_1 = \frac{1}{N}\sum_{i=0}^{N-1}\nabla\text{W}_4^i$
+
 
 
 6. Each GPU receives the globally averaged gradient — identical to what AllReduce would have produced — just for its own shard. Each GPU now has two components required to update parameters for next iteration
@@ -1184,14 +1194,16 @@ d
 <d-aside>
   <b>Adam update — GPU-0 updating W₁</b>
   <pre style="font-size:0.75rem; margin-top:6px; line-height:1.6;">m₁ = β₁·m₁ + (1-β₁)·∇W₁_avg   ← 1st moment
-v₁ = β₂·v₁ + (1-β₂)·(∇W₁_avg)² ← 2nd moment
+  v₁ = β₂·v₁ + (1-β₂)·(∇W₁_avg)² ← 2nd moment
 
-m̂₁ = m₁ / (1-β₁ᵗ)  ← bias correction
-v̂₁ = v₁ / (1-β₂ᵗ)
+    m̂₁ = m₁ / (1-β₁ᵗ)  ← bias correction
+    v̂₁ = v₁ / (1-β₂ᵗ)
 
-W₁ = W₁ - η·m̂₁/(√v̂₁+ε)  ← parameter update</pre>
-  <p style="font-size:0.75rem; margin:6px 0 0;">$\beta_1$, $\beta_2$ — moment decay rates; $\eta$ — learning rate; $\epsilon$ — numerical stability constant. Each GPU runs this identically for its own shard.</p>
+    W₁ = W₁ - η·m̂₁/(√v̂₁+ε)  ← parameter update</pre>
+    <p style="font-size:0.75rem; margin:6px 0 0;">$\beta_1$, $\beta_2$ — moment decay rates; $\eta$ — learning rate; $\epsilon$ — numerical stability constant. Each GPU runs this identically for its own shard.</p>
 </d-aside>
+
+7. Synchronize Parameters across all GPUs using AllGather for parameters.
 
 
 ## NCCL Operations
