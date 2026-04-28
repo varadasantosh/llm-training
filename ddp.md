@@ -1141,6 +1141,86 @@ After backward pass completes calculating local gradients, these parameters coll
 <figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 3: ZeRO Stage-1 Training Steps</figcaption>
 </figure>
 
+### Memory Comparison: DDP vs ZeRO-1 vs ZeRO-2 vs ZeRO-3
+
+<figure>
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:13px; border:2px dashed #555;">
+<thead>
+    <tr>
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:left;" rowspan="2">Component</th>
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#dc3545; color:white;" colspan="2">DDP</th>
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#1971c2; color:white;" colspan="2">ZeRO-1</th>
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#2f9e44; color:white;" colspan="2">ZeRO-2</th>
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#2f9e44; color:white;" colspan="2">ZeRO-3</th>
+    </tr>
+    <tr>
+      <th style="padding:8px; border:2px dashed #555; text-align:center; font-size:11px;">Memory</th>
+      <th style="padding:8px; border:2px dashed #555; text-align:center; font-size:11px;">Distribution</th>
+      <th style="padding:8px; border:2px dashed #555; text-align:center; font-size:11px;">Memory</th>
+      <th style="padding:8px; border:2px dashed #555; text-align:center; font-size:11px;">Distribution</th>
+      <th style="padding:8px; border:2px dashed #555; text-align:center; font-size:11px;">Memory</th>
+      <th style="padding:8px; border:2px dashed #555; text-align:center; font-size:11px;">Distribution</th>
+      <th style="padding:8px; border:2px dashed #555; text-align:center; font-size:11px;">Memory</th>
+      <th style="padding:8px; border:2px dashed #555; text-align:center; font-size:11px;">Distribution</th>
+    </tr>
+</thead>
+<tbody>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">Parameters BF16</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$2\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">Replicated</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$2\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">Replicated</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$2\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">Replicated</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$2\phi/N$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">Sharded</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">Parameters FP32</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$4\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">Replicated</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$4\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">Replicated</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$4\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">Replicated</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$4\phi/N$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">Sharded</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">Gradients FP32</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$4\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">Replicated</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$4\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">Replicated</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; font-weight:600; color:#2f9e44;">$4\phi/N$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#d4edda;">Sharded</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; font-weight:600; color:#2f9e44;">$4\phi/N$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#d4edda;">Sharded</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;">Optimizer States $(m_t, v_t)$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$8\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">Replicated</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; font-weight:600; color:#1971c2;">$8\phi/N$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#d4edda;">Sharded</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; font-weight:600; color:#2f9e44;">$8\phi/N$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#d4edda;">Sharded</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; font-weight:600; color:#2f9e44;">$8\phi/N$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#d4edda;">Sharded</td>
+    </tr>
+    <tr style="background:var(--global-code-bg-color, #f8f8f8); font-weight:600;">
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>Total per GPU</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;" colspan="2"><strong>$18\phi$</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;" colspan="2"><strong>$(10 + 8/N)\phi$</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;" colspan="2"><strong>$(6 + 12/N)\phi$</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;" colspan="2"><strong>$(18/N)\phi$</strong></td>
+    </tr>
+</tbody>
+</table>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 6: Memory Distribution Comparison — DDP vs ZeRO-1 vs ZeRO-2 vs ZeRO-3</figcaption>
+</figure>
+
 
 ### Example Workflow
 
@@ -1183,7 +1263,6 @@ For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W
     GPU-3: $\bar{\nabla}\text{W}_1 = \frac{1}{N}\sum_{i=0}^{N-1}\nabla\text{W}_4^i$
 
 
-
 6. Each GPU receives the globally averaged gradient — identical to what AllReduce would have produced — just for its own shard. Each GPU now has two components required to update parameters for next iteration
 
    - The globally averaged gradient for its shard
@@ -1204,6 +1283,8 @@ For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W
 </d-aside>
 
 7. Synchronize Parameters across all GPUs using AllGather for parameters.
+
+
 
 
 ## NCCL Operations
