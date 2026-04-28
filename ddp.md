@@ -662,75 +662,215 @@ In ZeRO-1, the Reduce-Scatter averages the relevant gradient shard but leaves th
 
   GPU-3 keeps: $\nabla \text{W}_4\text{_avg}$ frees: $\nabla \text{W}_1\text{_avg}$, $\nabla \text{W}_2\text{_avg}$, $\nabla \text{W}_3\text{_avg}$
 
-After ReduceScatter (ZeRO-1):
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 24px 0;">
 
-  GPU-0: $\text{averaged}(\nabla \text{W}_0)$| Unused | Unused | Unused  | full $4\phi$ buffer |
-  GPU-1: Unused | $\text{averaged}(\nabla \text{W}_1)$ | Unused | Unused | full $4\phi$ buffer |
-  GPU-2: Unused | Unused | $\text{averaged}(\nabla \text{W}_2)$ | Unused | full $4\phi$ buffer |
-  GPU-3: Unused | Unused | Unused | $\text{averaged}(\nabla \text{W}_3)$ | full $4\phi$ buffer |
+<div>
+<h4 style="text-align:center; margin-bottom:12px; color: var(--global-theme-color);">After ReduceScatter — ZeRO-1</h4>
+<table style="width:100%; border-collapse:collapse; font-size:13px; border:2px solid #1971c2;">
+<thead>
+  <tr style="background:#1971c2; color:white;">
+    <th style="padding:8px; border:1px solid #1971c2;">GPU</th>
+    <th style="padding:8px; border:1px solid #1971c2;">Shard 0</th>
+    <th style="padding:8px; border:1px solid #1971c2;">Shard 1</th>
+    <th style="padding:8px; border:1px solid #1971c2;">Shard 2</th>
+    <th style="padding:8px; border:1px solid #1971c2;">Shard 3</th>
+    <th style="padding:8px; border:1px solid #1971c2;">Buffer</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-0</td>
+    <td style="padding:8px; border:1px solid #ddd; background:#d4edda; text-align:center;">$\bar{\nabla}\text{W}_0$</td>
+    <td style="padding:8px; border:1px solid #ddd; background:#f8d7da; text-align:center; color:#999;">unused</td>
+    <td style="padding:8px; border:1px solid #ddd; background:#f8d7da; text-align:center; color:#999;">unused</td>
+    <td style="padding:8px; border:1px solid #ddd; background:#f8d7da; text-align:center; color:#999;">unused</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center;">$4\phi$</td>
+  </tr>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-1</td>
+    <td style="padding:8px; border:1px solid #ddd; background:#f8d7da; text-align:center; color:#999;">unused</td>
+    <td style="padding:8px; border:1px solid #ddd; background:#d4edda; text-align:center;">$\bar{\nabla}\text{W}_1$</td>
+    <td style="padding:8px; border:1px solid #ddd; background:#f8d7da; text-align:center; color:#999;">unused</td>
+    <td style="padding:8px; border:1px solid #ddd; background:#f8d7da; text-align:center; color:#999;">unused</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center;">$4\phi$</td>
+  </tr>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-2</td>
+    <td style="padding:8px; border:1px solid #ddd; background:#f8d7da; text-align:center; color:#999;">unused</td>
+    <td style="padding:8px; border:1px solid #ddd; background:#f8d7da; text-align:center; color:#999;">unused</td>
+    <td style="padding:8px; border:1px solid #ddd; background:#d4edda; text-align:center;">$\bar{\nabla}\text{W}_2$</td>
+    <td style="padding:8px; border:1px solid #ddd; background:#f8d7da; text-align:center; color:#999;">unused</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center;">$4\phi$</td>
+  </tr>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-3</td>
+    <td style="padding:8px; border:1px solid #ddd; background:#f8d7da; text-align:center; color:#999;">unused</td>
+    <td style="padding:8px; border:1px solid #ddd; background:#f8d7da; text-align:center; color:#999;">unused</td>
+    <td style="padding:8px; border:1px solid #ddd; background:#f8d7da; text-align:center; color:#999;">unused</td>
+    <td style="padding:8px; border:1px solid #ddd; background:#d4edda; text-align:center;">$\bar{\nabla}\text{W}_3$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center;">$4\phi$</td>
+  </tr>
+</tbody>
+</table>
+<p style="text-align:center; font-size:12px; color:#666; margin-top:8px;">Full buffer allocated — 75% wasted per GPU</p>
+</div>
 
-After ReduceScatter (ZeRO-2):
+<div>
+<h4 style="text-align:center; margin-bottom:12px; color: var(--global-theme-color);">After ReduceScatter — ZeRO-2</h4>
+<table style="width:100%; border-collapse:collapse; font-size:13px; border:2px solid #2f9e44;">
+<thead>
+  <tr style="background:#2f9e44; color:white;">
+    <th style="padding:8px; border:1px solid #2f9e44;">GPU</th>
+    <th style="padding:8px; border:1px solid #2f9e44;">Owned Shard</th>
+    <th style="padding:8px; border:1px solid #2f9e44;">Buffer</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-0</td>
+    <td style="padding:8px; border:1px solid #ddd; background:#d4edda; text-align:center;">$\bar{\nabla}\text{W}_0$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; font-weight:600; color:#2f9e44;">$4\phi/N$</td>
+  </tr>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-1</td>
+    <td style="padding:8px; border:1px solid #ddd; background:#d4edda; text-align:center;">$\bar{\nabla}\text{W}_1$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; font-weight:600; color:#2f9e44;">$4\phi/N$</td>
+  </tr>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-2</td>
+    <td style="padding:8px; border:1px solid #ddd; background:#d4edda; text-align:center;">$\bar{\nabla}\text{W}_2$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; font-weight:600; color:#2f9e44;">$4\phi/N$</td>
+  </tr>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-3</td>
+    <td style="padding:8px; border:1px solid #ddd; background:#d4edda; text-align:center;">$\bar{\nabla}\text{W}_3$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; font-weight:600; color:#2f9e44;">$4\phi/N$</td>
+  </tr>
+</tbody>
+</table>
+<p style="text-align:center; font-size:12px; color:#666; margin-top:8px;">Non-owned shards deallocated — 75% memory freed</p>
+</div>
 
-  GPU-0: $\text{averaged}(\nabla \text{W}_0)$  ← buffer reduced to $4\phi/N$ <br>
-  GPU-1: $\text{averaged}(\nabla \text{W}_1)$  ← buffer reduced to $4\phi/N$ <br>
-  GPU-2: $\text{averaged}(\nabla \text{W}_2)$  ← buffer reduced to $4\phi/N$ <br>
-  GPU-3: $\text{averaged}(\nabla \text{W}_3)$  ← buffer reduced to $4\phi/N$ <br>
+</div>
+
+<p style="text-align:center; font-size:13px; margin-top:16px;"><em>$\bar{\nabla}\text{W}_i$ denotes the globally averaged gradient for shard $i$</em></p>
 
 **Training path:**
 > Forward Pass → Backward Pass → ReduceScatter → Discard unused Gradients  → Local Optimizer Step → AllGather
 
+### Memory Comparison: DDP vs ZeRO-1 vs ZeRO-2
+
 <figure>
-<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:13px; border:2px dashed #555;">
 <thead>
-    <tr style="text-align:left;">
-      <th style="padding:10px 12px; border:2px dashed #555;">Component</th>
-      <th style="padding:10px 12px; border:2px dashed #555;">ZeRO-1</th>
-      <th style="padding:10px 12px; border:2px dashed #555;">ZeRO-2</th>
-      <th style="padding:10px 12px; border:2px dashed #555;">Replicated?</th>
+    <tr>
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:left;" rowspan="2">Component</th>
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#dc3545; color:white;" colspan="2">DDP</th>
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#1971c2; color:white;" colspan="2">ZeRO-1</th>
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#2f9e44; color:white;" colspan="2">ZeRO-2</th>
+    </tr>
+    <tr>
+      <th style="padding:8px; border:2px dashed #555; text-align:center; font-size:11px;">Memory</th>
+      <th style="padding:8px; border:2px dashed #555; text-align:center; font-size:11px;">Distribution</th>
+      <th style="padding:8px; border:2px dashed #555; text-align:center; font-size:11px;">Memory</th>
+      <th style="padding:8px; border:2px dashed #555; text-align:center; font-size:11px;">Distribution</th>
+      <th style="padding:8px; border:2px dashed #555; text-align:center; font-size:11px;">Memory</th>
+      <th style="padding:8px; border:2px dashed #555; text-align:center; font-size:11px;">Distribution</th>
     </tr>
 </thead>
 <tbody>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;">Parameters BF16 (working copy)</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$2\phi$</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$2\phi$</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">✓ Every GPU</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Parameters BF16</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$2\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">Replicated</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$2\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">Replicated</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$2\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">Replicated</td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;">Parameters FP32 (master copy) </td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">✓ Every GPU</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Parameters FP32</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$4\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">Replicated</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$4\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">Replicated</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$4\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">Replicated</td>
     </tr>
     <tr>
       <td style="padding:10px 12px; border:2px dashed #555;">Gradients FP32</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$4\phi/N$</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">✗ Sharded across N GPUs</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$4\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">Replicated</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$4\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">Replicated</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; font-weight:600; color:#2f9e44;">$4\phi/N$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#d4edda;">Sharded</td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;">Optimizer State $m_t$ ,$v_t$ FP32 </td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$8\phi/N$</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">$8\phi/N$</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">✗ Sharded across N GPUs</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Optimizer States $(m_t, v_t)$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$8\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">Replicated</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; font-weight:600; color:#1971c2;">$8\phi/N$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#d4edda;">Sharded</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; font-weight:600; color:#2f9e44;">$8\phi/N$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#d4edda;">Sharded</td>
     </tr>
-
-    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>Total</strong></td>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>$(10 + 8/N)\phi$</strong></td>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>$(6 + 12/N)\phi$</strong></td>
-      <td style="padding:10px 12px; border:2px dashed #555;"></td>
+    <tr style="background:var(--global-code-bg-color, #f8f8f8); font-weight:600;">
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>Total per GPU</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;" colspan="2"><strong>$18\phi$</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;" colspan="2"><strong>$(10 + 8/N)\phi$</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;" colspan="2"><strong>$(6 + 12/N)\phi$</strong></td>
     </tr>
 </tbody>
 </table>
-<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 4: ZeRO Stage-1 Memory Savings</figcaption>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 5: Memory Distribution Comparison — DDP vs ZeRO-1 vs ZeRO-2</figcaption>
 </figure>
 
-**Memory Calculation for Llama 3 8B (8 GPUs):**
-- DDP: $18\phi$ = 144 GB per GPU
-- ZeRO-1: $(10 + 8/8)\phi = 11\phi$ ≈ 88 GB per GPU
-- ZeRO-2: $(6 + 12/8)\phi = 7.5\phi$ = 60 GB per GPU
-- **Saving: 58% reduction — 84 GB freed per GPU**
+<p style="text-align:center; font-size:12px; margin-top:8px;">
+<span style="display:inline-block; width:12px; height:12px; background:#f8d7da; border:1px solid #ddd; margin-right:4px; vertical-align:middle;"></span> Replicated (redundant across all GPUs)
+&nbsp;&nbsp;
+<span style="display:inline-block; width:12px; height:12px; background:#d4edda; border:1px solid #ddd; margin-right:4px; vertical-align:middle;"></span> Sharded (distributed across N GPUs)
+</p>
+
+### Memory Savings for Llama 3 8B (8 GPUs)
+
+<figure>
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
+<thead>
+    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+      <th style="padding:12px; border:2px dashed #555; text-align:left;">Approach</th>
+      <th style="padding:12px; border:2px dashed #555; text-align:center;">Formula</th>
+      <th style="padding:12px; border:2px dashed #555; text-align:center;">Memory/GPU</th>
+      <th style="padding:12px; border:2px dashed #555; text-align:center;">Reduction</th>
+      <th style="padding:12px; border:2px dashed #555; text-align:center;">Freed/GPU</th>
+    </tr>
+</thead>
+<tbody>
+    <tr>
+      <td style="padding:12px; border:2px dashed #555; font-weight:600; color:#dc3545;">DDP</td>
+      <td style="padding:12px; border:2px dashed #555; text-align:center;">$18\phi$</td>
+      <td style="padding:12px; border:2px dashed #555; text-align:center; font-weight:600;">144 GB</td>
+      <td style="padding:12px; border:2px dashed #555; text-align:center;">—</td>
+      <td style="padding:12px; border:2px dashed #555; text-align:center;">—</td>
+    </tr>
+    <tr>
+      <td style="padding:12px; border:2px dashed #555; font-weight:600; color:#1971c2;">ZeRO-1</td>
+      <td style="padding:12px; border:2px dashed #555; text-align:center;">$(10 + 8/8)\phi = 11\phi$</td>
+      <td style="padding:12px; border:2px dashed #555; text-align:center; font-weight:600;">88 GB</td>
+      <td style="padding:12px; border:2px dashed #555; text-align:center; color:#1971c2; font-weight:600;">38%</td>
+      <td style="padding:12px; border:2px dashed #555; text-align:center;">56 GB</td>
+    </tr>
+    <tr style="background:rgba(47, 158, 68, 0.05);">
+      <td style="padding:12px; border:2px dashed #555; font-weight:600; color:#2f9e44;">ZeRO-2</td>
+      <td style="padding:12px; border:2px dashed #555; text-align:center;">$(6 + 12/8)\phi = 7.5\phi$</td>
+      <td style="padding:12px; border:2px dashed #555; text-align:center; font-weight:600;">60 GB</td>
+      <td style="padding:12px; border:2px dashed #555; text-align:center; color:#2f9e44; font-weight:600;">58%</td>
+      <td style="padding:12px; border:2px dashed #555; text-align:center;">84 GB</td>
+    </tr>
+</tbody>
+</table>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 6: Memory Savings for Llama 3 8B ($\phi$ = 8B parameters, N = 8 GPUs)</figcaption>
+</figure>
 
 ## ZeRO Stage-3
 
