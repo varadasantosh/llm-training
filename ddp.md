@@ -1262,7 +1262,6 @@ For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W
     - GPU-2: $\bar{\nabla}\text{W}_3 = \frac{1}{N}\sum_{i=0}^{N-1}\nabla\text{W}_3^i$
     - GPU-3: $\bar{\nabla}\text{W}_1 = \frac{1}{N}\sum_{i=0}^{N-1}\nabla\text{W}_4^i$
 
-
 6. Each GPU receives the globally averaged gradient — identical to what AllReduce would have produced — just for its own shard. Each GPU now has two components required to update parameters for next iteration
 
    - The globally averaged gradient for its shard
