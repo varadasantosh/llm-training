@@ -678,35 +678,99 @@ The communication pattern for ZeRO-2 is identical to ZeRO-1 — ReduceScatter fo
 
 In ZeRO-1, the Reduce-Scatter averages the relevant gradient shard but leaves the remaining redundant gradients in place, occupying memory . ZeRO-2 deallocate the non-owned shards. This changes gradients from redundant component into a sharded component. Only difference is freeing up the gradient shard memory but the communication pattern in forward and backward passes are identical to ZeRO-1 — refer to that [section](#zero-stage-1---sharding-optimizer-states) for walkthrough of example workflow and training steps.
 
-**Before ReduceScatter:**
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 24px 0;">
 
-  GPU-0:  $\nabla \text{W}_1^0$, $\nabla \text{W}_2^0$, $\nabla \text{W}_3^0$, $\nabla \text{W}_4^0$ 
+<div>
+<h4 style="text-align:center; margin-bottom:12px; color:#555;">Before ReduceScatter</h4>
+<p style="text-align:center; font-size:12px; color:#888; margin-bottom:12px;">Each GPU holds local gradients for all parameters</p>
+<table style="width:100%; border-collapse:collapse; font-size:12px; border:2px solid #6c757d;">
+<thead>
+  <tr style="background:#6c757d; color:white;">
+    <th style="padding:8px; border:1px solid #6c757d;">GPU</th>
+    <th style="padding:8px; border:1px solid #6c757d;">$\nabla\text{W}_1$</th>
+    <th style="padding:8px; border:1px solid #6c757d;">$\nabla\text{W}_2$</th>
+    <th style="padding:8px; border:1px solid #6c757d;">$\nabla\text{W}_3$</th>
+    <th style="padding:8px; border:1px solid #6c757d;">$\nabla\text{W}_4$</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-0</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla\text{W}_1^0$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla\text{W}_2^0$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla\text{W}_3^0$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla\text{W}_4^0$</td>
+  </tr>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-1</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla\text{W}_1^1$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla\text{W}_2^1$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla\text{W}_3^1$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla\text{W}_4^1$</td>
+  </tr>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-2</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla\text{W}_1^2$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla\text{W}_2^2$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla\text{W}_3^2$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla\text{W}_4^2$</td>
+  </tr>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-3</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla\text{W}_1^3$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla\text{W}_2^3$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla\text{W}_3^3$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla\text{W}_4^3$</td>
+  </tr>
+</tbody>
+</table>
+<p style="text-align:center; font-size:11px; color:#666; margin-top:8px;">Buffer: $4\phi$ per GPU — fully replicated</p>
+</div>
 
-  GPU-1:  $\nabla \text{W}_1^1$, $\nabla \text{W}_2^1$, $\nabla \text{W}_3^1$, $\nabla \text{W}_4^1$ 
+<div>
+<h4 style="text-align:center; margin-bottom:12px; color:#2f9e44;">After ReduceScatter + Deallocation</h4>
+<p style="text-align:center; font-size:12px; color:#888; margin-bottom:12px;">Each GPU keeps only its averaged shard</p>
+<table style="width:100%; border-collapse:collapse; font-size:12px; border:2px solid #2f9e44;">
+<thead>
+  <tr style="background:#2f9e44; color:white;">
+    <th style="padding:8px; border:1px solid #2f9e44;">GPU</th>
+    <th style="padding:8px; border:1px solid #2f9e44;">Owned Shard</th>
+    <th style="padding:8px; border:1px solid #2f9e44;">Averaging Formula</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-0</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#d4edda; font-weight:600;">$\bar{\nabla}\text{W}_1$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; font-size:11px;">$\frac{1}{4}(\nabla\text{W}_1^0 + \nabla\text{W}_1^1 + \nabla\text{W}_1^2 + \nabla\text{W}_1^3)$</td>
+  </tr>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-1</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#d4edda; font-weight:600;">$\bar{\nabla}\text{W}_2$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; font-size:11px;">$\frac{1}{4}(\nabla\text{W}_2^0 + \nabla\text{W}_2^1 + \nabla\text{W}_2^2 + \nabla\text{W}_2^3)$</td>
+  </tr>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-2</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#d4edda; font-weight:600;">$\bar{\nabla}\text{W}_3$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; font-size:11px;">$\frac{1}{4}(\nabla\text{W}_3^0 + \nabla\text{W}_3^1 + \nabla\text{W}_3^2 + \nabla\text{W}_3^3)$</td>
+  </tr>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-3</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#d4edda; font-weight:600;">$\bar{\nabla}\text{W}_4$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; font-size:11px;">$\frac{1}{4}(\nabla\text{W}_4^0 + \nabla\text{W}_4^1 + \nabla\text{W}_4^2 + \nabla\text{W}_4^3)$</td>
+  </tr>
+</tbody>
+</table>
+<p style="text-align:center; font-size:11px; color:#2f9e44; margin-top:8px; font-weight:600;">Buffer: $4\phi/N$ per GPU — 75% freed</p>
+</div>
 
-  GPU-2:  $\nabla \text{W}_1^2$, $\nabla \text{W}_2^2$, $\nabla \text{W}_3^2$, $\nabla \text{W}_4^2$ 
+</div>
 
-  GPU-3:  $\nabla \text{W}_1^3$, $\nabla \text{W}_2^3$, $\nabla \text{W}_3^3$, $\nabla \text{W}_4^3$ 
-
-
-**After ReduceScatter:**
-
-  GPU-0: $\nabla \text{W}_1\text{_avg}$ = ($\nabla \text{W}_1^0 + \nabla \text{W}_1^1 + \nabla \text{W}_1^2 + \nabla \text{W}_1^3$) / 4
-
-  GPU-1: $\nabla \text{W}_2\text{_avg}$ = ($\nabla \text{W}_2^0 + \nabla \text{W}_2^1 + \nabla \text{W}_2^2 + \nabla \text{W}_2^3$) / 4
-
-  GPU-2: $\nabla \text{W}_3\text{_avg}$ = ($\nabla \text{W}_3^0 + \nabla \text{W}_3^1 + \nabla \text{W}_3^2 + \nabla \text{W}_3^3$) / 4
-
-  GPU-3: $\nabla \text{W}_4\text{_avg}$ = ($\nabla \text{W}_4^0 + \nabla \text{W}_4^1 + \nabla \text{W}_4^2 + \nabla \text{W}_4^3$) / 4
-
-
-  GPU-0 keeps: $\nabla \text{W}_1 \text{_avg}$ frees: $\nabla \text{W}_2\text{_avg}$, $\nabla \text{W}_3\text{_avg}$, $\nabla \text{W}_4\text{_avg}$
-
-  GPU-1 keeps: $\nabla \text{W}_2 \text{_avg}$ frees: $\nabla \text{W}_1\text{_avg}$, $\nabla \text{W}_3\text{_avg}$, $\nabla \text{W}_4\text{_avg}$
-
-  GPU-2 keeps: $\nabla \text{W}_3\text{_avg}$ frees: $\nabla \text{W}_1\text{_avg}$, $\nabla \text{W}_2\text{_avg}$, $\nabla \text{W}_4\text{_avg}$
-
-  GPU-3 keeps: $\nabla \text{W}_4\text{_avg}$ frees: $\nabla \text{W}_1\text{_avg}$, $\nabla \text{W}_2\text{_avg}$, $\nabla \text{W}_3\text{_avg}$
+<p style="text-align:center; margin:16px 0; font-size:13px;">
+<span style="display:inline-block; width:12px; height:12px; background:#fff3cd; border:1px solid #ddd; margin-right:4px; vertical-align:middle;"></span> Local gradient (pre-averaging)
+&nbsp;&nbsp;
+<span style="display:inline-block; width:12px; height:12px; background:#d4edda; border:1px solid #ddd; margin-right:4px; vertical-align:middle;"></span> Globally averaged gradient (retained)
+</p>
 
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 24px 0;">
 
