@@ -650,7 +650,7 @@ In ZeRO-1, the Reduce-Scatter averages the relevant gradient shard but leaves th
 
 **After ReduceScatter:**
 
-  GPU-0: $\nabla \text{W}_1_\text{avg}$ = ($\nabla \text{W}_1^0 + \nabla \text{W}_1^1 + $\nabla \text{W}_1^2 + \nabla \text{W}_1^3$) / 4
+  GPU-0: $\nabla \text{W}_1 \text{_avg}$ = ($\nabla \text{W}_1^0 + \nabla \text{W}_1^1 + $\nabla \text{W}_1^2 + \nabla \text{W}_1^3$) / 4
 
   GPU-1: $\nabla \text{W}_2_\text{avg}$ = ($\nabla \text{W}_2^0 + \nabla \text{W}_2^1 + \nabla \text{W}_2^2 + $\nabla \text{W}_2^3$) / 4
 
