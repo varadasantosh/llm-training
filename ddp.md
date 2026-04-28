@@ -751,13 +751,17 @@ Critically, each GPU carries its optimizer state shard forward across iterations
 
 While ZeRO-1 shards optimizer states, ZeRO-2 further optimizes memory by sharding the gradients themselves. ZeRO-1 reduces the memory footprint by approximately 38% (optimizers sharded across 8 GPUs), but each GPU still holds a full set of gradients during the backward pass.
 
+**Training path:**
+> Forward Pass → Backward Pass → ReduceScatter → Discard unused Gradients → Local Optimizer Step → AllGather
+
 ZeRO-2 exploits a key insight from ZeRO-1: After ReduceScatter in ZeRO-1, each GPU's gradient buffer remains allocated at full size ($4\phi$)-but only the owned shard contains 
 meaningful data (average gradients required for training). The remaining $4\phi$ - $4\phi/N$ sits allocated but unused until zero_grad() clears it. GPU memory is scarce resource, holding $4\phi$ when only $4\phi/N$ is needed is wasting resources. After ReduceScatter ZeRO-2 immediately deallocates memory of unused gradients buffer space. Each GPU retains only the gradient shard it needs for the local optimizer step — eliminating the redundancy
  
 
+
 The communication pattern for ZeRO-2 is identical to ZeRO-1 — ReduceScatter followed by AllGather. The difference lies in immediately freeing non-owned gradient buffer space after ReduceScatter.
 
-In ZeRO-1, the Reduce-Scatter averages the relevant gradient shard but leaves the remaining redundant gradients in place, occupying memory . ZeRO-2 deallocate the non-owned shards. This changes gradients from redundant component into a sharded component. Only difference is freeing up the gradient shard memory but the communication pattern in forward and backward passes are identical to ZeRO-1 — refer to that [section](#zero-1-sharding-optimizer-states) for walkthrough of example workflow and training steps.
+In ZeRO-1, the Reduce-Scatter averages the relevant gradient shard but leaves the remaining redundant gradients in place, occupying memory . ZeRO-2 deallocate the non-owned shards. This changes gradients from a redundant component into a sharded component. Only difference is freeing up the gradient shard memory but the communication pattern in forward and backward passes are identical to ZeRO-1 — refer to that [section](#zero-1-sharding-optimizer-states) for walkthrough of example workflow and training steps.
 
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 24px 0;">
 
@@ -871,7 +875,7 @@ In ZeRO-1, the Reduce-Scatter averages the relevant gradient shard but leaves th
 <tbody>
   <tr>
     <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-0</td>
-    <td style="padding:8px; border:1px solid #ddd; background:#d4edda; text-align:center;">$\bar{\nabla}\text{W}_0$</td>
+    <td style="padding:8px; border:1px solid #ddd; background:#d4edda; text-align:center;">$\bar{\nabla}\text{W}_1$</td>
     <td style="padding:8px; border:1px solid #ddd; background:#f8d7da; text-align:center; color:#999;">unused</td>
     <td style="padding:8px; border:1px solid #ddd; background:#f8d7da; text-align:center; color:#999;">unused</td>
     <td style="padding:8px; border:1px solid #ddd; background:#f8d7da; text-align:center; color:#999;">unused</td>
@@ -880,7 +884,7 @@ In ZeRO-1, the Reduce-Scatter averages the relevant gradient shard but leaves th
   <tr>
     <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-1</td>
     <td style="padding:8px; border:1px solid #ddd; background:#f8d7da; text-align:center; color:#999;">unused</td>
-    <td style="padding:8px; border:1px solid #ddd; background:#d4edda; text-align:center;">$\bar{\nabla}\text{W}_1$</td>
+    <td style="padding:8px; border:1px solid #ddd; background:#d4edda; text-align:center;">$\bar{\nabla}\text{W}_2$</td>
     <td style="padding:8px; border:1px solid #ddd; background:#f8d7da; text-align:center; color:#999;">unused</td>
     <td style="padding:8px; border:1px solid #ddd; background:#f8d7da; text-align:center; color:#999;">unused</td>
     <td style="padding:8px; border:1px solid #ddd; text-align:center;">$4\phi$</td>
@@ -889,7 +893,7 @@ In ZeRO-1, the Reduce-Scatter averages the relevant gradient shard but leaves th
     <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-2</td>
     <td style="padding:8px; border:1px solid #ddd; background:#f8d7da; text-align:center; color:#999;">unused</td>
     <td style="padding:8px; border:1px solid #ddd; background:#f8d7da; text-align:center; color:#999;">unused</td>
-    <td style="padding:8px; border:1px solid #ddd; background:#d4edda; text-align:center;">$\bar{\nabla}\text{W}_2$</td>
+    <td style="padding:8px; border:1px solid #ddd; background:#d4edda; text-align:center;">$\bar{\nabla}\text{W}_3$</td>
     <td style="padding:8px; border:1px solid #ddd; background:#f8d7da; text-align:center; color:#999;">unused</td>
     <td style="padding:8px; border:1px solid #ddd; text-align:center;">$4\phi$</td>
   </tr>
@@ -898,7 +902,7 @@ In ZeRO-1, the Reduce-Scatter averages the relevant gradient shard but leaves th
     <td style="padding:8px; border:1px solid #ddd; background:#f8d7da; text-align:center; color:#999;">unused</td>
     <td style="padding:8px; border:1px solid #ddd; background:#f8d7da; text-align:center; color:#999;">unused</td>
     <td style="padding:8px; border:1px solid #ddd; background:#f8d7da; text-align:center; color:#999;">unused</td>
-    <td style="padding:8px; border:1px solid #ddd; background:#d4edda; text-align:center;">$\bar{\nabla}\text{W}_3$</td>
+    <td style="padding:8px; border:1px solid #ddd; background:#d4edda; text-align:center;">$\bar{\nabla}\text{W}_4$</td>
     <td style="padding:8px; border:1px solid #ddd; text-align:center;">$4\phi$</td>
   </tr>
 </tbody>
@@ -919,22 +923,22 @@ In ZeRO-1, the Reduce-Scatter averages the relevant gradient shard but leaves th
 <tbody>
   <tr>
     <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-0</td>
-    <td style="padding:8px; border:1px solid #ddd; background:#d4edda; text-align:center;">$\bar{\nabla}\text{W}_0$</td>
-    <td style="padding:8px; border:1px solid #ddd; text-align:center; font-weight:600; color:#2f9e44;">$4\phi/N$</td>
-  </tr>
-  <tr>
-    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-1</td>
     <td style="padding:8px; border:1px solid #ddd; background:#d4edda; text-align:center;">$\bar{\nabla}\text{W}_1$</td>
     <td style="padding:8px; border:1px solid #ddd; text-align:center; font-weight:600; color:#2f9e44;">$4\phi/N$</td>
   </tr>
   <tr>
-    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-2</td>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-1</td>
     <td style="padding:8px; border:1px solid #ddd; background:#d4edda; text-align:center;">$\bar{\nabla}\text{W}_2$</td>
     <td style="padding:8px; border:1px solid #ddd; text-align:center; font-weight:600; color:#2f9e44;">$4\phi/N$</td>
   </tr>
   <tr>
-    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-3</td>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-2</td>
     <td style="padding:8px; border:1px solid #ddd; background:#d4edda; text-align:center;">$\bar{\nabla}\text{W}_3$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; font-weight:600; color:#2f9e44;">$4\phi/N$</td>
+  </tr>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-3</td>
+    <td style="padding:8px; border:1px solid #ddd; background:#d4edda; text-align:center;">$\bar{\nabla}\text{W}_4$</td>
     <td style="padding:8px; border:1px solid #ddd; text-align:center; font-weight:600; color:#2f9e44;">$4\phi/N$</td>
   </tr>
 </tbody>
@@ -946,8 +950,7 @@ In ZeRO-1, the Reduce-Scatter averages the relevant gradient shard but leaves th
 
 <p style="text-align:center; font-size:13px; margin-top:16px;"><em>$\bar{\nabla}\text{W}_i$ denotes the globally averaged gradient for shard $i$</em></p>
 
-**Training path:**
-> Forward Pass → Backward Pass → ReduceScatter → Discard unused Gradients  → Local Optimizer Step → AllGather
+
 
 ### Memory Comparison: DDP vs ZeRO-1 vs ZeRO-2
 
