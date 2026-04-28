@@ -640,23 +640,23 @@ In ZeRO-1, the Reduce-Scatter averages the relevant gradient shard but leaves th
 
 **Before ReduceScatter:**
 
-  GPU-0:  $\nabla \text{W}_1^0$, $\nabla \text{W}_2^0$, $\nabla \text{W}_3^0$, $\nabla \text{W}_4^0$ 
+    GPU-0:  $\nabla \text{W}_1^0$, $\nabla \text{W}_2^0$, $\nabla \text{W}_3^0$, $\nabla \text{W}_4^0$ 
 
-  GPU-1:  $\nabla \text{W}_1^1$, $\nabla \text{W}_2^1$, $\nabla \text{W}_3^1$, $\nabla \text{W}_4^1$ 
+    GPU-1:  $\nabla \text{W}_1^1$, $\nabla \text{W}_2^1$, $\nabla \text{W}_3^1$, $\nabla \text{W}_4^1$ 
 
-  GPU-2:  $\nabla \text{W}_1^2$, $\nabla \text{W}_2^2$, $\nabla \text{W}_3^2$, $\nabla \text{W}_4^2$ 
+    GPU-2:  $\nabla \text{W}_1^2$, $\nabla \text{W}_2^2$, $\nabla \text{W}_3^2$, $\nabla \text{W}_4^2$ 
 
-  GPU-3:  $\nabla \text{W}_1^3$, $\nabla \text{W}_2^3$, $\nabla \text{W}_3^3$, $\nabla \text{W}_4^3$ 
+    GPU-3:  $\nabla \text{W}_1^3$, $\nabla \text{W}_2^3$, $\nabla \text{W}_3^3$, $\nabla \text{W}_4^3$ 
 
 **After ReduceScatter:**
 
-  GPU-0: $\nabla \text{W}_1\text{_avg}$ = ($\nabla \text{W}_1^0 + \nabla \text{W}_1^1 + \nabla \text{W}_1^2 + \nabla \text{W}_1^3$) / 4
+    GPU-0: $\nabla \text{W}_1\text{_avg}$ = ($\nabla \text{W}_1^0 + \nabla \text{W}_1^1 + \nabla \text{W}_1^2 + \nabla \text{W}_1^3$) / 4
 
-  GPU-1: $\nabla \text{W}_2\text{_avg}$ = ($\nabla \text{W}_2^0 + \nabla \text{W}_2^1 + \nabla \text{W}_2^2 + \nabla \text{W}_2^3$) / 4
+    GPU-1: $\nabla \text{W}_2\text{_avg}$ = ($\nabla \text{W}_2^0 + \nabla \text{W}_2^1 + \nabla \text{W}_2^2 + \nabla \text{W}_2^3$) / 4
 
-  GPU-2: $\nabla \text{W}_3\text{_avg}$ = ($\nabla \text{W}_3^0 + \nabla \text{W}_3^1 + \nabla \text{W}_3^2 + \nabla \text{W}_3^3$) / 4
+    GPU-2: $\nabla \text{W}_3\text{_avg}$ = ($\nabla \text{W}_3^0 + \nabla \text{W}_3^1 + \nabla \text{W}_3^2 + \nabla \text{W}_3^3$) / 4
 
-  GPU-3: $\nabla \text{W}_4\text{_avg}$ = ($\nabla \text{W}_4^0 + \nabla \text{W}_4^1 + \nabla \text{W}_4^2 + \nabla \text{W}_4^3$) / 4
+    GPU-3: $\nabla \text{W}_4\text{_avg}$ = ($\nabla \text{W}_4^0 + \nabla \text{W}_4^1 + \nabla \text{W}_4^2 + \nabla \text{W}_4^3$) / 4
 
 
   GPU-0 keeps: $\nabla \text{W}_1\text{_avg}$ frees: $\nabla \text{W}_2_\text{avg}$, $\nabla \text{W}_3_\text{avg}$, $\nabla \text{W}_4_\text{avg}$
