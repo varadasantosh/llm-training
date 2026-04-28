@@ -1174,7 +1174,7 @@ After backward pass completes calculating local gradients, these parameters coll
       <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$2\phi$</td>
       <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">Replicated</td>
       <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$2\phi/N$</td>
-      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">Sharded</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#d4edda;">Sharded</td>
     </tr>
     <tr>
       <td style="padding:10px 12px; border:2px dashed #555;">Parameters FP32</td>
@@ -1185,7 +1185,7 @@ After backward pass completes calculating local gradients, these parameters coll
       <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$4\phi$</td>
       <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">Replicated</td>
       <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$4\phi/N$</td>
-      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">Sharded</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#d4edda;">Sharded</td>
     </tr>
     <tr>
       <td style="padding:10px 12px; border:2px dashed #555;">Gradients FP32</td>
