@@ -717,8 +717,7 @@ After ReduceScatter (ZeRO-2):
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>Total</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>$(10 + 8/N)\phi$</strong></td>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>$(6 + 12/N)\phi$</
-      strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>$(6 + 12/N)\phi$</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;"></td>
     </tr>
 </tbody>
