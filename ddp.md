@@ -1269,17 +1269,17 @@ For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W
 
    GPU-0 updates W₁ using its local (m₁, v₁) and ∇W₁_avg. Each GPU applies the same Adam update rule to its own shard — the mechanics are identical, only the parameters differ.
 
-<d-aside>
-  <b>Adam update — GPU-0 updating W₁</b>
-  <pre style="font-size:0.75rem; margin-top:6px; line-height:1.6;">m₁ = β₁·m₁ + (1-β₁)·∇W₁_avg   ← 1st moment
-  v₁ = β₂·v₁ + (1-β₂)·(∇W₁_avg)² ← 2nd moment
+  <d-aside>
+    <b>Adam update — GPU-0 updating W₁</b>
+    <pre style="font-size:0.75rem; margin-top:6px; line-height:1.6;">m₁ = β₁·m₁ + (1-β₁)·∇W₁_avg   ← 1st moment
+    v₁ = β₂·v₁ + (1-β₂)·(∇W₁_avg)² ← 2nd moment
 
-    m̂₁ = m₁ / (1-β₁ᵗ)  ← bias correction
-    v̂₁ = v₁ / (1-β₂ᵗ)
+      m̂₁ = m₁ / (1-β₁ᵗ)  ← bias correction
+      v̂₁ = v₁ / (1-β₂ᵗ)
 
-    W₁ = W₁ - η·m̂₁/(√v̂₁+ε)  ← parameter update</pre>
-    <p style="font-size:0.75rem; margin:6px 0 0;">$\beta_1$, $\beta_2$ — moment decay rates; $\eta$ — learning rate; $\epsilon$ — numerical stability constant. Each GPU runs this identically for its own shard.</p>
-</d-aside>
+      W₁ = W₁ - η·m̂₁/(√v̂₁+ε)  ← parameter update</pre>
+      <p style="font-size:0.75rem; margin:6px 0 0;">$\beta_1$, $\beta_2$ — moment decay rates; $\eta$ — learning rate; $\epsilon$ — numerical stability constant. Each GPU runs this identically for its own shard.</p>
+  </d-aside>
 
 7. Synchronize Parameters across all GPUs using AllGather for parameters.
 
