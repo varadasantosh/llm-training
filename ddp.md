@@ -28,10 +28,10 @@ toc:
       - name: AllReduce
       - name: ReduceScatter
       - name: AllGather
-  - name: ZeRO-1 - Sharding Optimizer States
+  - name: ZeRO-1 Sharding Optimizer States
     subsections:
       - name: Optimizer State Partitioning
-  - name: ZeRO-2 - Sharding Gradients
+  - name: ZeRO-2 Sharding Gradients
     subsections:
       - name: Gradient Partitioning
   - name: ZeRO Stage 3
@@ -747,7 +747,7 @@ Critically, each GPU carries its optimizer state shard forward across iterations
 <figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 5: Memory Savings — DDP vs ZeRO-1 for Llama 3 8B ($\phi$ = 8B, N = 8 GPUs)</figcaption>
 </figure>
 
-## ZeRO-2 - Sharding Gradients
+## ZeRO-2 Sharding Gradients
 
 While ZeRO-1 shards optimizer states, ZeRO-2 further optimizes memory by sharding the gradients themselves. ZeRO-1 reduces the memory footprint by approximately 38% (optimizers sharded across 8 GPUs), but each GPU still holds a full set of gradients during the backward pass.
 
