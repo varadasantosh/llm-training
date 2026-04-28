@@ -620,23 +620,17 @@ Table below captures the memory requirements for ZeRO Stage-1, memory required f
 - ZeRO-1: $(10 + 8/8)\phi = 11\phi$ ≈ 88 GB per GPU
 - **Saving: 38% reduction — 56 GB freed per GPU**
 
-## ZeRO Stage-2 - Sharding Gradients
+## ZeRO-2 - Sharding Gradients
 
-While ZeRO-1 shards optimizer states, ZeRO-2 further optimizes memory by sharding the gradients themselves. DDP setup with ZeRO Stage-1 reduces the memory footprint by approximately 38%, but each GPU still holds a full set of gradients during the backward pass.
+While ZeRO-1 shards optimizer states, ZeRO-2 further optimizes memory by sharding the gradients themselves. ZeRO-1 reduces the memory footprint by approximately 38%, but each GPU still holds a full set of gradients during the backward pass.
 
 ZeRO-2 exploits a key insight from ZeRO-1: After ReduceScatter in ZeRO-1, each GPU's gradient buffer remains allocated at full size ($4\phi$) - but only the owned shard contains 
-meaningful data (average gradients required for training). The remaining $4\phi$ - $4\phi/N$ sits allocated but unused until zero_gra() clears it. GPU memory is critical & scarce resource,  holding $4\phi$ when only $4\phi/N$ is needed is not efficient use of memory. After ReduceScatter ZeRO-2 deallocates memory of unused gradients. local optimizer only uses gradient shards & optimizer shards for updating respective parameters. By sharding gradients alongside optimizer states, ZeRO-2 eliminate's this redundancy.
+meaningful data (average gradients required for training). The remaining $4\phi$ - $4\phi/N$ sits allocated but unused until zero_grad() clears it. GPU memory is scarce resource, holding $4\phi$ when only $4\phi/N$ is needed is wasting resources. After ReduceScatter ZeRO-2 immediately deallocates memory of unused gradients buffer space. Each GPU retains only the gradient shard it needs for the local optimizer step — eliminating the redundancy
  
 
+The communication pattern, for ZeRO-2 is identical to ZeRO-1 — ReduceScatter followed by AllGather. The difference lies in immediately freeing non-owned gradient buffer space after ReduceScatter.
 
-### What Changes in ZeRO Stage-2
-
-The communication pattern, for ZeRO-2 is identical to ZeRO-1 — ReduceScatter followed by AllGather. the difference lies in immediately freeing non-owned gradient buffer space after ReduceScatter.
-
-The forward and backward passes are identical to ZeRO-1 — refer to that [section](#zero-stage-1---sharding-optimizer-states) for walkthrough of example workflow and training steps. The only difference occurs after ReduceScatter.
-
-
-In ZeRO-1, the Reduce-Scatter averages the relevant gradient shard but leaves the remaining redundant gradients in place, occupying memory . ZeRO-2 deallocate the non-owned shards. This changes gradients from redundant component into a sharded component, freeing up critical VRAM that scales linearly with the number of GPUs in your cluster. Only difference is freeing up the gradient shard memory but the communication pattern & training steps remains exactly same
+In ZeRO-1, the Reduce-Scatter averages the relevant gradient shard but leaves the remaining redundant gradients in place, occupying memory . ZeRO-2 deallocate the non-owned shards. This changes gradients from redundant component into a sharded component. Only difference is freeing up the gradient shard memory but the communication pattern in forward and backward passes are identical to ZeRO-1 — refer to that [section](#zero-stage-1---sharding-optimizer-states) for walkthrough of example workflow and training steps.
 
 **Before ReduceScatter:**
 
@@ -669,10 +663,10 @@ In ZeRO-1, the Reduce-Scatter averages the relevant gradient shard but leaves th
 
 After ReduceScatter (ZeRO-1):
 
-  GPU-0: $\text{averaged}(\nabla \text{W}_0)$| stale | stale | stale  | full $4\phi$ buffer |
-  GPU-1: stale | $\text{averaged}(\nabla \text{W}_1)$ | stale | stale | full $4\phi$ buffer |
-  GPU-2: stale | stale | $\text{averaged}(\nabla \text{W}_2)$ | stale | full $4\phi$ buffer |
-  GPU-3: stale | stale | stale | $\text{averaged}(\nabla \text{W}_3)$ | full $4\phi$ buffer |
+  GPU-0: $\text{averaged}(\nabla \text{W}_0)$| Unused | Unused | Unused  | full $4\phi$ buffer |
+  GPU-1: Unused | $\text{averaged}(\nabla \text{W}_1)$ | Unused | Unused | full $4\phi$ buffer |
+  GPU-2: Unused | Unused | $\text{averaged}(\nabla \text{W}_2)$ | Unused | full $4\phi$ buffer |
+  GPU-3: Unused | Unused | Unused | $\text{averaged}(\nabla \text{W}_3)$ | full $4\phi$ buffer |
 
 After ReduceScatter (ZeRO-2):
 
