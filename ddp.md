@@ -757,7 +757,7 @@ meaningful data (average gradients required for training). The remaining $4\phi$
 
 The communication pattern for ZeRO-2 is identical to ZeRO-1 — ReduceScatter followed by AllGather. The difference lies in immediately freeing non-owned gradient buffer space after ReduceScatter.
 
-In ZeRO-1, the Reduce-Scatter averages the relevant gradient shard but leaves the remaining redundant gradients in place, occupying memory . ZeRO-2 deallocate the non-owned shards. This changes gradients from redundant component into a sharded component. Only difference is freeing up the gradient shard memory but the communication pattern in forward and backward passes are identical to ZeRO-1 — refer to that [section](#zero-stage-1---sharding-optimizer-states) for walkthrough of example workflow and training steps.
+In ZeRO-1, the Reduce-Scatter averages the relevant gradient shard but leaves the remaining redundant gradients in place, occupying memory . ZeRO-2 deallocate the non-owned shards. This changes gradients from redundant component into a sharded component. Only difference is freeing up the gradient shard memory but the communication pattern in forward and backward passes are identical to ZeRO-1 — refer to that [section](#zero-1-sharding-optimizer-states) for walkthrough of example workflow and training steps.
 
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 24px 0;">
 
