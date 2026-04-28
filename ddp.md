@@ -659,13 +659,13 @@ In ZeRO-1, the Reduce-Scatter averages the relevant gradient shard but leaves th
   GPU-3: $\nabla \text{W}_4\text{_avg}$ = ($\nabla \text{W}_4^0 + \nabla \text{W}_4^1 + \nabla \text{W}_4^2 + \nabla \text{W}_4^3$) / 4
 
 
-  GPU-0 keeps: $\nabla \text{W}_1_\text{avg}$ frees: $\nabla \text{W}_2_\text{avg}$, $\nabla \text{W}_3_\text{avg}$, $\nabla \text{W}_4_\text{avg}$
+  GPU-0 keeps: $\nabla \text{W}_1\text{_avg}$ frees: $\nabla \text{W}_2_\text{avg}$, $\nabla \text{W}_3_\text{avg}$, $\nabla \text{W}_4_\text{avg}$
 
-  GPU-1 keeps: $\nabla \text{W}_2_\text{avg}$ frees: $\nabla \text{W}_1_\text{avg}$, $\nabla \text{W}_3_\text{avg}$, $\nabla \text{W}_4_\text{avg}$
+  GPU-1 keeps: $\nabla \text{W}_2\text{_avg}$ frees: $\nabla \text{W}_1_\text{avg}$, $\nabla \text{W}_3_\text{avg}$, $\nabla \text{W}_4_\text{avg}$
 
-  GPU-2 keeps: $\nabla \text{W}_3_\text{avtg}$ frees: $\nabla \text{W}_1_\text{avg}$, $\nabla \text{W}_2_\text{avg}$, $\nabla \text{W}_4_\text{avg}$
+  GPU-2 keeps: $\nabla \text{W}_3\text{_avg}$ frees: $\nabla \text{W}_1_\text{avg}$, $\nabla \text{W}_2_\text{avg}$, $\nabla \text{W}_4_\text{avg}$
 
-  GPU-3 keeps: $\nabla \text{W}_4_\text{avtg}$ frees: $\nabla \text{W}_1_\text{avg}$, $\nabla \text{W}_2_\text{avg}$, $\nabla \text{W}_3_\text{avg}$
+  GPU-3 keeps: $\nabla \text{W}_4\text{_avg}$ frees: $\nabla \text{W}_1_\text{avg}$, $\nabla \text{W}_2_\text{avg}$, $\nabla \text{W}_3_\text{avg}$
 
 After ReduceScatter (ZeRO-1):
 
