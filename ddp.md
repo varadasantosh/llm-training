@@ -1068,11 +1068,14 @@ ZeRO-1 and ZeRO-2 eliminated optimizer state and gradient redundancy respectivel
 
 ### Communication Pattern
 
-Communication pattern for ZeRO-1, ZeRO-2 is identical with **ReduceScatter** for averging gradients followed by **AllGather** for parameters to synchronize model across GPUs. Sharding gradients did not introduce additional communication overhead in ZeRO-2. One other important point to notice from ZeRO-1 & ZeRO-2 training steps is that since parameters are replicated across all GPUs, NCCL operation was not required during forward pass , they are only required after backward pass & before optimizer step.
+ZeRO-3 changes the communication pattern significantly compared to ZeRO-1 and ZeRO-2.
 
-By going through these steps we will be convinced that ZeRO-3 changes both above mentioned aspects. Parameters are sharded across N GPUs, forward pass requires all parameters to be present on each GPU hence **AllGather** for parameters is required, these prameters need to remain on each GPU to calculate local gradients on each GPU.
+In ZeRO-1 and ZeRO-2, parameters were fully replicated — no AllGather was needed during the forward or backward pass. AllGather only appeared once per iteration to synchronize updated parameters.
 
-After backward pass completes calculating local gradients, these parameters collected from other GPUs can be discarded, ReduceScatter averages gradient shards on respective GPUs followed by optimizer step, after optimizer step **AllGather** for parameters is required
+In ZeRO-3, parameters are sharded. Every GPU holds only its own parameter shard at rest. To compute the forward pass, each layer's parameters must be gathered from all GPUs, used, then immediately freed. The same happens during the backward pass. This means AllGather happens 
+per layer, twice per iteration — once forward, once backward.
+
+This is ZeRO-3's fundamental trade-off: memory is traded for communication.
 
 **Training path:**
 > All Gather Parameters → Forward Pass → Backward Pass → ReduceScatter → Local Optimizer Step
@@ -1146,64 +1149,321 @@ After backward pass completes calculating local gradients, these parameters coll
 
 ### Example Workflow
 
-For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W₃, W₄, we use 4 GPUs. Llama 3 uses no bias terms so we omit bias here.
+For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W₃, W₄ distributed across 4 GPUs. Llama 3 uses no bias terms so we omit bias here.
 
- 1. Each GPU initializes Parameters w₁,w₂,w₃,w₄ for respective shards owned by GPU
+<div class="ddp-note">
+  <span class="note-label">Key Difference from ZeRO-1/2</span>
+  In ZeRO-3, parameters are <strong>sharded at rest</strong>. Each GPU holds only 1/N of the model parameters permanently. To compute forward or backward passes, parameters must be gathered <strong>per-layer</strong>, used, then immediately discarded. This is ZeRO-3's fundamental trade-off: memory savings in exchange for increased communication.
+</div>
 
-    - GPU-0: W₁ ← owns parameter
-    - GPU-1: W₂ ← owns parameter
-    - GPU-2: W₃ ← owns parameter
-    - GPU-3: W4 ← owns parameter
+**1. Parameter Sharding (Initialization)**
 
- 2. Optimizer state shards (unique per GPU):
+Unlike ZeRO-1/2 where all GPUs hold complete parameters, ZeRO-3 partitions parameters across GPUs:
 
-    - GPU-0: (m₁, v₁)  ← owns optimizer states for W₁
-    - GPU-1: (m₂, v₂)  ← owns optimizer states for W₂
-    - GPU-2: (m₃, v₃)  ← owns optimizer states for W₃
-    - GPU-3: (m₄, v₄)  ← owns optimizer states for W₄
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 24px 0;">
 
-3. Each GPU requires parameters from other GPUs for forwrad pass , AllGather parameters
+<div>
+<h4 style="text-align:center; margin-bottom:12px; color:#dc3545;">ZeRO-1/2: Replicated Parameters</h4>
+<table style="width:100%; border-collapse:collapse; font-size:12px; border:2px solid #dc3545;">
+<thead>
+  <tr style="background:#dc3545; color:white;">
+    <th style="padding:8px; border:1px solid #dc3545;">GPU</th>
+    <th style="padding:8px; border:1px solid #dc3545;">Parameters Held</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-0</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#f8d7da;">W₁, W₂, W₃, W₄</td>
+  </tr>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-1</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#f8d7da;">W₁, W₂, W₃, W₄</td>
+  </tr>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-2</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#f8d7da;">W₁, W₂, W₃, W₄</td>
+  </tr>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-3</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#f8d7da;">W₁, W₂, W₃, W₄</td>
+  </tr>
+</tbody>
+</table>
+<p style="text-align:center; font-size:11px; color:#dc3545; margin-top:8px;">Memory: $6\phi$ per GPU (BF16 + FP32)</p>
+</div>
 
-   - GPU-0: X₀ → AllGather Parameters (W₁,W₂,W₃,W₄) →  forward(W₁,W₂,W₃,W₄) → Ŷ₀ → Loss₀
-   - GPU-1: X₁ → AllGather Parameters (W₁,W₂,W₃,W₄) →  forward(W₁,W₂,W₃,W₄) → Ŷ₁ → Loss₁
-   - GPU-2: X₂ → AllGather Parameters (W₁,W₂,W₃,W₄) →  forward(W₁,W₂,W₃,W₄) → Ŷ₂ → Loss₂
-   - GPU-3: X₃ → AllGather Parameters (W₁,W₂,W₃,W₄) →  forward(W₁,W₂,W₃,W₄) → Ŷ₃ → Loss₃
+<div>
+<h4 style="text-align:center; margin-bottom:12px; color:#9c36b5;">ZeRO-3: Sharded Parameters</h4>
+<table style="width:100%; border-collapse:collapse; font-size:12px; border:2px solid #9c36b5;">
+<thead>
+  <tr style="background:#9c36b5; color:white;">
+    <th style="padding:8px; border:1px solid #9c36b5;">GPU</th>
+    <th style="padding:8px; border:1px solid #9c36b5;">Parameters Held</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-0</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#e9d5f5; font-weight:600;">W₁ only</td>
+  </tr>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-1</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#e9d5f5; font-weight:600;">W₂ only</td>
+  </tr>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-2</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#e9d5f5; font-weight:600;">W₃ only</td>
+  </tr>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-3</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#e9d5f5; font-weight:600;">W₄ only</td>
+  </tr>
+</tbody>
+</table>
+<p style="text-align:center; font-size:11px; color:#9c36b5; margin-top:8px; font-weight:600;">Memory: $6\phi/N$ per GPU — 75% reduction</p>
+</div>
 
-4. Every GPU requires parameters fo computing local gradients for **all** parameters, requires AllGather parameters
+</div>
 
-   - GPU-0: AllGather Parameters (W₁,W₂,W₃,W₄) → [∇W₁⁰, ∇W₂⁰, ∇W₃⁰, ∇W₄⁰]  ← based on X₀
-   - GPU-1: AllGather Parameters (W₁,W₂,W₃,W₄) → [∇W₁¹, ∇W₂¹, ∇W₃¹, ∇W₄¹]  ← based on X₁
-   - GPU-2: AllGather Parameters (W₁,W₂,W₃,W₄) → [∇W₁², ∇W₂², ∇W₃², ∇W₄²]  ← based on X₂
-   - GPU-3: AllGather Parameters (W₁,W₂,W₃,W₄) → [∇W₁³, ∇W₂³, ∇W₃³, ∇W₄³]  ← based on X₃
+**2. Optimizer State Sharding (same as ZeRO-1/2)**
 
-5. Each GPU has different gradients — the model will diverge if these are not synchronized.
-   ReduceScatter averages gradients across all GPUs and distributes each shard to its responsible GPU:
+Each GPU initializes optimizer states only for its owned parameter shard:
 
-    - GPU-0: $\bar{\nabla} W_1 = \frac{1}{N} \sum_{i=0}^{N-1} \nabla W_1^i$
-    - GPU-1: $\bar{\nabla} W_2 = \frac{1}{N} \sum_{i=0}^{N-1} \nabla W_2^i$
-    - GPU-2: $\bar{\nabla} W_3 = \frac{1}{N} \sum_{i=0}^{N-1} \nabla W_3^i$
-    - GPU-3: $\bar{\nabla} W_4 = \frac{1}{N} \sum_{i=0}^{N-1} \nabla W_4^i$
+- GPU-0: $(m_1, v_1)$ ← optimizer states for W₁
+- GPU-1: $(m_2, v_2)$ ← optimizer states for W₂
+- GPU-2: $(m_3, v_3)$ ← optimizer states for W₃
+- GPU-3: $(m_4, v_4)$ ← optimizer states for W₄
 
-6. Each GPU receives the globally averaged gradient — identical to what AllReduce would have produced — just for its own shard. Each GPU now has two components required to update parameters for next iteration
+**3. Forward Pass — Per-Layer AllGather**
 
-   - The globally averaged gradient for its shard
-   - Its local optimizer states for that same shard
+This is where ZeRO-3 differs fundamentally. Each GPU needs the full model to compute forward pass, but parameters are sharded. The solution: gather parameters **layer-by-layer**, compute, then discard.
 
-   GPU-0 updates W₁ using its local (m₁, v₁) and ∇W₁_avg. Each GPU applies the same Adam update rule to its own shard — the mechanics are identical, only the parameters differ.
+<figure>
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:13px; border:2px solid #9c36b5;">
+<thead>
+  <tr style="background:#9c36b5; color:white;">
+    <th style="padding:10px; border:1px solid #9c36b5;">Layer</th>
+    <th style="padding:10px; border:1px solid #9c36b5;">Operation</th>
+    <th style="padding:10px; border:1px solid #9c36b5;">Memory State</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td style="padding:10px; border:1px solid #ddd; font-weight:600;">Layer 1 (W₁)</td>
+    <td style="padding:10px; border:1px solid #ddd;">AllGather W₁ from GPU-0 → compute → discard non-owned</td>
+    <td style="padding:10px; border:1px solid #ddd; font-size:11px;">Temporary: full W₁ on all GPUs</td>
+  </tr>
+  <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+    <td style="padding:10px; border:1px solid #ddd; font-weight:600;">Layer 2 (W₂)</td>
+    <td style="padding:10px; border:1px solid #ddd;">AllGather W₂ from GPU-1 → compute → discard non-owned</td>
+    <td style="padding:10px; border:1px solid #ddd; font-size:11px;">Temporary: full W₂ on all GPUs</td>
+  </tr>
+  <tr>
+    <td style="padding:10px; border:1px solid #ddd; font-weight:600;">Layer 3 (W₃)</td>
+    <td style="padding:10px; border:1px solid #ddd;">AllGather W₃ from GPU-2 → compute → discard non-owned</td>
+    <td style="padding:10px; border:1px solid #ddd; font-size:11px;">Temporary: full W₃ on all GPUs</td>
+  </tr>
+  <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+    <td style="padding:10px; border:1px solid #ddd; font-weight:600;">Layer 4 (W₄)</td>
+    <td style="padding:10px; border:1px solid #ddd;">AllGather W₄ from GPU-3 → compute → discard non-owned</td>
+    <td style="padding:10px; border:1px solid #ddd; font-size:11px;">Temporary: full W₄ on all GPUs</td>
+  </tr>
+</tbody>
+</table>
+<figcaption style="text-align:center; font-size:13px; color:#666; margin-top:8px;">Per-layer AllGather during forward pass — parameters gathered on-demand, then discarded</figcaption>
+</figure>
 
-  <d-aside>
-    <b>Adam update — GPU-0 updating W₁</b>
-    <pre style="font-size:0.75rem; margin-top:6px; line-height:1.6;">m₁ = β₁·m₁ + (1-β₁)·∇W₁_avg   ← 1st moment
-    v₁ = β₂·v₁ + (1-β₂)·(∇W₁_avg)² ← 2nd moment
+After forward pass completes:
+- GPU-0: X₀ → Ŷ₀ → Loss₀ (holds only W₁)
+- GPU-1: X₁ → Ŷ₁ → Loss₁ (holds only W₂)
+- GPU-2: X₂ → Ŷ₂ → Loss₂ (holds only W₃)
+- GPU-3: X₃ → Ŷ₃ → Loss₃ (holds only W₄)
 
-      m̂₁ = m₁ / (1-β₁ᵗ)  ← bias correction
-      v̂₁ = v₁ / (1-β₂ᵗ)
+**4. Backward Pass — Per-Layer AllGather (Again)**
 
-      W₁ = W₁ - η·m̂₁/(√v̂₁+ε)  ← parameter update</pre>
-      <p style="font-size:0.75rem; margin:6px 0 0;">$\beta_1$, $\beta_2$ — moment decay rates; $\eta$ — learning rate; $\epsilon$ — numerical stability constant. Each GPU runs this identically for its own shard.</p>
-  </d-aside>
+The backward pass requires the same per-layer AllGather pattern. For each layer, parameters are gathered, gradients computed, then non-owned parameters discarded:
 
-7. Synchronize Parameters across all GPUs using AllGather for parameters.
+- For each layer $i$ (in reverse order):
+  1. **AllGather** $W_i$ from its owner GPU
+  2. **Compute** local gradients $\nabla W_i^{\text{local}}$
+  3. **Discard** non-owned copy of $W_i$
+
+After backward pass, each GPU holds local gradients for **all** parameters:
+- GPU-0: $[\nabla W_1^0, \nabla W_2^0, \nabla W_3^0, \nabla W_4^0]$ ← based on X₀
+- GPU-1: $[\nabla W_1^1, \nabla W_2^1, \nabla W_3^1, \nabla W_4^1]$ ← based on X₁
+- GPU-2: $[\nabla W_1^2, \nabla W_2^2, \nabla W_3^2, \nabla W_4^2]$ ← based on X₂
+- GPU-3: $[\nabla W_1^3, \nabla W_2^3, \nabla W_3^3, \nabla W_4^3]$ ← based on X₃
+
+**5. ReduceScatter — Gradient Synchronization**
+
+Each GPU has different gradients — the model will diverge if these are not synchronized. ReduceScatter averages gradients across all GPUs and distributes each shard to its responsible GPU:
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 24px 0;">
+
+<div>
+<h4 style="text-align:center; margin-bottom:12px; color:#555;">Before ReduceScatter</h4>
+<p style="text-align:center; font-size:12px; color:#888; margin-bottom:12px;">Each GPU holds local gradients for all parameters</p>
+<table style="width:100%; border-collapse:collapse; font-size:12px; border:2px solid #6c757d;">
+<thead>
+  <tr style="background:#6c757d; color:white;">
+    <th style="padding:8px; border:1px solid #6c757d;">GPU</th>
+    <th style="padding:8px; border:1px solid #6c757d;">$\nabla W_1$</th>
+    <th style="padding:8px; border:1px solid #6c757d;">$\nabla W_2$</th>
+    <th style="padding:8px; border:1px solid #6c757d;">$\nabla W_3$</th>
+    <th style="padding:8px; border:1px solid #6c757d;">$\nabla W_4$</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-0</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla W_1^0$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla W_2^0$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla W_3^0$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla W_4^0$</td>
+  </tr>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-1</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla W_1^1$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla W_2^1$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla W_3^1$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla W_4^1$</td>
+  </tr>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-2</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla W_1^2$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla W_2^2$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla W_3^2$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla W_4^2$</td>
+  </tr>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-3</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla W_1^3$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla W_2^3$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla W_3^3$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#fff3cd;">$\nabla W_4^3$</td>
+  </tr>
+</tbody>
+</table>
+<p style="text-align:center; font-size:11px; color:#666; margin-top:8px;">Buffer: $4\phi$ per GPU</p>
+</div>
+
+<div>
+<h4 style="text-align:center; margin-bottom:12px; color:#9c36b5;">After ReduceScatter</h4>
+<p style="text-align:center; font-size:12px; color:#888; margin-bottom:12px;">Each GPU receives only its averaged shard</p>
+<table style="width:100%; border-collapse:collapse; font-size:12px; border:2px solid #9c36b5;">
+<thead>
+  <tr style="background:#9c36b5; color:white;">
+    <th style="padding:8px; border:1px solid #9c36b5;">GPU</th>
+    <th style="padding:8px; border:1px solid #9c36b5;">Owned Gradient</th>
+    <th style="padding:8px; border:1px solid #9c36b5;">Formula</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-0</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#e9d5f5; font-weight:600;">$\bar{\nabla}W_1$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; font-size:11px;">$\frac{1}{N}\sum_{i=0}^{N-1}\nabla W_1^i$</td>
+  </tr>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-1</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#e9d5f5; font-weight:600;">$\bar{\nabla}W_2$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; font-size:11px;">$\frac{1}{N}\sum_{i=0}^{N-1}\nabla W_2^i$</td>
+  </tr>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-2</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#e9d5f5; font-weight:600;">$\bar{\nabla}W_3$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; font-size:11px;">$\frac{1}{N}\sum_{i=0}^{N-1}\nabla W_3^i$</td>
+  </tr>
+  <tr>
+    <td style="padding:8px; border:1px solid #ddd; font-weight:600;">GPU-3</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; background:#e9d5f5; font-weight:600;">$\bar{\nabla}W_4$</td>
+    <td style="padding:8px; border:1px solid #ddd; text-align:center; font-size:11px;">$\frac{1}{N}\sum_{i=0}^{N-1}\nabla W_4^i$</td>
+  </tr>
+</tbody>
+</table>
+<p style="text-align:center; font-size:11px; color:#9c36b5; margin-top:8px; font-weight:600;">Buffer: $4\phi/N$ per GPU — non-owned gradients discarded</p>
+</div>
+
+</div>
+
+<p style="text-align:center; margin:16px 0; font-size:13px;">
+<span style="display:inline-block; width:12px; height:12px; background:#fff3cd; border:1px solid #ddd; margin-right:4px; vertical-align:middle;"></span> Local gradient (pre-averaging)
+&nbsp;&nbsp;
+<span style="display:inline-block; width:12px; height:12px; background:#e9d5f5; border:1px solid #ddd; margin-right:4px; vertical-align:middle;"></span> Globally averaged gradient (retained)
+</p>
+
+**6. Local Optimizer Step**
+
+Each GPU now has exactly what it needs to update its parameter shard:
+- The globally averaged gradient for its shard ($\bar{\nabla}W_i$)
+- Its local optimizer states for that shard ($(m_i, v_i)$)
+- Its local parameter shard ($W_i$)
+
+<d-aside>
+  <b>Adam update — GPU-0 updating W₁</b>
+  <pre style="font-size:0.75rem; margin-top:6px; line-height:1.6;">m₁ = β₁·m₁ + (1-β₁)·∇̄W₁   ← 1st moment
+v₁ = β₂·v₁ + (1-β₂)·(∇̄W₁)² ← 2nd moment
+
+m̂₁ = m₁ / (1-β₁ᵗ)  ← bias correction
+v̂₁ = v₁ / (1-β₂ᵗ)
+
+W₁ = W₁ - η·m̂₁/(√v̂₁+ε)  ← parameter update</pre>
+  <p style="font-size:0.75rem; margin:6px 0 0;">$\beta_1$, $\beta_2$ — moment decay rates; $\eta$ — learning rate; $\epsilon$ — numerical stability constant. Each GPU runs this identically for its own shard.</p>
+</d-aside>
+
+**7. End of Iteration — Parameters Remain Sharded**
+
+<div class="ddp-note">
+  <span class="note-label">Critical Difference from ZeRO-1/2</span>
+  Unlike ZeRO-1/2, there is <strong>no final AllGather</strong> to synchronize parameters. Each GPU keeps only its updated parameter shard. The full model is reconstructed on-demand during the next iteration's forward pass via per-layer AllGather operations.
+</div>
+
+After optimizer step:
+- GPU-0: updated W₁ (holds only W₁)
+- GPU-1: updated W₂ (holds only W₂)
+- GPU-2: updated W₃ (holds only W₃)
+- GPU-3: updated W₄ (holds only W₄)
+
+The iteration is complete. Parameters remain sharded. The next iteration begins with Step 3 (Forward Pass), where AllGather reconstructs parameters layer-by-layer as needed.
+
+### Communication Cost Trade-off
+
+ZeRO-3's memory savings come at the cost of increased communication:
+
+<figure>
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:13px; border:2px dashed #555;">
+<thead>
+  <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+    <th style="padding:10px 12px; border:2px dashed #555; text-align:left;">Stage</th>
+    <th style="padding:10px 12px; border:2px dashed #555; text-align:center;">AllGather Calls/Iteration</th>
+    <th style="padding:10px 12px; border:2px dashed #555; text-align:center;">ReduceScatter Calls/Iteration</th>
+    <th style="padding:10px 12px; border:2px dashed #555; text-align:center;">Total Volume</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td style="padding:10px 12px; border:2px dashed #555; font-weight:600; color:#1971c2;">ZeRO-1</td>
+    <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">1 (after optimizer)</td>
+    <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">1 (gradient sync)</td>
+    <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$2\phi$</td>
+  </tr>
+  <tr>
+    <td style="padding:10px 12px; border:2px dashed #555; font-weight:600; color:#2f9e44;">ZeRO-2</td>
+    <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">1 (after optimizer)</td>
+    <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">1 (gradient sync)</td>
+    <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$2\phi$</td>
+  </tr>
+  <tr style="background:rgba(156, 54, 181, 0.05);">
+    <td style="padding:10px 12px; border:2px dashed #555; font-weight:600; color:#9c36b5;">ZeRO-3</td>
+    <td style="padding:10px 12px; border:2px dashed #555; text-align:center; font-weight:600;">2L (L per forward + L per backward)</td>
+    <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">1 (gradient sync)</td>
+    <td style="padding:10px 12px; border:2px dashed #555; text-align:center; font-weight:600;">$(2L+1)\phi$</td>
+  </tr>
+</tbody>
+</table>
+<figcaption style="text-align:center; font-size:13px; color:#666; margin-top:8px;">L = number of layers. ZeRO-3 trades memory for communication — essential for models that don't fit in GPU memory even with ZeRO-2.</figcaption>
+</figure>
 
 ### Memory Comparison: DDP vs ZeRO-1 vs ZeRO-2 vs ZeRO-3
 
