@@ -869,7 +869,7 @@ In ZeRO-1, the Reduce-Scatter averages the relevant gradient shard but leaves th
     </tr>
 </tbody>
 </table>
-<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 5: Memory Distribution Comparison — DDP vs ZeRO-1 vs ZeRO-2</figcaption>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 6: Memory Distribution Comparison — DDP vs ZeRO-1 vs ZeRO-2</figcaption>
 </figure>
 
 <p style="text-align:center; font-size:12px; margin-top:8px;">
@@ -915,7 +915,7 @@ In ZeRO-1, the Reduce-Scatter averages the relevant gradient shard but leaves th
     </tr>
 </tbody>
 </table>
-<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 6: Memory Savings for Llama 3 8B ($\phi$ = 8B parameters, N = 8 GPUs)</figcaption>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 7: Memory Savings for Llama 3 8B ($\phi$ = 8B parameters, N = 8 GPUs)</figcaption>
 </figure>
 
 ## ZeRO Stage-3
@@ -953,7 +953,7 @@ AllReduce takes a tensor that exists on every GPU, applies a reduction (sum or a
   </tr>
 </tbody>
 </table>
-<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 6: AllReduce as Two Phases — ReduceScatter followed by AllGather</figcaption>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 8: AllReduce as Two Phases — ReduceScatter followed by AllGather</figcaption>
 </figure>
 
 Total data transferred per GPU: $2 \times \frac{(N-1)}{N} \times \text{tensor\_size}$. For large N this approaches $2 \times \text{tensor\_size}$, and crucially this cost does not grow with N — adding more GPUs does not increase the per-GPU communication volume.
