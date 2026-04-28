@@ -1069,10 +1069,85 @@ While ZeRO-1 & ZeRO-2 reduces memory required for storing model by sharding opti
 
 ### Communication Pattern
 
-Communication pattern for ZeRO-1, ZeRO-2 is identicaly with **ReduceScatter** for averging gradients, followed by **AllGather** for parameters to synchronize model across GPUs, sharding gradients did not introduce additional communication overhead, but this is not the case for ZeRO-3. One other important point to notice is since parameters are replicated across all GPUs NCCL operation was not required during forward pass , it was only required after backward pass & before optimizer step.
+Communication pattern for ZeRO-1, ZeRO-2 is identical with **ReduceScatter** for averging gradients followed by **AllGather** for parameters to synchronize model across GPUs. Sharding gradients did not introduce additional communication overhead in ZeRO-2. One other important point to notice from ZeRO-1 & ZeRO-2 training steps is that since parameters are replicated across all GPUs, NCCL operation was not required during forward pass , they are only required after backward pass & before optimizer step.
 
-ZeRO-3
+By going through these steps we will be convinced that ZeRO-3 changes both above mentioned aspects. Parameters are sharded across N GPUs, forward pass requires all parameters to be present on each GPU hence **AllGather** for parameters is required, these prameters need to remain on each GPU to calculate local gradients on each GPU.
 
+After backward pass completes calculating local gradients, these parameters collected from other GPUs can be discarded, ReduceScatter averages gradient shards on respective GPUs followed by optimizer step, after optimizer step **AllGather** for parameters is required
+
+**Training path:**
+> All Gather Parameters => Forward Pass → Backward Pass → ReduceScatter → Local Optimizer Step
+> → All Gather Parameters  
+
+<span class="step-tag"><span class="step-num">1</span>AllGather Parameters</span>
+
+<span class="step-tag"><span class="step-num">2</span>Forward + Backward Pass</span>
+
+<span class="step-tag"><span class="step-num">3</span>ReduceScatter</span>
+
+<span class="step-tag"><span class="step-num">4</span>Optimizer Step</span>
+
+> Repeat Steps 1-5 until model convergence
+
+### Training Steps
+<figure>
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
+<thead>
+    <tr style="text-align:left;">
+      <th style="padding:10px 12px; border:2px dashed #555;">Step</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">What Happens</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">NCCL Operation</th>
+    </tr>
+</thead>
+<tbody>
+    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>1. Initialize</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Model parameters sharded across N GPUs. Gradients initialized to zero.</td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>Scatter</strong></td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>2. Data Split</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Global batch is divided into micro-batches, one per GPU</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">None (data loader handles this)</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>3. Initialize Optimizer State Shards</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU initializes only its assigned optimizer state shard to zero</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">None</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>4. Forward Pass</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU requires all parameters to computes forward pass on its micro-batch independently</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">AllGather Parameters</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>5. Backward Pass</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU locally computes gradients for its micro-batch</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">None</td>
+    </tr>
+    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>6. Gradient Sync</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Gradients averaged across all GPUs; each GPU receives only its assigned gradient shard</td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>ReduceScatter</strong></td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>7. Optimizer Step</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU updates its parameter shard using its local gradient and optimizer state shards</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">None</td>
+    </tr>
+    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>8. Gather Updated Params</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Updated parameter shards broadcast to all GPUs; full model reconstructed</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">AllGather</td>
+    </tr>
+    
+  </tbody>
+</table>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 3: ZeRO Stage-1 Training Steps</figcaption>
+</figure>
+
+
+Each GPU computes its local gradients during the backward pass. ReduceScatter then averages these gradients across all GPUs — but instead of returning the full averaged tensor to everyone, it distributes different shards to different GPUs:
 
 ## NCCL Operations
 
