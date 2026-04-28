@@ -636,10 +636,10 @@ Each GPU performs forward pass using fully replicated weights and input shard as
 
 After ReduceScatter (ZeRO-1):
 
-  GPU-0: [$\text{averaged}(\nabla \text{W}_0)$| stale | stale | stale]  ← full $4\phi$ buffer
-  GPU-1: [stale | $\text{averaged}(\nabla \text{W}_1)$ | stale | stale]  ← full $4\phi$ buffer
-  GPU-2: [stale | stale | $\text{averaged}(\nabla \text{W}_2)$ | stale]  ← full $4\phi$ buffer
-  GPU-3: [stale | stale | stale | $\text{averaged}(\nabla \text{W}_3)$]  ← full $4\phi$ buffer
+  GPU-0: $\text{averaged}(\nabla \text{W}_0)$| stale | stale | stale  ← full $4\phi$ buffer
+  GPU-1: stale | $\text{averaged}(\nabla \text{W}_1)$ | stale | stale  ← full $4\phi$ buffer
+  GPU-2: stale | stale | $\text{averaged}(\nabla \text{W}_2)$ | stale  ← full $4\phi$ buffer
+  GPU-3: stale | stale | stale | $\text{averaged}(\nabla \text{W}_3)$  ← full $4\phi$ buffer
 
 After ReduceScatter (ZeRO-2):
 
