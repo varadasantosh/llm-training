@@ -706,7 +706,7 @@ After ReduceScatter (ZeRO-2):
       <td style="padding:10px 12px; border:2px dashed #555;">Gradients FP32</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$4\phi$</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$4\phi/N$</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">✓ Every GPU</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">✗ Sharded across N GPUs</td>
     </tr>
     <tr>
       <td style="padding:10px 12px; border:2px dashed #555;">Optimizer State $m_t$ ,$v_t$ FP32 </td>
@@ -714,7 +714,7 @@ After ReduceScatter (ZeRO-2):
       <td style="padding:10px 12px; border:2px dashed #555;">$8\phi/N$</td>
       <td style="padding:10px 12px; border:2px dashed #555;">✗ Sharded across N GPUs</td>
     </tr>
-    
+
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>Total</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>$(10 + 8/N)\phi$</strong></td>
