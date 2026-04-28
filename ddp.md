@@ -620,18 +620,36 @@ Table below captures the memory requirements for ZeRO Stage-1, memory required f
 - ZeRO-1: $(10 + 8/8)\phi = 11\phi$ ≈ 88 GB per GPU
 - **Saving: 38% reduction — 56 GB freed per GPU**
 
-## ZeRO Stage-2
+## ZeRO Stage-2 - Sharding Gradients
 
-This stage further continues to optimize memory requirements for a model by further reducing the redundancy present in storing model components, stage-1 reduced memory foot print by 38%  
+While ZeRO-1 shards optimizer states, ZeRO-2 further optimizes memory by sharding the gradients themselves. DDP setup with ZeRO Stage-1 reduces the memory footprint by approximately 38%, but each GPU still holds a full set of gradients during the backward pass.
 
-From looking at the training steps involved in - forward & backward pass for stage-1, we can see that though full set of gradients and parameters copied to all the GPUs but each GPU only updates the parameter shard for which the optimizer states are available on that GPU, which means the gradients related to the parameters not being updated still occupies memory but they are not being used for updating parameters. ZeRO Stage-2 take advantage of this idea and divides the gradients along with optimizer shards.
+ZeRO-2 exploits a key architectural insight: After ReduceScatter in ZeRO-1, each GPU's gradient buffer remains allocated at full size ($4\phi$), during the optimizer step gradients for all other parameter shards sit in memory — unused. Since only specific gradients are used on each GPU, this is not efficient usage of memory , especially consdiering GPU memory is critical resource, as there are unused gradient shards remaining after ReduceScatter & local optimizer step we do not need to maintain the full gradient buffer. By sharding gradients alongside optimizer states, we eliminate this redundancy.
 
-### Communication Pattern
 
-Except for sharding gradients communication pattern for stage-1 & stage-2 looks exactly similar, in stage-1 as well only gradients for the respective shard are averaged across all GPUs using ReduceScatter, same steps are repeate. Gradient shards are averaged across all GPUs, each GPU contains only gradients for their respective shard and these gradients are again result of loss calculated for microbatch assigned to each GPU.
 
-Since gradients are also sharded, now to calculate local gradients, every GPU needs to share the gradients with other GPUs(scatter phase). Once the local gradients are calculated on each GPU , for averaging(reduce phase) each gradient is moved to GPU it is assigned to and discards the gradients gathered from other GPUs 
+### What Changes in ZeRO Stage-2
 
+The communication pattern, for ZeRO-2 is identical to ZeRO-1 — ReduceScatter followed by AllGather. The difference is only in freeing up gradient shards not used for updating parameters.
+
+Each GPU performs forward pass using fully replicated weights and input shard assigned to it &  during backward pass local gradients are calculated w.r.t micro-batch assigned to it.
+
+After ReduceScatter (ZeRO-1):
+
+  GPU-0: [$\text{averaged}(\abla \text{W}_0)$| stale | stale | stale]  ← full $4\phi$ buffer
+  GPU-1: [stale | $\text{averaged}(\abla \text{W}_1)$ | stale | stale]  ← full $4\phi$ buffer
+  GPU-2: [stale | stale | $\text{averaged}(\abla \text{W}_2)$ | stale]  ← full $4\phi$ buffer
+  GPU-3: [stale | stale | stale | $\text{averaged}(\abla \text{W}_3)$]  ← full $4\phi$ buffer
+
+After ReduceScatter (ZeRO-2):
+
+  GPU-0: [$\text{averaged}(\abla \text{W}_0)$]  ← buffer reduced to $4\phi/N$
+  GPU-1: [$\text{averaged}(\abla \text{W}_1)$]  ← buffer reduced to $4\phi/N$
+  GPU-2: [$\text{averaged}(\abla \text{W}_2)$]  ← buffer reduced to $4\phi/N$
+  GPU-3: [$\text{averaged}(\abla \text{W}_3)$]  ← buffer reduced to $4\phi/N$
+
+**Training path:**
+> Forward Pass → Backward Pass → ReduceScatter → Discard unused Gradients  → Local Optimizer Step → AllGather
 
 
 
