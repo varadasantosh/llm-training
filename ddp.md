@@ -624,7 +624,7 @@ Table below captures the memory requirements for ZeRO Stage-1, memory required f
 
 While ZeRO-1 shards optimizer states, ZeRO-2 further optimizes memory by sharding the gradients themselves. DDP setup with ZeRO Stage-1 reduces the memory footprint by approximately 38%, but each GPU still holds a full set of gradients during the backward pass.
 
-ZeRO-2 exploits a key architectural insight: After ReduceScatter in ZeRO-1, each GPU's gradient buffer remains allocated at full size ($4\phi$), during the optimizer step gradients for all other parameter shards sit in memory — unused. Since only specific gradients are used on each GPU, this is not efficient usage of memory , especially consdiering GPU memory is critical resource, as there are unused gradient shards remaining after ReduceScatter & local optimizer step we do not need to maintain the full gradient buffer. By sharding gradients alongside optimizer states, we eliminate this redundancy.
+ZeRO-2 exploits a key architectural insight: After ReduceScatter in ZeRO-1, each GPU's gradient buffer remains allocated at full size ($4\phi$), during the optimizer step gradients for all other parameter shards sit in memory **unused**.  Only specific gradients are used on each GPU. considering GPU memory is critical & scarce resource, this is not efficient use of memory. ZeRO-2 shards unused gradient after ReduceScatter & deletes the memory allocated for unused gradients. local optimizer only uses gradient shards & optimizer shards for updating respective parameters. By sharding gradients alongside optimizer states, ZeRO-2 eliminate this redundancy.
 
 
 
@@ -636,17 +636,17 @@ Each GPU performs forward pass using fully replicated weights and input shard as
 
 After ReduceScatter (ZeRO-1):
 
-  GPU-0: [$\text{averaged}(\abla \text{W}_0)$| stale | stale | stale]  ← full $4\phi$ buffer
-  GPU-1: [stale | $\text{averaged}(\abla \text{W}_1)$ | stale | stale]  ← full $4\phi$ buffer
-  GPU-2: [stale | stale | $\text{averaged}(\abla \text{W}_2)$ | stale]  ← full $4\phi$ buffer
-  GPU-3: [stale | stale | stale | $\text{averaged}(\abla \text{W}_3)$]  ← full $4\phi$ buffer
+  GPU-0: [$\text{averaged}(\nabla \text{W}_0)$| stale | stale | stale]  ← full $4\phi$ buffer
+  GPU-1: [stale | $\text{averaged}(\nabla \text{W}_1)$ | stale | stale]  ← full $4\phi$ buffer
+  GPU-2: [stale | stale | $\text{averaged}(\nabla \text{W}_2)$ | stale]  ← full $4\phi$ buffer
+  GPU-3: [stale | stale | stale | $\text{averaged}(\nabla \text{W}_3)$]  ← full $4\phi$ buffer
 
 After ReduceScatter (ZeRO-2):
 
-  GPU-0: [$\text{averaged}(\abla \text{W}_0)$]  ← buffer reduced to $4\phi/N$
-  GPU-1: [$\text{averaged}(\abla \text{W}_1)$]  ← buffer reduced to $4\phi/N$
-  GPU-2: [$\text{averaged}(\abla \text{W}_2)$]  ← buffer reduced to $4\phi/N$
-  GPU-3: [$\text{averaged}(\abla \text{W}_3)$]  ← buffer reduced to $4\phi/N$
+  GPU-0: [$\text{averaged}(\nabla \text{W}_0)$]  ← buffer reduced to $4\phi/N$
+  GPU-1: [$\text{averaged}(\nabla \text{W}_1)$]  ← buffer reduced to $4\phi/N$
+  GPU-2: [$\text{averaged}(\nabla \text{W}_2)$]  ← buffer reduced to $4\phi/N$
+  GPU-3: [$\text{averaged}(\nabla \text{W}_3)$]  ← buffer reduced to $4\phi/N$
 
 **Training path:**
 > Forward Pass → Backward Pass → ReduceScatter → Discard unused Gradients  → Local Optimizer Step → AllGather
