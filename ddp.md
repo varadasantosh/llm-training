@@ -1059,12 +1059,11 @@ The communication pattern is identical to ZeRO-1 — ReduceScatter followed by A
 </figure>
 
 
-> ZeRO-2 saves memory by $N-1/N\phi$ Bytes by sharding optimizer & gradients without extract
-> communication over head
+> ZeRO-2 saves memory by $\frac{N-1}{N}\phi$ Bytes by sharding optimizer states & gradients without extra communication overhead
 
 ## ZeRO-3 Sharding Parameters
 
-ZeRO-1 and ZeRO-2 eliminated optimizer state and gradient redundancy respectively. One component remains fully replicated across every GPU i.e. parameters. It is easy to guess that ZeRO-3 shards parameters across N GPUs ,  optimizer steps part of training loop is updating only respective parameters for which the gradient and optimizer states are present on the GPU, hence storing full parameter set on each GPU is redundtant this again reinforces the efficient use of GPU memory. If GPU memory is not used responsibly this will significantly impact training process and increeases time taken for training, not only that but it also impact copying large scale models to GPU.
+ZeRO-1 shards optimizer states; ZeRO-2 additionally shards gradients. One component remains fully replicated on every GPU after both stages: the parameter tensors — $2\phi$ bytes of BF16 working copy and $4\phi$ bytes of FP32 master copy per device. ZeRO-3 eliminates this final redundancy by partitioning parameters across N GPUs, so each GPU owns and stores only $\phi/N$ parameters at rest. Since the optimizer step updates only owned parameters — and gradients and optimizer states are already aligned to the same ownership boundaries — no full parameter copy is needed between iterations.
 
 ### Communication Pattern
 
@@ -1105,43 +1104,43 @@ This is ZeRO-3's fundamental trade-off: memory is traded for communication.
 </thead>
 <tbody>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>1.Initialize</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>1. Initialize</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Each GPU initializes its own parameter shard locally</td>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>None</strong></td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>2.Data Split</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>2. Data Split</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Global batch is divided into micro-batches, one per GPU</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None (data loader handles this)</td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>3.Initialize Optimizer State Shards</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>3. Initialize Optimizer State Shards</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Each GPU initializes only its assigned optimizer state shard to zero</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None</td>
     </tr>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>4.Forward Pass</strong></td>
-      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU requires all parameters to computes forward pass on its micro-batch independently</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">AllGather Parameters</td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>4. Forward Pass</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU gathers each layer's parameters on demand, computes the forward pass, then discards non-owned parameters</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">AllGather Parameters (per layer)</td>
     </tr>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>5.Backward Pass</strong></td>
-      <td style="padding:10px 12px; border:2px dashed #555;">Each GPU requires all parameters to locally computes gradients for its micro-batch</td>
-      <td style="padding:10px 12px; border:2px dashed #555;">AllGather Paraemeters</td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>5. Backward Pass</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Same per-layer gather pattern in reverse; local gradients computed for each layer, then non-owned parameters discarded</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">AllGather Parameters (per layer)</td>
     </tr>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>6.Gradient Sync</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>6. Gradient Sync</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Gradients averaged across all GPUs; each GPU receives only its assigned gradient shard</td>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>ReduceScatter</strong></td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>7.Optimizer Step</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>7. Optimizer Step</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Each GPU updates its parameter shard using its local gradient and optimizer state shards</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None</td>
     </tr>
   </tbody>
 </table>
-<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 3: ZeRO Stage-1 Training Steps</figcaption>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 3: ZeRO Stage-3 Training Steps</figcaption>
 </figure>
 
 
@@ -1219,7 +1218,7 @@ Unlike ZeRO-1/2 where all GPUs hold complete parameters, ZeRO-3 partitions param
   </tr>
 </tbody>
 </table>
-<p style="text-align:center; font-size:11px; color:#9c36b5; margin-top:8px; font-weight:600;">Memory: $6\phi/N$ per GPU — 75% reduction</p>
+<p style="text-align:center; font-size:11px; color:#9c36b5; margin-top:8px; font-weight:600;">Memory: $6\phi/N$ per GPU — $(N-1)/N$ reduction</p>
 </div>
 
 </div>
@@ -1456,11 +1455,11 @@ ZeRO-3's memory savings come at the cost of increased communication:
     <td style="padding:10px 12px; border:2px dashed #555; font-weight:600; color:#9c36b5;">ZeRO-3</td>
     <td style="padding:10px 12px; border:2px dashed #555; text-align:center; font-weight:600;">2L (L per forward + L per backward)</td>
     <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">1 (gradient sync)</td>
-    <td style="padding:10px 12px; border:2px dashed #555; text-align:center; font-weight:600;">$(2L+1)\phi$</td>
+    <td style="padding:10px 12px; border:2px dashed #555; text-align:center; font-weight:600;">$3\phi$</td>
   </tr>
 </tbody>
 </table>
-<figcaption style="text-align:center; font-size:13px; color:#666; margin-top:8px;">L = number of layers. ZeRO-3 trades memory for communication — essential for models that don't fit in GPU memory even with ZeRO-2.</figcaption>
+<figcaption style="text-align:center; font-size:13px; color:#666; margin-top:8px;">ZeRO-3 trades memory for communication — the 2L per-layer AllGathers total $2\phi$ bytes (same as a single AllGather), plus $\phi$ for ReduceScatter = $3\phi$ total. Essential for models that don't fit in GPU memory even with ZeRO-2.</figcaption>
 </figure>
 
 ### Memory Comparison: DDP vs ZeRO-1 vs ZeRO-2 vs ZeRO-3
@@ -1473,7 +1472,7 @@ ZeRO-3's memory savings come at the cost of increased communication:
       <th style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#dc3545; color:white;" colspan="2">DDP</th>
       <th style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#1971c2; color:white;" colspan="2">ZeRO-1</th>
       <th style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#2f9e44; color:white;" colspan="2">ZeRO-2</th>
-      <th style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#2f9e44; color:white;" colspan="2">ZeRO-3</th>
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#9c36b5; color:white;" colspan="2">ZeRO-3</th>
     </tr>
     <tr>
       <th style="padding:8px; border:2px dashed #555; text-align:center; font-size:11px;">Memory</th>
