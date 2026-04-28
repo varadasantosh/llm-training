@@ -625,7 +625,7 @@ Table below captures the memory requirements for ZeRO Stage-1, memory required f
 While ZeRO-1 shards optimizer states, ZeRO-2 further optimizes memory by sharding the gradients themselves. DDP setup with ZeRO Stage-1 reduces the memory footprint by approximately 38%, but each GPU still holds a full set of gradients during the backward pass.
 
 ZeRO-2 exploits a key insight from ZeRO-1: After ReduceScatter in ZeRO-1, each GPU's gradient buffer remains allocated at full size ($4\phi$) - but only the owned shard contains 
-meaningful data (average gradients required for training). The remaining $4\phi$ - $4\phi/N$ sits allocated but unused until zero_gra() clears it. GPU memory is critical & scarce resource,Holding $4\phi$ when only $4\phi/N$ is needed is not efficient use of memory. After ReduceScatter ZeRO-2 deallocates memory of unused gradients. local optimizer only uses gradient shards & optimizer shards for updating respective parameters. By sharding gradients alongside optimizer states, ZeRO-2 eliminate's this redundancy.
+meaningful data (average gradients required for training). The remaining $4\phi$ - $4\phi/N$ sits allocated but unused until zero_gra() clears it. GPU memory is critical & scarce resource,  holding $4\phi$ when only $4\phi/N$ is needed is not efficient use of memory. After ReduceScatter ZeRO-2 deallocates memory of unused gradients. local optimizer only uses gradient shards & optimizer shards for updating respective parameters. By sharding gradients alongside optimizer states, ZeRO-2 eliminate's this redundancy.
  
 
 
@@ -637,6 +637,35 @@ The forward and backward passes are identical to ZeRO-1 — refer to that [secti
 
 
 In ZeRO-1, the Reduce-Scatter averages the relevant gradient shard but leaves the remaining redundant gradients in place, occupying memory . ZeRO-2 deallocate the non-owned shards. This changes gradients from redundant component into a sharded component, freeing up critical VRAM that scales linearly with the number of GPUs in your cluster. Only difference is freeing up the gradient shard memory but the communication pattern & training steps remains exactly same
+
+**Before ReduceScatter:**
+
+  GPU-0: [ $\nabla \text{W}_1^0$, $\nabla \text{W}_2^0$, $\nabla \text{W}_3^0$, $\nabla \text{W}_4^0$ ]
+
+  GPU-1: [$\nabla \text{W}_1^1$, $\nabla \text{W}_2^1$, $\nabla \text{W}_3^1$, $\nabla \text{W}_4^1$ ]
+
+  GPU-2: $\nabla \text{W}_1^2$, $\nabla \text{W}_2^2$, $\nabla \text{W}_3^2$, $\nabla \text{W}_4^2$ 
+
+  GPU-3: $\nabla \text{W}_1^3$, $\nabla \text{W}_2^3$, $\nabla \text{W}_3^3$, $\nabla \text{W}_4^3$ 
+
+**After ReduceScatter:**
+
+  GPU-0: $\nabla \text{W}_1_\text{avg}$ = ($\nabla \text{W}_1^0$ + $\nabla \text{W}_1^1$ + $\nabla \text{W}_1^2$ + $\nabla \text{W}_1^3$) / 4
+
+  GPU-1: $\nabla \text{W}_2_\text{avg}$ = ($\nabla \text{W}_2^0$ + $\nabla \text{W}_2^1$ + $\nabla \text{W}_2^2$ + $\nabla \text{W}_2^3$) / 4
+
+  GPU-2: $\nabla \text{W}_3_\text{avtg}$ = ($\nabla \text{W}_3^0$ + $\nabla \text{W}_3^1$ + $\nabla \text{W}_3^2$ + $\nabla \text{W}_3^3$) / 4
+
+  GPU-3: $\nabla \text{W}_4_\text{avtg}$ = ($\nabla \text{W}_4^0$ + $\nabla \text{W}_4^1$ + $\nabla \text{W}_4^2$ + $\nabla \text{W}_4^3$) / 4
+
+
+  GPU-0 keeps: $\nabla \text{W}_1_\text{avg}$ frees: $\nabla \text{W}_2_\text{avg}$, $\nabla \text{W}_3_\text{avg}$, $\nabla \text{W}_4_\text{avg}$
+
+  GPU-1 keeps: $\nabla \text{W}_2_\text{avg}$ frees: $\nabla \text{W}_1_\text{avg}$, $\nabla \text{W}_3_\text{avg}$, $\nabla \text{W}_4_\text{avg}$
+
+  GPU-2 keeps: $\nabla \text{W}_3_\text{avtg}$ frees: $\nabla \text{W}_1_\text{avg}$, $\nabla \text{W}_2_\text{avg}$, $\nabla \text{W}_4_\text{avg}$
+
+  GPU-3 keeps: $\nabla \text{W}_4_\text{avtg}$ frees: $\nabla \text{W}_1_\text{avg}$, $\nabla \text{W}_2_\text{avg}$, $\nabla \text{W}_3_\text{avg}$
 
 After ReduceScatter (ZeRO-1):
 
@@ -651,6 +680,9 @@ After ReduceScatter (ZeRO-2):
   GPU-1: $\text{averaged}(\nabla \text{W}_1)$  ← buffer reduced to $4\phi/N$ <br>
   GPU-2: $\text{averaged}(\nabla \text{W}_2)$  ← buffer reduced to $4\phi/N$ <br>
   GPU-3: $\text{averaged}(\nabla \text{W}_3)$  ← buffer reduced to $4\phi/N$ <br>
+
+
+
 
 **Training path:**
 > Forward Pass → Backward Pass → ReduceScatter → Discard unused Gradients  → Local Optimizer Step → AllGather
