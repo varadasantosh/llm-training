@@ -376,7 +376,7 @@ But looking carefully at what every GPU is holding, it is evident that static me
 </figure>
 
 
-## ZeRO Stage-1 - Sharding Optimizer States
+## ZeRO-1 - Sharding Optimizer States
 
 Vanilla DDP shards data across GPUs — each GPU sees a different slice of the training data. ZeRO extends this by also sharding the model state itself: parameters, gradients, and optimizer states. 
 
@@ -676,12 +676,8 @@ After ReduceScatter (ZeRO-2):
   GPU-2: $\text{averaged}(\nabla \text{W}_2)$  ← buffer reduced to $4\phi/N$ <br>
   GPU-3: $\text{averaged}(\nabla \text{W}_3)$  ← buffer reduced to $4\phi/N$ <br>
 
-
-
-
 **Training path:**
 > Forward Pass → Backward Pass → ReduceScatter → Discard unused Gradients  → Local Optimizer Step → AllGather
-
 
 <figure>
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
@@ -720,8 +716,7 @@ After ReduceScatter (ZeRO-2):
     </tr>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>Total</strong></td>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>$(10 + 8/N)\phi$</
-      strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>$(10 + 8/N)\phi$</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>$(6 + 12/N)\phi$</
       strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;"></td>
