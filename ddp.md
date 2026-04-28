@@ -1077,7 +1077,7 @@ After backward pass completes calculating local gradients, these parameters coll
 
 **Training path:**
 > All Gather Parameters => Forward Pass → Backward Pass → ReduceScatter → Local Optimizer Step
-> → All Gather Parameters  
+> → All Gather Parameters
 
 <span class="step-tag"><span class="step-num">1</span>AllGather Parameters</span>
 
