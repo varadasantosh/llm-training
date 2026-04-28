@@ -1258,10 +1258,9 @@ For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W
    ReduceScatter averages gradients across all GPUs and distributes each shard to its responsible GPU:
 
     - GPU-0: $\bar{\nabla} W_1 = \frac{1}{N} \sum_{i=0}^{N-1} \nabla W_1^i$
-
-    - GPU-1: $\bar{\nabla}\text{W}_2$ = $\frac{1}{N}\sum_{i=0}^{N-1}\nabla\text{W}_2^i$
-    - GPU-2: $\bar{\nabla}\text{W}_3$ = $\frac{1}{N}\sum_{i=0}^{N-1}\nabla\text{W}_3^i$
-    - GPU-3: $\bar{\nabla}\text{W}_1$ = $\frac{1}{N}\sum_{i=0}^{N-1}\nabla\text{W}_4^i$
+    - GPU-1: $\bar{\nabla} W_2 = \frac{1}{N} \sum_{i=0}^{N-1} \nabla W_2^i$
+    - GPU-2: $\bar{\nabla} W_3 = \frac{1}{N} \sum_{i=0}^{N-1} \nabla W_3^i$
+    - GPU-3: $\bar{\nabla} W_4 = \frac{1}{N} \sum_{i=0}^{N-1} \nabla W_4^i$
 
 6. Each GPU receives the globally averaged gradient — identical to what AllReduce would have produced — just for its own shard. Each GPU now has two components required to update parameters for next iteration
 
