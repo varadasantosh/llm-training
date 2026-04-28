@@ -643,10 +643,10 @@ After ReduceScatter (ZeRO-1):
 
 After ReduceScatter (ZeRO-2):
 
-  GPU-0: [$\text{averaged}(\nabla \text{W}_0)$]  ← buffer reduced to $4\phi/N$
-  GPU-1: [$\text{averaged}(\nabla \text{W}_1)$]  ← buffer reduced to $4\phi/N$
-  GPU-2: [$\text{averaged}(\nabla \text{W}_2)$]  ← buffer reduced to $4\phi/N$
-  GPU-3: [$\text{averaged}(\nabla \text{W}_3)$]  ← buffer reduced to $4\phi/N$
+  GPU-0: $\text{averaged}(\nabla \text{W}_0)$  ← buffer reduced to $4\phi/N$ <br>
+  GPU-1: $\text{averaged}(\nabla \text{W}_1)$  ← buffer reduced to $4\phi/N$ <br>
+  GPU-2: $\text{averaged}(\nabla \text{W}_2)$  ← buffer reduced to $4\phi/N$ <br>
+  GPU-3: $\text{averaged}(\nabla \text{W}_3)$  ← buffer reduced to $4\phi/N$ <br>
 
 **Training path:**
 > Forward Pass → Backward Pass → ReduceScatter → Discard unused Gradients  → Local Optimizer Step → AllGather
