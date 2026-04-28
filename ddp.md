@@ -1065,7 +1065,7 @@ The communication pattern is identical to ZeRO-1 — ReduceScatter followed by A
 
 ## ZeRO-3 Sharding Parameters
 
-While ZeRO-1 & ZeRO-2 reduces memory required for storing model by sharding optimizer states & gradients. Only remaining static component of model is parameters. It is natural that ZeRO-3 shards parameters across N GPUs ,  optimizer steps part of training loop is updating only respective parameters for which the gradient and optimizer states are present on the GPU, hence storing full parameter set on each GPU is redundtant this again reinforces the efficient use of GPU memory. If GPU memory is not used responsibly this will significantly impact training process and increeases time taken for training, not only that but it also impact copying large scale models to GPU.
+ZeRO-1 and ZeRO-2 eliminated optimizer state and gradient redundancy respectively. One component remains fully replicated across every GPU i.e. parameters. It is easy to guess that ZeRO-3 shards parameters across N GPUs ,  optimizer steps part of training loop is updating only respective parameters for which the gradient and optimizer states are present on the GPU, hence storing full parameter set on each GPU is redundtant this again reinforces the efficient use of GPU memory. If GPU memory is not used responsibly this will significantly impact training process and increeases time taken for training, not only that but it also impact copying large scale models to GPU.
 
 ### Communication Pattern
 
@@ -1081,11 +1081,13 @@ After backward pass completes calculating local gradients, these parameters coll
 
 <span class="step-tag"><span class="step-num">1</span>AllGather Parameters</span>
 
-<span class="step-tag"><span class="step-num">2</span>Forward + Backward Pass</span>
+<span class="step-tag"><span class="step-num">2</span>Forward Pass - AllGather Parameters</span>
 
-<span class="step-tag"><span class="step-num">3</span>ReduceScatter</span>
+<span class="step-tag"><span class="step-num">3</span>Backward Pass - AllGather Parameters</span>
 
-<span class="step-tag"><span class="step-num">4</span>Optimizer Step</span>
+<span class="step-tag"><span class="step-num">4</span>ReduceScatter</span>
+
+<span class="step-tag"><span class="step-num">5</span>Optimizer Step</span>
 
 > Repeat Steps 1-5 until model convergence
 
@@ -1141,7 +1143,56 @@ After backward pass completes calculating local gradients, these parameters coll
 </figure>
 
 
-Each GPU computes its local gradients during the backward pass. ReduceScatter then averages these gradients across all GPUs — but instead of returning the full averaged tensor to everyone, it distributes different shards to different GPUs:
+### Example Workflow
+
+For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W₃, W₄, we use 4 GPUs. Llama 3 uses no bias terms so we omit bias here.
+
+ 1. Each GPU initializes Parameters w₁,w₂,w₃,w₄ for respective shards owned by GPU
+
+ 2. Optimizer state shards (unique per GPU):
+
+    - GPU-0: (m₁, v₁)  ← owns optimizer states for W₁
+    - GPU-1: (m₂, v₂)  ← owns optimizer states for W₂
+    - GPU-2: (m₃, v₃)  ← owns optimizer states for W₃
+    - GPU-3: (m₄, v₄)  ← owns optimizer states for W₄
+
+3. Each GPU requires parameters from other GPUs for forwrad pass , AllGather parameters
+
+   - GPU-0: X₀ → AllGather Parameters →  forward(W₁,W₂,W₃,W₄) → Ŷ₀ → Loss₀
+   - GPU-1: X₁ → AllGather Parameters →  forward(W₁,W₂,W₃,W₄) → Ŷ₁ → Loss₁
+   - GPU-2: X₂ → AllGather Parameters →  forward(W₁,W₂,W₃,W₄) → Ŷ₂ → Loss₂
+   - GPU-3: X₃ → AllGather Parameters →  forward(W₁,W₂,W₃,W₄) → Ŷ₃ → Loss₃
+
+4. Every GPU requires parameters fo computing local gradients for **all** parameters, requires AllGather parameters
+d
+   - GPU-0: AllGather Parameters → [∇W₁⁰, ∇W₂⁰, ∇W₃⁰, ∇W₄⁰]  ← based on X₀
+   - GPU-1: AllGather Parameters → [∇W₁¹, ∇W₂¹, ∇W₃¹, ∇W₄¹]  ← based on X₁
+   - GPU-2: AllGather Parameters → [∇W₁², ∇W₂², ∇W₃², ∇W₄²]  ← based on X₂
+   - GPU-3: AllGather Parameters → [∇W₁³, ∇W₂³, ∇W₃³, ∇W₄³]  ← based on X₃
+
+5. Each GPU has different gradients — the model will diverge if these are not synchronized.
+   ReduceScatter averages gradients across all GPUs and distributes each shard to its responsible GPU:
+
+
+6. Each GPU receives the globally averaged gradient — identical to what AllReduce would have produced — just for its own shard. Each GPU now has two components required to update parameters for next iteration
+
+   - The globally averaged gradient for its shard
+   - Its local optimizer states for that same shard
+
+   GPU-0 updates W₁ using its local (m₁, v₁) and ∇W₁_avg. Each GPU applies the same Adam update rule to its own shard — the mechanics are identical, only the parameters differ.
+
+<d-aside>
+  <b>Adam update — GPU-0 updating W₁</b>
+  <pre style="font-size:0.75rem; margin-top:6px; line-height:1.6;">m₁ = β₁·m₁ + (1-β₁)·∇W₁_avg   ← 1st moment
+v₁ = β₂·v₁ + (1-β₂)·(∇W₁_avg)² ← 2nd moment
+
+m̂₁ = m₁ / (1-β₁ᵗ)  ← bias correction
+v̂₁ = v₁ / (1-β₂ᵗ)
+
+W₁ = W₁ - η·m̂₁/(√v̂₁+ε)  ← parameter update</pre>
+  <p style="font-size:0.75rem; margin:6px 0 0;">$\beta_1$, $\beta_2$ — moment decay rates; $\eta$ — learning rate; $\epsilon$ — numerical stability constant. Each GPU runs this identically for its own shard.</p>
+</d-aside>
+
 
 ## NCCL Operations
 
