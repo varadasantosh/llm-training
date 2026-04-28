@@ -749,19 +749,12 @@ Critically, each GPU carries its optimizer state shard forward across iterations
 
 ## ZeRO-2 Sharding Gradients
 
-While ZeRO-1 shards optimizer states, ZeRO-2 further optimizes memory by sharding the gradients themselves. ZeRO-1 reduces the memory footprint by approximately 38% (optimizers sharded across 8 GPUs), but each GPU still holds a full set of gradients during the backward pass.
+While ZeRO-1 shards optimizer states, ZeRO-2 goes further by also sharding gradients. After ReduceScatter in ZeRO-1, each GPU's gradient buffer stays allocated at full size ($4\phi$) — but only $4\phi/N$ contains meaningful data (the owned averaged gradient shard). The remaining $4\phi - 4\phi/N$ sits allocated but unused until the next iteration begins. ZeRO-2 deallocates this unused portion immediately after ReduceScatter, so each GPU retains only the gradient shard it needs for its local optimizer step.
+
+The communication pattern is identical to ZeRO-1 — ReduceScatter followed by AllGather — and the training loop is unchanged. The only difference is one deallocation call after ReduceScatter. For the full example workflow and training steps, refer to the [ZeRO-1 section](#zero-1-sharding-optimizer-states).
 
 **Training path:**
-> Forward Pass → Backward Pass → ReduceScatter → Discard unused Gradients → Local Optimizer Step → AllGather
-
-ZeRO-2 exploits a key insight from ZeRO-1: After ReduceScatter in ZeRO-1, each GPU's gradient buffer remains allocated at full size ($4\phi$)-but only the owned shard contains 
-meaningful data (average gradients required for training). The remaining $4\phi$ - $4\phi/N$ sits allocated but unused until zero_grad() clears it. GPU memory is scarce resource, holding $4\phi$ when only $4\phi/N$ is needed is wasting resources. After ReduceScatter ZeRO-2 immediately deallocates memory of unused gradients buffer space. Each GPU retains only the gradient shard it needs for the local optimizer step — eliminating the redundancy
- 
-
-
-The communication pattern for ZeRO-2 is identical to ZeRO-1 — ReduceScatter followed by AllGather. The difference lies in immediately freeing non-owned gradient buffer space after ReduceScatter.
-
-In ZeRO-1, the Reduce-Scatter averages the relevant gradient shard but leaves the remaining redundant gradients in place, occupying memory . ZeRO-2 deallocate the non-owned shards. This changes gradients from a redundant component into a sharded component. Only difference is freeing up the gradient shard memory but the communication pattern in forward and backward passes are identical to ZeRO-1 — refer to that [section](#zero-1-sharding-optimizer-states) for walkthrough of example workflow and training steps.
+> Forward Pass → Backward Pass → ReduceScatter → Discard Non-Owned Gradients → Local Optimizer Step → AllGather
 
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 24px 0;">
 
@@ -907,7 +900,7 @@ In ZeRO-1, the Reduce-Scatter averages the relevant gradient shard but leaves th
   </tr>
 </tbody>
 </table>
-<p style="text-align:center; font-size:12px; color:#666; margin-top:8px;">Full buffer allocated — 75% wasted per GPU</p>
+<p style="text-align:center; font-size:12px; color:#666; margin-top:8px;">Full buffer allocated — $(N-1)/N$ freed per GPU</p>
 </div>
 
 <div>
