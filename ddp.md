@@ -689,7 +689,7 @@ After ReduceScatter (ZeRO-2):
     <tr style="text-align:left;">
       <th style="padding:10px 12px; border:2px dashed #555;">Component</th>
       <th style="padding:10px 12px; border:2px dashed #555;">ZeRO-1</th>
-      <th style="padding:10px 12px; border:2px dashed #555;">ZeRO-1</th>
+      <th style="padding:10px 12px; border:2px dashed #555;">ZeRO-2</th>
       <th style="padding:10px 12px; border:2px dashed #555;">Replicated?</th>
     </tr>
 </thead>
@@ -732,6 +732,11 @@ After ReduceScatter (ZeRO-2):
 <figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 4: ZeRO Stage-1 Memory Savings</figcaption>
 </figure>
 
+**Memory Calculation for Llama 3 8B (8 GPUs):**
+- DDP: $18\phi$ = 144 GB per GPU
+- ZeRO-1: $(10 + 8/8)\phi = 11\phi$ ≈ 88 GB per GPU
+- ZeRO-2: $(6 + 12/8)\phi = 7.5\phi$ = 60 GB per GPU
+- **Saving: 58% reduction — 84 GB freed per GPU**
 
 ## ZeRO Stage-3
 
