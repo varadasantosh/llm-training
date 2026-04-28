@@ -1257,7 +1257,8 @@ For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W
 5. Each GPU has different gradients — the model will diverge if these are not synchronized.
    ReduceScatter averages gradients across all GPUs and distributes each shard to its responsible GPU:
 
-    - GPU-0: $\bar{\nabla}\text{W}_1$ = $\frac{1}{N}\sum_{i=0}^{N-1}\nabla\text{W}_1^i$
+    - GPU-0: $\bar{\nabla} W_1 = \frac{1}{N} \sum_{i=0}^{N-1} \nabla W_1^i$
+
     - GPU-1: $\bar{\nabla}\text{W}_2$ = $\frac{1}{N}\sum_{i=0}^{N-1}\nabla\text{W}_2^i$
     - GPU-2: $\bar{\nabla}\text{W}_3$ = $\frac{1}{N}\sum_{i=0}^{N-1}\nabla\text{W}_3^i$
     - GPU-3: $\bar{\nabla}\text{W}_1$ = $\frac{1}{N}\sum_{i=0}^{N-1}\nabla\text{W}_4^i$
