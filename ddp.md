@@ -1059,7 +1059,19 @@ The communication pattern is identical to ZeRO-1 — ReduceScatter followed by A
 <figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 7: Memory Savings for Llama 3 8B ($\phi$ = 8B parameters, N = 8 GPUs)</figcaption>
 </figure>
 
-## ZeRO Stage-3
+
+> ZeRO-2 saves memory by $N-1/N\phi$ Bytes by sharding optimizer & gradients without extract
+> communication over head
+
+## ZeRO-3 Sharding Parameters
+
+While ZeRO-1 & ZeRO-2 reduces memory required for storing model by sharding optimizer states & gradients. Only remaining static component of model is parameters. It is natural that ZeRO-3 shards parameters across N GPUs ,  optimizer steps part of training loop is updating only respective parameters for which the gradient and optimizer states are present on the GPU, hence storing full parameter set on each GPU is redundtant this again reinforces the efficient use of GPU memory. If GPU memory is not used responsibly this will significantly impact training process and increeases time taken for training, not only that but it also impact copying large scale models to GPU.
+
+### Communication Pattern
+
+Communication pattern for ZeRO-1, ZeRO-2 is identicaly with **ReduceScatter** for averging gradients, followed by **AllGather** for parameters to synchronize model across GPUs, sharding gradients did not introduce additional communication overhead, but this is not the case for ZeRO-3. One other important point to notice is since parameters are replicated across all GPUs NCCL operation was not required during forward pass , it was only required after backward pass & before optimizer step.
+
+ZeRO-3
 
 
 ## NCCL Operations
