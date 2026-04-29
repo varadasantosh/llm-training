@@ -1063,7 +1063,7 @@ The communication pattern is identical to ZeRO-1 — ReduceScatter followed by A
 
 ## ZeRO-3 Sharding Parameters
 
-ZeRO-1 shards optimizer states; ZeRO-2 additionally shards gradients. One component remains fully replicated on every GPU after both stages: the parameter tensors — $2\phi$ bytes of BF16 working copy and $4\phi$ bytes of FP32 master copy per device. ZeRO-3 eliminates this final redundancy by partitioning parameters across N GPUs, so each GPU owns and stores only $\phi/N$ parameters. Since the optimizer step updates only owned parameters — and gradients and optimizer states are already aligned to the same ownership boundaries — no full parameter copy is needed between iterations.
+ZeRO-1 shards optimizer states; ZeRO-2 additionally shards gradients. One component remains fully replicated on every GPU after both stages: the parameter tensors — $2\phi$ bytes of BF16 working copy and $4\phi$ bytes of FP32 master copy per device. ZeRO-3 eliminates this final redundancy by partitioning parameters across N GPUs, so each GPU owns and stores only $\phi/N$ parameters. Since the optimizer step updates only owned parameters — and gradients and optimizer states are already sharded across GPUs — no full parameter copy is needed between iterations.
 
 ### Communication Pattern
 
@@ -1071,7 +1071,7 @@ ZeRO-3 changes the communication pattern significantly compared to ZeRO-1 and Ze
 
 In ZeRO-1 and ZeRO-2, parameters were fully replicated — no AllGather was needed during the forward or backward pass. AllGather only appeared once per iteration to synchronize updated parameters.
 
-In ZeRO-3, parameters are sharded. Every GPU holds only its own parameter shard at rest. To compute the forward pass, each layer's parameters must be gathered from all GPUs, used, then immediately freed. The same happens during the backward pass. This means AllGather happens 
+In ZeRO-3, parameters are sharded. Every GPU holds only its own parameter shard. To compute the forward pass, each layer's parameters must be gathered from all GPUs, used, then immediately freed. The same happens during the backward pass. This means AllGather happens 
 per layer, twice per iteration — once forward, once backward.
 
 This is ZeRO-3's fundamental trade-off: memory is traded for communication.
@@ -1082,7 +1082,7 @@ This is ZeRO-3's fundamental trade-off: memory is traded for communication.
 
 <span class="step-tag"><span class="step-num">1</span>Forward Pass — Per-Layer AllGather</span>
 
-Each GPU holds only its parameter shard at rest. To compute the forward pass, parameters must be reconstructed layer-by-layer. For each layer, AllGather collects the parameter shard from its owner GPU and broadcasts it to all GPUs. Once the layer computation completes, non-owned parameters are immediately discarded to free memory. This gather-compute-discard cycle repeats for every layer in the model.
+Each GPU holds only its parameter shard. To compute the forward pass, parameters must be reconstructed layer-by-layer. For each layer, AllGather collects the parameter shard from its owner GPU and broadcasts it to all GPUs. Once the layer computation completes, non-owned parameters are immediately discarded to free memory. This gather-compute-discard cycle repeats for every layer in the model.
 
 <span class="step-tag"><span class="step-num">2</span>Backward Pass — Per-Layer AllGather</span>
 
@@ -1469,7 +1469,7 @@ ZeRO-3's memory savings come at the cost of increased communication:
   </tr>
 </tbody>
 </table>
-<figcaption style="text-align:center; font-size:13px; color:#666; margin-top:8px;">ZeRO-3 trades memory for communication — the 2L per-layer AllGathers total $2\phi$ bytes (same as a single AllGather), plus $\phi$ for ReduceScatter = $3\phi$ total. Essential for models that don't fit in GPU memory even with ZeRO-2.</figcaption>
+<figcaption style="text-align:center; font-size:13px; color:#666; margin-top:8px;">ZeRO-3 trades memory for communication — performs 2L AllGather calls per iteration — each communicating $\nphi/L$ bytes (one layer's parameters). Across all 2L calls this totals $2\phi$ bytes, plus $\phi for ReduceScatter — giving $3\phi$ total versus $2\phi$ for ZeRO-1/2.</figcaption>
 </figure>
 
 ### Memory Comparison: DDP vs ZeRO-1 vs ZeRO-2 vs ZeRO-3
@@ -1619,3 +1619,6 @@ ZeRO uses AllGather to reconstruct parameters on-demand. Since Stage 3 shards th
 ---
 
 These three operations are the entire communication vocabulary of ZeRO. Every stage is a different choice of when to use each one — and what to discard afterward.
+
+
+## Summary
