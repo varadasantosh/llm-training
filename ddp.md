@@ -172,7 +172,7 @@ To achieve this, GPUs cannot work in isolation — they need to communicate and 
 
 ### NCCL — The Communication Foundation
 
-Every parallelism technique listed above relies on a common communication layer. For NVIDIA GPUs, that layer is [NCCL](https://developer.nvidia.com/nccl) — the NVIDIA Collective Communications Library. NCCL provides the core routines for moving data across GPUs, whether they share the same node or are spread across multiple nodes over a network. PyTorch, DeepSpeed, and Megatron-LM all build on top of NCCL.
+Like every application/system , LLM training too has constraints compute, memory & network constraints. First two constraints **compute** & **memory** are present within stand alone application/system, previous sections established this fact & parallelism techniques mentioned above are answer to them, each of these parallelism technique address this by distributing model and data across GPUs present in training network, distributed systems needs co-ordination between them, this can be seen in Distributed Databases, Zoo Keeper co-ordinating Kafka broker servers, executors in Spark Distributed framework for processing Tera & Pyte Bytes volumes of data, all of them need communication and co-ordination. Parallelism techniques also relies on a common communication layer for co-ordinating taks and memory transfers for working on common objective .  For NVIDIA GPUs, that layer is [NCCL](https://developer.nvidia.com/nccl) — the NVIDIA Collective Communications Library. NCCL provides the core routines for moving data across GPUs, whether they share the same node or are spread across multiple nodes over a network. PyTorch, DeepSpeed, and Megatron-LM all build on top of NCCL.
 
 <div class="ddp-note">
   <span class="note-label">Further Reading</span>
@@ -194,11 +194,64 @@ Broadcast operation - A single GPU sends the same copy of data or tensors to all
 
 This is generally used in DDP to place replicate model on ALL GPUs before training process starts.
 
-**Reduce Scatter**
+### AllReduce
 
-**All Gather**
+AllReduce takes a tensor that exists on every GPU, applies a reduction (sum or average) across all copies, and writes the result back to every GPU. After AllReduce, every GPU holds the same reduced tensor.
 
-**All Reduce**
+<figure>
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
+<thead>
+  <tr>
+    <th style="padding:10px 12px; border:2px dashed #555;">Phase</th>
+    <th style="padding:10px 12px; border:2px dashed #555;">What happens</th>
+    <th style="padding:10px 12px; border:2px dashed #555;">Result</th>
+  </tr>
+</thead>
+<tbody>
+  <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+    <td style="padding:10px 12px; border:2px dashed #555;"><strong>ReduceScatter</strong></td>
+    <td style="padding:10px 12px; border:2px dashed #555;">Each GPU splits its tensor into N shards and sends them around the ring. Each GPU accumulates the sum for one shard.</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">Each GPU holds the fully reduced sum for 1/N of the tensor</td>
+  </tr>
+  <tr>
+    <td style="padding:10px 12px; border:2px dashed #555;"><strong>AllGather</strong></td>
+    <td style="padding:10px 12px; border:2px dashed #555;">Each GPU broadcasts its reduced shard around the ring. Every GPU receives all N shards.</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">Every GPU holds the complete reduced tensor</td>
+  </tr>
+</tbody>
+</table>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 8: AllReduce as Two Phases — ReduceScatter followed by AllGather</figcaption>
+</figure>
+
+
+
+### ReduceScatter
+
+ReduceScatter is the first half of AllReduce, but it is also used independently in ZeRO. It takes a tensor from every GPU, reduces (sums) them, and distributes the result so each GPU ends up with a different shard of the reduced tensor.
+
+**Input:** Every GPU holds the full tensor (e.g., all gradients)  
+**Output:** GPU $i$ holds only shard $i$ of the reduced tensor
+
+<!-- Figure 3: ReduceScatter diagram - TODO: Add image -->
+
+ZeRO Stage 2 uses ReduceScatter instead of AllReduce for gradient synchronization. Rather than every GPU computing and storing the full averaged gradient, each GPU only receives the shard it is responsible for. The gradients that each GPU does not own are never materialized — they are reduced in-flight and discarded.
+
+
+### AllGather
+
+AllGather is the second half of AllReduce, and the most frequently used operation in ZeRO Stages 1, 2, and 3. It takes a different shard from each GPU and assembles the complete tensor on every GPU.
+
+**Input:** GPU $i$ holds shard $i$ (different on every GPU)  
+**Output:** Every GPU holds the complete tensor (all shards concatenated)
+
+<!-- Figure 4: AllGather diagram - TODO: Add image -->
+
+Total data transferred per GPU: $\frac{(N-1)}{N} \times \text{tensor\_size}$, again independent of N.
+
+ZeRO uses AllGather to reconstruct parameters on-demand. Since Stage 3 shards the model parameters themselves across GPUs, parameters must be gathered before each forward and backward pass, then discarded immediately after. AllGather is what makes this reconstruction possible without a dedicated parameter server.
+
+
+
 
 In practice, frontier teams do not rely on a single technique — they combine multiple dimensions simultaneously. The Llama 3 paper (Section 3.3.2) describes how Meta used four dimensions of parallelism — Tensor, Pipeline, Context, and Data — across 16,000 GPUs to train the 405B model. That combined approach is where this series is headed.
 
@@ -1551,74 +1604,6 @@ ZeRO-3's memory savings come at the cost of increased communication:
 </table>
 <figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 6: Memory Distribution Comparison — DDP vs ZeRO-1 vs ZeRO-2 vs ZeRO-3</figcaption>
 </figure>
-
-
-## NCCL Operations
-
-Before we look at how ZeRO solves the memory problem, we need to understand the three collective operations it relies on. We used AllReduce in Vanilla DDP — ZeRO replaces it with a more granular pair of operations. Understanding each one precisely is what makes ZeRO's design legible.
-
-All three operations follow the same ring topology. GPUs are arranged in a logical ring. Each GPU only communicates with its two neighbors — its left neighbor sends to it, it sends to its right neighbor. This avoids any single GPU becoming a bottleneck and keeps communication costs predictable as the number of GPUs grows.
-
-### AllReduce
-
-AllReduce takes a tensor that exists on every GPU, applies a reduction (sum or average) across all copies, and writes the result back to every GPU. After AllReduce, every GPU holds the same reduced tensor.
-
-<figure>
-<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
-<thead>
-  <tr>
-    <th style="padding:10px 12px; border:2px dashed #555;">Phase</th>
-    <th style="padding:10px 12px; border:2px dashed #555;">What happens</th>
-    <th style="padding:10px 12px; border:2px dashed #555;">Result</th>
-  </tr>
-</thead>
-<tbody>
-  <tr style="background:var(--global-code-bg-color, #f8f8f8);">
-    <td style="padding:10px 12px; border:2px dashed #555;"><strong>ReduceScatter</strong></td>
-    <td style="padding:10px 12px; border:2px dashed #555;">Each GPU splits its tensor into N shards and sends them around the ring. Each GPU accumulates the sum for one shard.</td>
-    <td style="padding:10px 12px; border:2px dashed #555;">Each GPU holds the fully reduced sum for 1/N of the tensor</td>
-  </tr>
-  <tr>
-    <td style="padding:10px 12px; border:2px dashed #555;"><strong>AllGather</strong></td>
-    <td style="padding:10px 12px; border:2px dashed #555;">Each GPU broadcasts its reduced shard around the ring. Every GPU receives all N shards.</td>
-    <td style="padding:10px 12px; border:2px dashed #555;">Every GPU holds the complete reduced tensor</td>
-  </tr>
-</tbody>
-</table>
-<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 8: AllReduce as Two Phases — ReduceScatter followed by AllGather</figcaption>
-</figure>
-
-Total data transferred per GPU: $2 \times \frac{(N-1)}{N} \times \text{tensor\_size}$. For large N this approaches $2 \times \text{tensor\_size}$, and crucially this cost does not grow with N — adding more GPUs does not increase the per-GPU communication volume.
-
-This is exactly what Vanilla DDP uses for gradient synchronization.
-
-### ReduceScatter
-
-ReduceScatter is the first half of AllReduce, but it is also used independently in ZeRO. It takes a tensor from every GPU, reduces (sums) them, and distributes the result so each GPU ends up with a different shard of the reduced tensor.
-
-**Input:** Every GPU holds the full tensor (e.g., all gradients)  
-**Output:** GPU $i$ holds only shard $i$ of the reduced tensor
-
-<!-- Figure 3: ReduceScatter diagram - TODO: Add image -->
-
-ZeRO Stage 2 uses ReduceScatter instead of AllReduce for gradient synchronization. Rather than every GPU computing and storing the full averaged gradient, each GPU only receives the shard it is responsible for. The gradients that each GPU does not own are never materialized — they are reduced in-flight and discarded.
-
-### AllGather
-
-AllGather is the second half of AllReduce, and the most frequently used operation in ZeRO Stages 1, 2, and 3. It takes a different shard from each GPU and assembles the complete tensor on every GPU.
-
-**Input:** GPU $i$ holds shard $i$ (different on every GPU)  
-**Output:** Every GPU holds the complete tensor (all shards concatenated)
-
-<!-- Figure 4: AllGather diagram - TODO: Add image -->
-
-Total data transferred per GPU: $\frac{(N-1)}{N} \times \text{tensor\_size}$, again independent of N.
-
-ZeRO uses AllGather to reconstruct parameters on-demand. Since Stage 3 shards the model parameters themselves across GPUs, parameters must be gathered before each forward and backward pass, then discarded immediately after. AllGather is what makes this reconstruction possible without a dedicated parameter server.
-
----
-
-These three operations are the entire communication vocabulary of ZeRO. Every stage is a different choice of when to use each one — and what to discard afterward.
 
 
 ## Summary
