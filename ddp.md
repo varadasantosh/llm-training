@@ -172,18 +172,34 @@ To achieve this, GPUs cannot work in isolation — they need to communicate and 
 
 ### NCCL — The Communication Foundation
 
-Every parallelism technique covered in this chapter — DDP, ZeRO-1, ZeRO-2, ZeRO-3 — requires GPUs to communicate at specific points during training. After every backward pass gradients must be synchronized. After every optimizer step parameters must be reconstructed. In ZeRO-3, parameters must be fetched layer by layer before every forward and backward pass.
+Every parallelism technique — DDP, ZeRO-1, ZeRO-2, ZeRO-3, TP, CP, PP — requires GPUs to communicate at specific points during training. After every backward pass gradients must be co-ordinated either using AllReduce or ReduceScatter . After every optimizer step parameters must be reconstructed. In ZeRO-3, parameters must be fetched layer by layer before every forward and backward pass.
 
-Like every application/system , LLM training too has constraints compute, memory & network constraints. First two constraints **compute** & **memory** are present within stand alone application/system, previous sections established this fact & parallelism techniques mentioned above are answer to them, each of these parallelism technique address this by distributing model and data across GPUs present in training network, distributed systems needs co-ordination between them, This coordination requirement appears everywhere in distributed computing — multiple processes writing to a shared database need locking, multiple servers handling web requests need load balancing, multiple threads in a program need synchronization primitives. Parallelism techniques also relies on a common communication layer for co-ordinating taks and memory transfers for working on common objective .  For NVIDIA GPUs, that layer is [NCCL](https://developer.nvidia.com/nccl) — the NVIDIA Collective Communications Library. NCCL provides the core routines for moving data across GPUs, whether they share the same node or are spread across multiple nodes over a network. PyTorch, DeepSpeed, and Megatron-LM all build on top of NCCL.
+This coordination requirement appears everywhere in distributed computing — multiple processes writing to a shared database need locking to prevent conflicts, multiple servers handling web requests need load balancing to share work evenly, multiple threads in a program need synchronization primitives to stay in step.
+
+Distributed LLM training is the same class of problem. Multiple GPUs computing gradients from different data need to agree on a single averaged value before updating parameters. Multiple GPUs holding different parameter shards need to share them before the forward pass can run.
+
+NCCL provides the synchronization primitives for this — purpose-built for GPU-to-GPU 
+communication at scale.
+
+All of this communication needs a foundation to run on. For NVIDIA GPUs, that foundation is NCCL — the NVIDIA Collective Communications Library. NCCL provides the core routines for moving data across GPUs, whether they share the same node connected via NVLink, or are spread across multiple nodes connected over InfiniBand. PyTorch, DeepSpeed, and Megatron-LM all build on top of NCCL — it is the common layer underneath all distributed training frameworks.
+
+[NCCL](https://developer.nvidia.com/nccl) is NVIDIA's communication library — purpose-built for GPU-to-GPU data transfer,optimized for NVLink within a node and InfiniBand across nodes. It is not hardware-agnostic — it runs on NVIDIA GPUs only.
+
+This is where PyTorch's abstraction layer becomes important. Each accelerator vendor provides its own communication library — **RCCL for AMD**, **oneCCL for Intel XPUs**, proprietary libraries for Google TPUs. PyTorch's **torch.distributed** sits above all of them, selecting the appropriate backend automatically based on the hardware available. ML researchers write 
+torch.distributed code once and it runs across different hardware without modification.
+
+In this blog we focus on NCCL — since Llama-3 was trained on NVIDIA H100 GPUs — but the same 
+communication patterns apply across backends.
+
 
 <div class="ddp-note">
   <span class="note-label">Further Reading</span>
   The Llama 3 team extended NCCL into <strong>NCCLX</strong>, optimizing collective operations for their specific network topology across large GPU clusters. See Section 3.3.3 (Collective Communication) of the Llama 3 <a href="https://arxiv.org/pdf/2407.21783">paper</a> for details.
 </div>
 
-NCCL exposes a set of collective operations — each designed for a specific communication pattern. These operations are core of the distributted training process, frameworks like PyTorch create warppers around these libraries to abstract communication frameworks, this is the core software engineering practice, if there are no abstractions provided by PyTorch, we need to implement seperate logic for each ML accelerators (NVIDIA GPU, AMD GPU, Google TPU, Apple , Intel XPU etc...), this allows us to use `torch.distributed` or `torch.nn.DistributedDataParallel` without worrying about accelerator being used, while it is important for performance and other aspects, ML researcher can solely focus on algorithm and architecture. 
+NCCL exposes a set of collective operations — each designed for a specific communication pattern. These operations are core of the distributted training process
 
-| Operation | What it does | First appears in |
+| Operation | What it does |  appears in |
 |---|---|---|
 | Broadcast | Send from one GPU to all others | DDP initialization |
 | AllReduce | Sum/average across all GPUs, result to all | DDP gradient sync |
@@ -191,14 +207,37 @@ NCCL exposes a set of collective operations — each designed for a specific com
 | AllGather | Collect shards from all GPUs, result to all | ZeRO-1/2/3 |
 | Send/Recv | Point-to-point between two GPUs | Pipeline Parallelism |
 
-**Braodcast**
-Broadcast operation - A single GPU sends the same copy of data or tensors to all GPU , generally a GPU with Rank-0 send tensors to all other Ranks, this means data transfer is limited by bandwidth of Rank-0 GPU, also GPU-0 becomes bottle neck. NCCL tries to reduce this dependency on single GPU by creating logical tree structure on top of flat network topology.
+**Broadcast**
+Broadcast sends data from one GPU — rank 0 — to all other GPUs. This is used once at the start of DDP training to ensure every GPU begins with identical model parameters.
 
-This is generally used in DDP to place replicate model on ALL GPUs before training process starts.
+A naive implementation would send from rank 0 directly to all other GPUs — but this makes rank 0 a bottleneck. Data transfer is limited by rank 0's bandwidth, and the time scales linearly with the number of GPUs.
+
+NCCL avoids this by building a logical tree over the flat network topology:
+
+Rank 0 (root)
+├── Rank 1
+│   ├── Rank 3
+│   └── Rank 4
+└── Rank 2
+├── Rank 5
+└── Rank 6
+
+Each node forwards data to its children simultaneously. Communication time scales with O(log N) depth of the tree rather than O(N). Within a single node, NVLink is used for fast intra-node transfers. Across nodes, InfiniBand handles the inter-node hops.
+
+**Used in:** DDP initialization — once per training run.
 
 ### AllReduce
 
 AllReduce takes a tensor that exists on every GPU, applies a reduction (sum or average) across all copies, and writes the result back to every GPU. After AllReduce, every GPU holds the same reduced tensor.
+
+Before AllReduce (4 GPUs, gradient sync):
+  - GPU-0: $\nabla\text{W}_{i}^0$    
+  - GPU-1: $\nabla\text{W}_{i}^1$    
+  - GPU-2: $\nabla\text{W}_{i}^2$   
+  - GPU-3: $\nabla\text{W}_{i}^3$
+
+After AllReduce:
+All GPUS: ($\nabla\text{W}_{i}^0 + \nabla\text{W}_{i}^1 +  \nabla\text{W}_{i}^2 + \nabla\text{W}_{i}^3$)/4
 
 <figure>
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
@@ -225,13 +264,25 @@ AllReduce takes a tensor that exists on every GPU, applies a reduction (sum or a
 <figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 8: AllReduce as Two Phases — ReduceScatter followed by AllGather</figcaption>
 </figure>
 
+All NCCL communication operation can be implemented using different topologies, the ring-based tolology used in PyTorch and other distributed frameworks ensures every GPU is active simultaneously — no single GPU becomes a bottleneck. Communication cost is linear in data size and independent of the number of GPUs.
 
+**Used in:** DDP gradient synchronization — once per training iteration.
 
 ### ReduceScatter
 
-ReduceScatter is the first half of AllReduce, but it is also used independently in ZeRO. It takes a tensor from every GPU, reduces (sums) them, and distributes the result so each GPU ends up with a different shard of the reduced tensor.
+ReduceScatter is the first half of AllReduce, few Paralleleism techniques use it independently ex: DDP + ZeRO. It takes a tensor from every GPU, reduces (sums) them, and distributes the result so each GPU ends up with a different shard of the reduced tensor.
 
-**Input:** Every GPU holds the full tensor (e.g., all gradients)  
+**Input:** Every GPU holds the full tensor (e.g., all gradients)
+
+  - GPU-0: $\nabla\text{W}_1^0$ , $\nabla\text{W}_2^0$ , $\nabla\text{W}_3^0$, $\nabla\text{W}_4^0$
+
+  - GPU-1: $\nabla\text{W}_1^1$ , $\nabla\text{W}_2^1$ , $\nabla\text{W}_3^1$, $\nabla\text{W}_4^1$ 
+
+  - GPU-2: $\nabla\text{W}_1^2$ , $\nabla\text{W}_2^2$ , $\nabla\text{W}_3^2$, $\nabla\text{W}_4^0$
+
+  - GPU-2: $\nabla\text{W}_1^3 , $\nabla\text{W}_2^3$ , $\nabla\text{W}_3^3$, $\nabla\text{W}_4^3$
+
+
 **Output:** GPU $i$ holds only shard $i$ of the reduced tensor
 
 <!-- Figure 3: ReduceScatter diagram - TODO: Add image -->
@@ -252,6 +303,14 @@ Total data transferred per GPU: $\frac{(N-1)}{N} \times \text{tensor\_size}$, ag
 
 ZeRO uses AllGather to reconstruct parameters on-demand. Since Stage 3 shards the model parameters themselves across GPUs, parameters must be gathered before each forward and backward pass, then discarded immediately after. AllGather is what makes this reconstruction possible without a dedicated parameter server.
 
+
+### Send/Recv
+
+Send/Recv enables direct point-to-point communication between two specific GPUs — GPU A sends data, GPU B receives it. Unlike the collective operations above, Send/Recv does not involve all GPUs simultaneously.
+
+This is the primitive used in Pipeline Parallelism, where activations flow forward from one pipeline stage to the next, and gradients flow backward — one stage at a time. We will cover this in detail in the Pipeline Parallelism section.
+
+**Used in:** Pipeline Parallelism — every micro-batch.
 
 
 
@@ -638,10 +697,10 @@ W₁ = W₁ - η·m̂₁/(√v̂₁+ε)  ← parameter update</pre>
 7. AllGather - After the optimizer step each GPU holds only its updated parameter shard. AllGather reconstructs the complete model:
 
    Before AllGather:
-   - GPU-0: updated W₁  
-   - GPU-1: updated W₂
-   - GPU-2: updated W₃  
-   - GPU-3: updated W₄
+   - GPU-0: updated $\text{W}_1$  
+   - GPU-1: updated $\text{W}_2$
+   - GPU-2: updated $\text{W}_3$  
+   - GPU-3: updated $\text{W}_4$
   
    After AllGather:
    All GPUs: [updated W₁, updated W₂, updated W₃, updated W₄]
