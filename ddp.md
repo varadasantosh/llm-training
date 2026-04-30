@@ -18,17 +18,15 @@ toc:
       - name: Parallelism Techniques
       - name: The Coordination Problem
       - name: NCCL — The Communication Foundation
+      - name: Broadcast
+      - name: AllReduce
+      - name: ReduceScatter
+      - name: AllGather
   - name: Vanilla DDP
     subsections:
       - name: How DDP Works
       - name: DDP Step by Step 
       - name: DDP Limitations
-  - name: NCCL Operations
-    subsections:
-      - name: Broadcast
-      - name: AllReduce
-      - name: ReduceScatter
-      - name: AllGather
   - name: ZeRO-1 Sharding Optimizer States
     subsections:
       - name: Optimizer State Partitioning
@@ -217,8 +215,8 @@ NCCL avoids this by building a logical tree over the flat network topology:
   │   ├── Rank 3
   │   └── Rank 4
   └── Rank 2
-  ├── Rank 5
-  └── Rank 6
+      ├── Rank 5
+      └── Rank 6
 ```
 Each node forwards data to its children simultaneously. Communication time scales with O(log N) depth of the tree rather than O(N). Within a single node, NVLink is used for fast intra-node transfers. Across nodes, InfiniBand handles the inter-node hops.
 
@@ -259,7 +257,7 @@ All GPUS: $(\nabla\text{W}_i^0 + \nabla\text{W}_i^1 +  \nabla\text{W}_i^2 + \nab
   </tr>
 </tbody>
 </table>
-<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 8: AllReduce as Two Phases — ReduceScatter followed by AllGather</figcaption>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">AllReduce as Two Phases — ReduceScatter followed by AllGather</figcaption>
 </figure>
 
 All NCCL communication operations can be implemented using different topologies, the ring-based topology used in PyTorch and other distributed frameworks ensures every GPU is active simultaneously — no single GPU becomes a bottleneck. Communication cost is linear in data size and independent of the number of GPUs.
@@ -729,42 +727,42 @@ Critically, each GPU carries its optimizer state shard forward across iterations
 </thead>
 <tbody>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>1. Initialize</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>1.Initialize</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Model parameters broadcast from rank 0 to all GPUs. Gradients initialized to zero.</td>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>Broadcast from rank 0</strong></td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>2. Data Split</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>2.Data Split</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Global batch is divided into micro-batches, one per GPU</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None (data loader handles this)</td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>3. Initialize Optimizer State Shards</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>3.Initialize Optimizer State Shards</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Each GPU initializes only its assigned optimizer state shard to zero</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None</td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>4. Forward Pass</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>4.Forward Pass</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Each GPU computes forward pass on its micro-batch independently</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None</td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>5. Backward Pass</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>5.Backward Pass</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Each GPU locally computes gradients for its micro-batch</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None</td>
     </tr>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>6. Gradient Sync</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>6.Gradient Sync</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Gradients averaged across all GPUs; each GPU receives only its assigned gradient shard</td>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>ReduceScatter</strong></td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>7. Optimizer Step</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>7.Optimizer Step</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Each GPU updates its parameter shard using its local gradient and optimizer state shards</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None</td>
     </tr>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>8. Gather Updated Params</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>8.Gather Updated Params</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">AllGather — every GPU contributes its updated parameters and receives the updated parameters from other GPUs to reconstruct model </td>
       <td style="padding:10px 12px; border:2px dashed #555;">AllGather</td>
     </tr>
@@ -1181,7 +1179,7 @@ The communication pattern is identical to ZeRO-1 — ReduceScatter followed by A
 </figure>
 
 
-> ZeRO-2 saves memory by $\frac{N-1}{N}\phi$ Bytes by sharding optimizer states & gradients without extra communication overhead
+> ZeRO-2 saves memory by $\frac{4(N-1)}{N}\phi$ Bytes by sharding optimizer states & gradients without extra communication overhead
 
 ## ZeRO-3 Sharding Parameters
 
@@ -1273,7 +1271,7 @@ Unlike ZeRO-1 and ZeRO-2, there is no AllGather at the end of the iteration. Par
     </tr>
   </tbody>
 </table>
-<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 3: ZeRO Stage-3 Training Steps</figcaption>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 8: ZeRO Stage-3 Training Steps</figcaption>
 </figure>
 
 
@@ -1555,7 +1553,7 @@ After optimizer step:
 - GPU-2: updated W₃ (holds only W₃)
 - GPU-3: updated W₄ (holds only W₄)
 
-The iteration is complete. Parameters remain sharded. The next iteration begins with Step 3 (Forward Pass), where AllGather reconstructs parameters layer-by-layer as needed.
+The iteration is complete. Parameters remain sharded. The next iteration begins with Step 4 (Forward Pass), where AllGather reconstructs parameters layer-by-layer as needed.
 
 ### Communication Cost Trade-off
 
@@ -1672,8 +1670,9 @@ ZeRO-3's memory savings come at the cost of increased communication:
     </tr>
 </tbody>
 </table>
-<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 6: Memory Distribution Comparison — DDP vs ZeRO-1 vs ZeRO-2 vs ZeRO-3</figcaption>
+<figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 9: Memory Distribution Comparison — DDP vs ZeRO-1 vs ZeRO-2 vs ZeRO-3</figcaption>
 </figure>
 
 
 ## Summary
+
