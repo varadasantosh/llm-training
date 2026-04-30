@@ -186,7 +186,7 @@ All communication operations need a foundation to run on. For NVIDIA GPUs, that 
 
 This is where PyTorch's abstraction layer becomes important. Each accelerator vendor provides its own communication library — **RCCL for AMD**, **oneCCL for Intel XPUs**, proprietary libraries for Google TPUs. PyTorch's **torch.distributed** sits above all of them, selecting the appropriate backend automatically based on the hardware available. ML researchers write **torch.distributed** or **torch.DistributeDataParallel** code once and it runs across different hardware without modification.
 
-In this blog we solely focus on NCCL — since Llama-3 was trained on NVIDIA H100 GPUs — but the similar communication patterns apply across backends.
+In this blog we solely focus on NCCL — since Llama-3 was trained on NVIDIA H100 GPUs — but similar communication patterns apply across backends.
 
 
 <div class="ddp-note">
@@ -330,7 +330,7 @@ We start with the simplest — **Distributed Data Parallel training** — and bu
 
 ## Vanilla DDP
 
-Distributed Data Parallelism - The core idea is straightforward: keep the model identical on every GPU, but split the training data across them into shards, number of shards are determined by number of GPUs available for training, DDP has one pre-requisite that is the complete model must fit on a single GPU. Parameters, Gradients, and Optimizer States all need to reside on each GPU simultaneously. For Llama 3 8B that means 144 GB per GPU — already beyond a single H100. This is DDP's fundamental limitation, and it is exactly what ZeRO is designed to solve.
+Distributed Data Parallelism - The core idea is straightforward: keep the model identical on every GPU, but split the training data across them into shards, number of shards are determined by number of GPUs available for training, DDP has one pre-requisite that is the complete model must fit on single GPU. Parameters, Gradients, and Optimizer States all need to reside on each GPU simultaneously. For Llama 3 8B that means 144 GB per GPU — already beyond a single H100. This is DDP's fundamental limitation, and it is exactly what ZeRO is designed to solve.
 
 For now, let's understand how DDP works when the model does fit — and why it is such a useful starting point.
 
@@ -483,7 +483,7 @@ But looking carefully at what every GPU is holding, it is evident that static me
       <td style="padding:10px 12px; border:2px dashed #555;">✓ Every GPU</td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;">Optimizer State $m_t$, $v_t FP32$</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Optimizer State $m_t$, $v_t$ FP32</td>
       <td style="padding:10px 12px; border:2px dashed #555;">$8\phi$ bytes</td>
       <td style="padding:10px 12px; border:2px dashed #555;">44%</td>
       <td style="padding:10px 12px; border:2px dashed #555;">✓ Every GPU</td>
@@ -545,8 +545,7 @@ No communication needed.
 
 <span class="step-tag"><span class="step-num">3</span>AllGather</span>
 
-After the optimizer step, each GPU holds an updated version of its parameter shard. But every GPU needs the complete updated model for the next forward pass. AllGather broadcasts 
-each GPU's updated shard to all other GPUs, reconstructing the full parameter set on every GPU.
+After the optimizer step, each GPU holds an updated version of its parameter shard. But every GPU needs the complete updated model for the next forward pass. AllGather operation collects each GPU's updated shard to reconstruct the full parameter set on every GPU.
 
 After optimizer step: <br>
 GPU 0: updated $\text{W}_0$ shard <br>
@@ -1059,7 +1058,7 @@ The communication pattern is identical to ZeRO-1 — ReduceScatter followed by A
   </tr>
 </tbody>
 </table>
-<p style="text-align:center; font-size:12px; color:#666; margin-top:8px;">Non-owned shards deallocated — 75% memory freed</p>
+<p style="text-align:center; font-size:12px; color:#666; margin-top:8px;">Non-owned shards deallocated — $(N-1)/N$ memory freed</p>
 </div>
 
 </div>
@@ -1200,7 +1199,8 @@ per layer, twice per iteration — once forward, once backward.
 This is ZeRO-3's fundamental trade-off: memory is traded for communication.
 
 **Training path:**
- → All Gather Parameters → Forward Pass → AllGather → Backward Pass → ReduceScatter → Local Optimizer Step
+
+ → Forward Pass (per-layer AllGather) → Backward Pass (per-layer AllGather) → ReduceScatter → Local Optimizer Step
 
 
 <span class="step-tag"><span class="step-num">1</span>Forward Pass — Per-Layer AllGather</span>
@@ -1592,7 +1592,7 @@ ZeRO-3's memory savings come at the cost of increased communication:
   </tr>
 </tbody>
 </table>
-<figcaption style="text-align:center; font-size:13px; color:#666; margin-top:8px;">ZeRO-3 trades memory for communication — performs 2L AllGather calls per iteration — each communicating $\nphi/L$ bytes (one layer's parameters). Across all 2L calls this totals $2\phi$ bytes, plus $\phi for ReduceScatter — giving $3\phi$ total versus $2\phi$ for ZeRO-1/2.</figcaption>
+<figcaption style="text-align:center; font-size:13px; color:#666; margin-top:8px;">ZeRO-3 trades memory for communication — performs 2L AllGather calls per iteration — each communicating $\phi/L$ bytes (one layer's parameters). Across all 2L calls this totals $2\phi$ bytes, plus $\phi$ for ReduceScatter — giving $3\phi$ total versus $2\phi$ for ZeRO-1/2.</figcaption>
 </figure>
 
 ### Memory Comparison: DDP vs ZeRO-1 vs ZeRO-2 vs ZeRO-3
