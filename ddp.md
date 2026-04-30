@@ -229,13 +229,13 @@ Each node forwards data to its children simultaneously. Communication time scale
 AllReduce takes a tensor that exists on every GPU, applies a reduction (sum or average) across all copies, and writes the result back to every GPU. After AllReduce, every GPU holds the same reduced tensor.
 
 Before AllReduce (4 GPUs, gradient sync):
-  - GPU-0: $\nabla\text{W}_{i}^0$    
+  - GPU-0: $\nabla\text{W}_{i}^0$
   - GPU-1: $\nabla\text{W}_{i}^1$    
   - GPU-2: $\nabla\text{W}_{i}^2$   
   - GPU-3: $\nabla\text{W}_{i}^3$
 
 After AllReduce:
-All GPUS: ($\nabla\text{W}_{i}^0 + \nabla\text{W}_{i}^1 +  \nabla\text{W}_{i}^2 + \nabla\text{W}_{i}^3$)/4
+All GPUS: $(\nabla\text{W}_{i}^0 + \nabla\text{W}_{i}^1 +  \nabla\text{W}_{i}^2 + \nabla\text{W}_{i}^3)$/4
 
 <figure>
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
