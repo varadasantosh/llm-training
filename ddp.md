@@ -160,7 +160,7 @@ Setting activations aside and focusing on the static components — Parameters, 
 
 ### Parallelism Techniques
 
-These constraints are addressed through a family of techniques — **Data Parallelism, Tensor Parallelism, Pipeline Parallelism, Context Parallelism, and Expert Parallelism** — each targeting a different bottleneck.
+These constraints are addressed through a family of techniques — **Data Parallelism, Tensor Parallelism (TP), Pipeline Parallelism (PP), Context Parallelism (CP), and Expert Parallelism (EP)** — each targeting a different bottleneck.
 
 ### The Coordination Problem
 
