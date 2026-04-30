@@ -170,16 +170,18 @@ Splitting data across GPUs introduces an immediate challenge. Each GPU sees a di
 
 To achieve this, GPUs cannot work in isolation — they need to communicate and synchronize at specific points during training. How efficiently they do this determines how well the parallelism strategy scales.
 
-### NCCL — The Communication Foundation
-
-Every parallelism technique — DDP, ZeRO-1, ZeRO-2, ZeRO-3, TP, CP, PP — requires GPUs to communicate at specific points during training. After every backward pass gradients must be co-ordinated either using AllReduce or ReduceScatter . After every optimizer step parameters must be reconstructed. In ZeRO-3, parameters must be fetched layer by layer before every forward and backward pass.
-
-This coordination requirement appears everywhere in distributed computing — multiple processes writing to a shared database need locking to prevent conflicts, multiple servers handling web requests need load balancing to share work evenly, multiple threads in a program need synchronization primitives to stay in step.
+> This coordination requirement appears everywhere in distributed computing — multiple 
+> processes writing to a shared database need locking to prevent conflicts, multiple servers
+> handling web requests need load balancing to share work evenly, multiple threads in a 
+> program need synchronization primitives to stay in step.
 
 Distributed LLM training is the same class of problem. Multiple GPUs computing gradients from different data need to agree on a single averaged value before updating parameters. Multiple GPUs holding different parameter shards need to share them before the forward pass can run.
 
-NCCL provides the synchronization primitives for this — purpose-built for GPU-to-GPU 
-communication at scale.
+NCCL provides the synchronization primitives for this — purpose-built for GPU-to-GPU communication at scale.
+
+### NCCL — The Communication Foundation
+
+Every parallelism technique — DDP, ZeRO-1, ZeRO-2, ZeRO-3, TP, CP, PP — requires GPUs to communicate at specific points during training. After every backward pass gradients must be co-ordinated either using AllReduce or ReduceScatter . After every optimizer step parameters must be reconstructed. In ZeRO-3, parameters must be fetched layer by layer before every forward and backward pass.
 
 All of this communication needs a foundation to run on. For NVIDIA GPUs, that foundation is NCCL — the NVIDIA Collective Communications Library. NCCL provides the core routines for moving data across GPUs, whether they share the same node connected via NVLink, or are spread across multiple nodes connected over InfiniBand. PyTorch, DeepSpeed, and Megatron-LM all build on top of NCCL — it is the common layer underneath all distributed training frameworks.
 
