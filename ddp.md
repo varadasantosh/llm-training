@@ -27,11 +27,15 @@ toc:
   - name: Vanilla DDP
     subsections:
       - name: How DDP Works
-      - name: DDP Step by Step 
+      - name: DDP Step by Step
       - name: DDP Limitations
   - name: ZeRO-1 Sharding Optimizer States
     subsections:
-      - name: Optimizer State Partitioning
+      - name: The Communication Pattern
+      - name: Example Workflow
+      - name: Training Steps
+      - name: Memory Comparison DDP vs ZeRO-1
+      - name: Memory Savings for Llama 3 8B (8 GPUs)
   - name: ZeRO-2 Sharding Gradients
     subsections:
       - name: Gradient Partitioning
@@ -780,7 +784,7 @@ Critically, each GPU carries its optimizer state shard forward across iterations
 <figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 3: ZeRO Stage-1 Training Steps</figcaption>
 </figure>
 
-### Memory Comparison: DDP vs ZeRO-1
+### Memory Comparison DDP vs ZeRO-1
 
 <figure>
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:13px; border:2px dashed #555;">
