@@ -181,17 +181,13 @@ NCCL provides the synchronization primitives for this — purpose-built for GPU-
 
 ### NCCL — The Communication Foundation
 
-Every parallelism technique — DDP, ZeRO-1, ZeRO-2, ZeRO-3, TP, CP, PP — requires GPUs to communicate at specific points during training. After every backward pass gradients must be co-ordinated either using AllReduce or ReduceScatter . After every optimizer step parameters must be reconstructed. In ZeRO-3, parameters must be fetched layer by layer before every forward and backward pass.
+Every parallelism technique — DDP, ZeRO-1, ZeRO-2, ZeRO-3, TP, CP, PP — requires splitting data and model across GPUs, splitting data & model means splitting respective tensors across GPUs, due to mentioned model divergence problem, we require framework to communicate at specific points during training. After every backward pass gradients must be co-ordinated either using AllReduce or ReduceScatter . After every optimizer step parameters must be reconstructed. In ZeRO-3, parameters must be fetched layer by layer before every forward and backward pass.
 
-All of this communication needs a foundation to run on. For NVIDIA GPUs, that foundation is NCCL — the NVIDIA Collective Communications Library. NCCL provides the core routines for moving data across GPUs, whether they share the same node connected via NVLink, or are spread across multiple nodes connected over InfiniBand. PyTorch, DeepSpeed, and Megatron-LM all build on top of NCCL — it is the common layer underneath all distributed training frameworks.
+All communication operations needs a foundation to run on. For NVIDIA GPUs, that foundation is [NCCL]((https://developer.nvidia.com/nccl)) — the NVIDIA Collective Communications Library. NCCL provides the core routines for moving data across GPUs, whether they share the same node connected via NVLink, or spread across multiple nodes connected over InfiniBand. NCCL is not hardware-agnostic — it runs on NVIDIA GPUs only.
 
-[NCCL](https://developer.nvidia.com/nccl) is NVIDIA's communication library — purpose-built for GPU-to-GPU data transfer,optimized for NVLink within a node and InfiniBand across nodes. It is not hardware-agnostic — it runs on NVIDIA GPUs only.
+This is where PyTorch's abstraction layer becomes important. Each accelerator vendor provides its own communication library — **RCCL for AMD**, **oneCCL for Intel XPUs**, proprietary libraries for Google TPUs. PyTorch's **torch.distributed** sits above all of them, selecting the appropriate backend automatically based on the hardware available. ML researchers write **torch.distributed** or **torch.DistributeDataParallel** code once and it runs across different hardware without modification.
 
-This is where PyTorch's abstraction layer becomes important. Each accelerator vendor provides its own communication library — **RCCL for AMD**, **oneCCL for Intel XPUs**, proprietary libraries for Google TPUs. PyTorch's **torch.distributed** sits above all of them, selecting the appropriate backend automatically based on the hardware available. ML researchers write 
-torch.distributed code once and it runs across different hardware without modification.
-
-In this blog we focus on NCCL — since Llama-3 was trained on NVIDIA H100 GPUs — but the same 
-communication patterns apply across backends.
+In this blog we solely focus on NCCL — since Llama-3 was trained on NVIDIA H100 GPUs — but the similar communication patterns apply across backends.
 
 
 <div class="ddp-note">
