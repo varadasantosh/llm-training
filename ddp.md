@@ -1693,6 +1693,45 @@ Splitting data and model state across GPUs introduces a coordination challenge: 
 
 This section covered Data Parallelism and its memory-optimized extensions through ZeRO (Zero Redundancy Optimizer). Each stage progressively eliminates redundancy:
 
+### Vanilla DDP
+
+The complete model is replicated on every GPU. The global batch is split into micro-batches — one per GPU. Each GPU runs its forward and backward pass independently, then 
+gradients are synchronized across all GPUs before the optimizer step.
+
+> Training Path: Forward Pass → Backward Pass → ReduceScatter Gradients → Local Optimizer Step
+
+**The limitation:** Every component — parameters, gradients, and optimizer states — is fully replicated across every GPU. With 8 GPUs the cluster holds 8 × 144 GB = 1.15 TB of static 
+memory when 144 GB would logically suffice.
+
+### ZeRO Stage-1 — Shard Optimizer States
+
+Each GPU initializes and maintains only 1/N of the optimizer states. The gradient synchronization mechanism changes from AllReduce to ReduceScatter — each GPU receives only the averaged gradient shard for its assigned parameters. After the local optimizer step, AllGather reconstructs the full parameter set for the next forward pass.
+
+> Training Path:Forward Pass → Backward Pass → ReduceScatter Gradients → Local Optimizer 
+> Step → AllGather Parameters
+
+
+### ZeRO Stage-2 — Shard Gradients
+
+Identical to ZeRO-1 with one addition: after ReduceScatter, non-owned gradient buffer space is immediately deallocated. Each GPU retains only the gradient shard it needs for its 
+local optimizer step — reducing gradient memory from $4\phi$ to $4\phi/N$ per GPU.
+
+Training Path:
+> Forward Pass → Backward Pass → ReduceScatter Gradients → Discard non-owned gradient shards
+> → Local Optimizer Step → AllGather Parameters
+
+### ZeRO Stage-3 — Shard Parameters
+
+All three components are now sharded — parameters, gradients, and optimizer states. Each GPU holds only 1/N of everything at rest. This breaks DDP's fundamental requirement — the model no longer needs to fit on a single GPU.
+
+The forward and backward passes require per-layer AllGather operations — parameters are fetched layer by layer, used, then immediately freed. This gather-compute-discard cycle 
+repeats for every layer in both passes.
+
+> Training Path: AllGather Parameters (per layer) → Forward Pass → AllGather Parameters (per layer) → 
+> Backward Pass → ReduceScatter Gradients → Local Optimizer Step
+
+**The trade-off:** Parameters are no longer replicated — but AllGather now happens 2L times per iteration instead of once.
+
 <figure>
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:13px; border:2px dashed #555;">
 <thead>
