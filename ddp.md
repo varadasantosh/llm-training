@@ -147,7 +147,7 @@ These are two distinct problems that require two distinct ways of thinking about
 
 <span class="factor-tag tag-time">Time</span>
 
-Though the scale of the problem is very large(18,000 years) in this context , time constraints are a familiar problem in engineering. The standard solution is parallelism divides the work across multiple workers, each handling a subset of the problem simultaneously.
+Though the scale of the problem is very large(18,000 years) in this context , time constraints are a familiar problem in engineering. The standard solution is parallelism - divide the work across multiple workers, each handling a subset of the problem simultaneously.
 
 The same principle applies here. Training on 15 trillion tokens means processing an enormous amount of data. If we split that data across multiple GPUs — each GPU seeing a different subset — and run the forward and backward passes simultaneously, training time scales down proportionally with the number of GPUs. This is the core idea behind **Data Parallelism**.
 
@@ -182,7 +182,7 @@ Every parallelism technique — DDP, ZeRO-1/2/3, Tensor, Pipeline, Context, and 
 The form that communication takes differs by technique. After every backward pass, gradients must be coordinated across GPUs — either fully synchronized via AllReduce in DDP, or averaged and distributed as shards via ReduceScatter in ZeRO stages. After every optimizer 
 step, parameters must be reconstructed. In ZeRO-3, parameters must be fetched layer by layer before every forward and backward pass.
 
-All communication operations needs a foundation to run on. For NVIDIA GPUs, that foundation is [NCCL](https://developer.nvidia.com/nccl) — the NVIDIA Collective Communications Library. NCCL provides the core routines for moving data across GPUs, whether they share the same node connected via NVLink, or spread across multiple nodes connected over InfiniBand. NCCL is not hardware-agnostic — it runs on NVIDIA GPUs only.
+All communication operations need a foundation to run on. For NVIDIA GPUs, that foundation is [NCCL](https://developer.nvidia.com/nccl) — the NVIDIA Collective Communications Library. NCCL provides the core routines for moving data across GPUs, whether they share the same node connected via NVLink, or spread across multiple nodes connected over InfiniBand. NCCL is not hardware-agnostic — it runs on NVIDIA GPUs only.
 
 This is where PyTorch's abstraction layer becomes important. Each accelerator vendor provides its own communication library — **RCCL for AMD**, **oneCCL for Intel XPUs**, proprietary libraries for Google TPUs. PyTorch's **torch.distributed** sits above all of them, selecting the appropriate backend automatically based on the hardware available. ML researchers write **torch.distributed** or **torch.DistributeDataParallel** code once and it runs across different hardware without modification.
 
@@ -194,7 +194,7 @@ In this blog we solely focus on NCCL — since Llama-3 was trained on NVIDIA H10
   The Llama 3 team extended NCCL into <strong>NCCLX</strong>, optimizing collective operations for their specific network topology across large GPU clusters. See Section 3.3.3 (Collective Communication) of the Llama 3 <a href="https://arxiv.org/pdf/2407.21783">paper</a> for details.
 </div>
 
-NCCL exposes a set of collective operations — each designed for a specific communication pattern. These operations are core of the distributed training process
+NCCL exposes a set of collective operations — each designed for a specific communication pattern. These operations are at the core of the distributed training process
 
 | Operation | What it does |  appears in |
 |---|---|---|
@@ -449,9 +449,9 @@ With identical averaged gradients on every GPU, each GPU runs its optimizer step
 
 ### DDP Limitations
 
-DDP is effective at solving the time problem. By splitting the batch across N GPUs and running forward and backward passes simultaneously, training throughput approaches linear scaling — but one major drawback with DDP is that model should fit on single GPU, which is not the case with large scale models , entire model can't fit on a single GPU, even though a model can fit on single GPU we are copying all parmeters, gradients, optimizers states to each of the GPU which causes redundancy
+DDP is effective at solving the time problem. By splitting the batch across N GPUs and running forward and backward passes simultaneously, training throughput approaches linear scaling — but one major drawback with DDP is that model should fit on single GPU, which is not the case with large scale models, entire model can't fit on a single GPU, even though a model can fit on single GPU we are copying all parameters, gradients, optimizer states to each of the GPU which causes redundancy
 
-But looking carefully at what every GPU is holding, it is evident that static memory is duplicated across every GPU. With 8 GPUs the cluster holds 1.15 TB of static memory. This shows redundant memory issue. Next few sections focus on reducing the redundacy by using ZeRO-I, ZeRO-II, ZeRO-III
+But looking carefully at what every GPU is holding, it is evident that static memory is duplicated across every GPU. With 8 GPUs the cluster holds 1.15 TB of static memory. This shows redundant memory issue. Next few sections focus on reducing the redundancy by using ZeRO-1, ZeRO-2, ZeRO-3
 
 <figure id="table-2-ddp-memory">
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
@@ -507,13 +507,13 @@ Vanilla DDP addressed the time problem effectively but the memory problem remain
 
 Looking at memory requirements of the model components from [table](#table-2-ddp-memory). The largest single component is optimizer states. Adam's m and v vectors consume $8\phi$ bytes per GPU — 44% of total static memory — fully replicated across every GPU despite each GPU only needing the states for the parameters it owns.
 
-ZeRO Stage-1 targets optimizer states first for two reasons: they are the largest component, and sharding them has no impact on the forward or backward pass — optimizer states are only read and written during the optimizer step. This makes them the safest component to shard without changing any other part of the training loop.
+ZeRO-1 targets optimizer states first for two reasons: they are the largest component, and sharding them has no impact on the forward or backward pass — optimizer states are only read and written during the optimizer step. This makes them the safest component to shard without changing any other part of the training loop.
 
 ### The Communication Pattern
 
 In vanilla DDP, gradient synchronization uses AllReduce — a single operation that averages gradients and returns the full averaged tensor to every GPU.
 
-ZeRO Stage-1  decomposes **AllReduce** it into its two constituent operations, ReduceScatter and AllGather, and inserts the optimizer step between them. This modification is what enables the memory saving: each GPU only needs to retain the gradient shard it is responsible for, discarding the rest before the optimizer step.
+ZeRO-1  decomposes **AllReduce** into its two constituent operations, ReduceScatter and AllGather, and inserts the optimizer step between them. This modification is what enables the memory saving: each GPU only needs to retain the gradient shard it is responsible for, discarding the rest before the optimizer step.
 
 **Training path:**
 > Forward Pass → Backward Pass → ReduceScatter → Local Optimizer Step → AllGather
@@ -689,7 +689,7 @@ For clarity, consider a simplified model with 4 parameter matrices W₁, W₂, W
    - The globally averaged gradient for its shard
    - Its local optimizer states for that same shard
 
-   GPU-0 updates W₁ using its local (m₁, v₁) and ∇W₁_avg. Each GPU applies the same Adam update rule to its own shard — the mechanics are identical, only the parameters differ.
+   GPU-0 updates W₁ using its local (m₁, v₁) and $\nabla \text{W}_1{_avg}$. Each GPU applies the same Adam update rule to its own shard — the process is identical, only the parameters differ.
 
 <d-aside>
   <b>Adam update — GPU-0 updating W₁</b>
@@ -766,7 +766,7 @@ Critically, each GPU carries its optimizer state shard forward across iterations
     </tr>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>8. Gather Updated Params</strong></td>
-      <td style="padding:10px 12px; border:2px dashed #555;">Updated parameter shards broadcast to all GPUs; full model reconstructed</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">AllGather — every GPU contributes its updated parameters and receives the updated parameters from other GPUs to reconstruct model </td>
       <td style="padding:10px 12px; border:2px dashed #555;">AllGather</td>
     </tr>
     
@@ -962,7 +962,7 @@ The communication pattern is identical to ZeRO-1 — ReduceScatter followed by A
   </tr>
 </tbody>
 </table>
-<p style="text-align:center; font-size:11px; color:#2f9e44; margin-top:8px; font-weight:600;">Buffer: $4\phi/N$ per GPU — 75% freed</p>
+<p style="text-align:center; font-size:11px; color:#2f9e44; margin-top:8px; font-weight:600;">Buffer: $4\phi/N$ per GPU — $(N-1)/N$ freed</p>
 </div>
 
 </div>
@@ -1200,8 +1200,8 @@ per layer, twice per iteration — once forward, once backward.
 This is ZeRO-3's fundamental trade-off: memory is traded for communication.
 
 **Training path:**
-> All Gather Parameters → Forward Pass → Backward Pass → ReduceScatter → Local Optimizer Step
-> → All Gather Parameters
+ → All Gather Parameters → Forward Pass → AllGather → Backward Pass → ReduceScatter → Local Optimizer Step
+
 
 <span class="step-tag"><span class="step-num">1</span>Forward Pass — Per-Layer AllGather</span>
 
@@ -1237,37 +1237,37 @@ Unlike ZeRO-1 and ZeRO-2, there is no AllGather at the end of the iteration. Par
 </thead>
 <tbody>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>1. Initialize</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>1.Initialize</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Each GPU initializes its own parameter shard locally</td>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>None</strong></td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>2. Data Split</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>2.Data Split</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Global batch is divided into micro-batches, one per GPU</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None (data loader handles this)</td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>3. Initialize Optimizer State Shards</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>3.Initialize Optimizer State Shards</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Each GPU initializes only its assigned optimizer state shard to zero</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None</td>
     </tr>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>4. Forward Pass</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>4.Forward Pass</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Each GPU gathers each layer's parameters on demand, computes the forward pass, then discards non-owned parameters</td>
       <td style="padding:10px 12px; border:2px dashed #555;">AllGather Parameters (per layer)</td>
     </tr>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>5. Backward Pass</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>5.Backward Pass</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Same per-layer gather pattern in reverse; local gradients computed for each layer, then non-owned parameters discarded</td>
       <td style="padding:10px 12px; border:2px dashed #555;">AllGather Parameters (per layer)</td>
     </tr>
     <tr style="background:var(--global-code-bg-color, #f8f8f8);">
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>6. Gradient Sync</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>6.Gradient Sync</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Gradients averaged across all GPUs; each GPU receives only its assigned gradient shard</td>
       <td style="padding:10px 12px; border:2px dashed #555;"><strong>ReduceScatter</strong></td>
     </tr>
     <tr>
-      <td style="padding:10px 12px; border:2px dashed #555;"><strong>7. Optimizer Step</strong></td>
+      <td style="padding:10px 12px; border:2px dashed #555;"><strong>7.Optimizer Step</strong></td>
       <td style="padding:10px 12px; border:2px dashed #555;">Each GPU updates its parameter shard using its local gradient and optimizer state shards</td>
       <td style="padding:10px 12px; border:2px dashed #555;">None</td>
     </tr>
