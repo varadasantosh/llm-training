@@ -1676,3 +1676,50 @@ ZeRO-3's memory savings come at the cost of increased communication:
 
 ## Summary
 
+LLM Training process has two major constraints Time & Memory. Since a model can't be placed on GPU. Memory constraint is a major bottleneck for training process, Parallelism techniques are aimed at addressing both these constraints by distributing model and data across multiple GPUs in a node (Node consists of 8 GPUs) or multiple such nodes form a network.
+
+Without coordinated communication between these GPUs, splitting model & data across GPUs lead to **model divergence**, to ensure model is synchronized across GPUs and iterations , training process relies on communication framework, every ML accelerator provides library for performing communication & data transfer between GPUs within a node and across nodes, Llama-3 series of models were trained using cluster of NVIDIA H-100. NVIDIA provides CUDA Toolkit contains Development and Runtime libraries ,  NCCL communication library and APIs are bundled into CUDA toolkit.
+
+NCCL supports list of operations mentioned below , these operations either transfer data between GPUs or perform reduce operations on it such as (sum, average, minimum, maximum etc...)
+  
+  ```
+    1. Broadcast 
+    2. AllReduce 
+    3. ReduceScatter 
+    4. AllGather 
+    5. Send/Recv  
+    6. AlltoAll
+
+  ```
+
+From the list of Parallelism techniques mentioned , Llama-3 used few of them & current section is focused on Data Parallelism which involves splitting data across GPUs and ZeRO strategies extending Data Parallelism to split optimizer states, gradients & parameters.
+
+**Vanilla DDP:** Splits data into micro batches with same model replicated across all GPUs in network, each GPU has access to one/multiple micro-batches but a micro-batch passes only through one GPU.
+
+> Training Path:  Forward Pass → Backward Pass → AllReduce for Gradients → Local Optimizer Step
+
+
+**ZeRO-1:** Shards optimizer states across GPUs, every GPU has optimizer states sharded for specific parameters, here **AllReduce** which consists of **ReduceScatter** & **AllGather** is decompsed into two operations . Vanilla DDP performs **ReduceScatter - Gradients** & **AllGather for gradients** hence they don't need to be split into two.
+
+ZeRO-1 has optimizer states sharded, after backward pass & ReduceScatter for gradients each GPU holds gradients reduced for same set of parameters whose optimizer shards are available. Local optimizer step updates parameters whose optimizer states are available on the GPU. Once resepctive parameters are updated **AllGather - parameters** reconstructs the parameters across all GPUs.
+
+> Training Path: Forward Pass → Backward Pass → Reduce Scatter Gradients → Local Optimizer →
+> AllGather Parameters
+
+**ZeRO-2:** Shards Gradients across GPUs, every GPU has optimizer states sharded for specific parameters & gradients, ZeRO-2 communication pattern is same as ZeRO-1 except memory of unused gradient shards is deallocated after **ReduceScatter-Gradients**
+
+> Training Path: Forward Pass → Backward Pass → Reduce Scatter Gradients → Local Optimizer →
+> AllGather Parameters
+
+**ZeRO-3:** Shards Parameters across GPUs, each GPU has access to shard of optimizers states, gradients & parameters , this changes communication pattern of ZeRO-3, when compared to ZeRO-1 & ZeRO-2 , ZeRO-3 requires more number of communication operations . ZeRO-1 & ZeRO-2 requires two communication operations per iteration. ZeRO-3 requires two communication operations per layer & two communication operations per iteration
+
+> Training Path: Forward Pass(AllGather Parameters) → Backward Pass (AllGather Parameters) →
+> ReduceScatter (Average Gradients) → Local Optimizer Step 
+
+
+<!-- include table for memory savings to compare  DDP, ZeRO-1, ZeRO-2, ZeRO-3 -->
+
+<!-- include table to capture difference in communication operations ReduceScatter, AllGather & per iteration in ZeRO-1,ZeRO-2 vs extra per layer in ZeRO-3  -->
+
+<!-- include statics for how much each memory each GPU contains when 8B models is place DDP, ZeRO-1, ZeRO-2, ZeRO-3 -->
+
