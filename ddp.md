@@ -36,6 +36,16 @@ toc:
   - name: ZeRO-3 Sharding Parameters
     subsections:
       - name: Parameter Partitioning
+  - name: Summary
+    subsection:
+      - name: Evolution from DDP to ZeRO
+      - name: Vanilla DDP
+      - name: ZeRO-1 — Shard Optimizer States
+      - name: ZeRO-2 — Shard Gradients
+      - name: ZeRO-3 — Shard Parameters
+      - name: Memory Footprint Comparison
+      - name: Communication Cost Comparison
+
 
 # bibliography: references.bib
 
@@ -1678,8 +1688,6 @@ ZeRO-3's memory savings come at the cost of increased communication:
 
 Training large language models faces two fundamental constraints: **time** and **memory**. A single GPU cannot hold the entire model state — parameters, gradients, and optimizer states for Llama 3 8B alone require 144 GB, nearly double an H100's 80 GB VRAM. Parallelism techniques address both constraints by distributing computation and model state across multiple GPUs.
 
-### The Communication Foundation
-
 Splitting data and model state across GPUs introduces a coordination challenge: without synchronized communication, each GPU would train a divergent copy of the model. NVIDIA's NCCL (NVIDIA Collective Communications Library) provides the communication primitives that keep GPUs synchronized:
 
 | Operation | Purpose | Used In |
@@ -1693,7 +1701,7 @@ Splitting data and model state across GPUs introduces a coordination challenge: 
 
 Data Parallelism scales to multiple GPUs by replicating the full model across devices. ZeRO's three stages progressively eliminate that redundancy:
 
-### Vanilla DDP
+<span class="step-tag"><span class="step-num">1</span>Vanilla DDP</span>
 
 The complete model is replicated on every GPU. The global batch is split into micro-batches — one per GPU. Each GPU runs its forward and backward pass independently, then gradients are synchronized across all GPUs before the optimizer step.
 
@@ -1701,15 +1709,14 @@ The complete model is replicated on every GPU. The global batch is split into mi
 
 **The limitation:** Every component — parameters, gradients, and optimizer states — is fully replicated across every GPU. With 8 GPUs the cluster holds 8 × 144 GB = 1.15 TB of static memory when a non-redundant representation of model would suffice.
 
-### ZeRO Stage-1 — Shard Optimizer States
+<span class="step-tag"><span class="step-num">2</span>ZeRO-1 — Shard Optimizer States</span>
 
 Each GPU initializes and maintains only 1/N of the optimizer states. The gradient synchronization mechanism changes from AllReduce to ReduceScatter — each GPU receives only the averaged gradient shard for its assigned parameters. After the local optimizer step, AllGather reconstructs the full parameter set for the next forward pass.
 
 > Training Path: Forward Pass → Backward Pass → ReduceScatter Gradients → Local Optimizer 
 > Step → AllGather Parameters
 
-
-### ZeRO Stage-2 — Shard Gradients
+<span class="step-tag"><span class="step-num">3</span>ZeRO-2 — Shard Gradients</span>
 
 Identical to ZeRO-1 with one addition: after ReduceScatter, non-owned gradient buffer space is immediately deallocated. Each GPU retains only the gradient shard it needs for its 
 local optimizer step — reducing gradient memory from $4\phi$ to $4\phi/N$ per GPU.
@@ -1718,7 +1725,7 @@ Training Path:
 > Forward Pass → Backward Pass → ReduceScatter Gradients → Discard non-owned gradient shards
 > → Local Optimizer Step → AllGather Parameters
 
-### ZeRO Stage-3 — Shard Parameters
+<span class="step-tag"><span class="step-num">4</span>ZeRO-3 — Shard Parameters</span>
 
 All three components are now sharded — parameters, gradients, and optimizer states. Each GPU holds only 1/N of everything at rest. This lifts DDP's fundamental constraint — the model no longer needs to fit on a single GPU.
 
@@ -1911,4 +1918,3 @@ Memory savings come with communication trade-offs:
 4. **ZeRO-3** shards parameters themselves, enabling models that don't fit even with ZeRO-2. Trade-off: 2L AllGather calls per iteration (one per layer for forward and backward).
 
 The choice between stages depends on model size and available GPU memory. For Llama 3 8B on 8× H100s, ZeRO-2 provides sufficient memory savings with no extra communication overhead. For larger models like Llama 3 405B, ZeRO-3 becomes necessary.
-
