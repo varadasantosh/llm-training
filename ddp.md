@@ -272,18 +272,22 @@ All NCCL communication operation can be implemented using different topologies, 
 
 ReduceScatter is the first half of AllReduce, few Paralleleism techniques use it independently ex: DDP + ZeRO. It takes a tensor from every GPU, reduces (sums) them, and distributes the result so each GPU ends up with a different shard of the reduced tensor.
 
-**Input:** Every GPU holds the full tensor (e.g., all gradients)
+**Before ReduceScatter:** Every GPU holds the full tensor (e.g., all gradients)
 
   - GPU-0: $\nabla\text{W}_1^0$ , $\nabla\text{W}_2^0$ , $\nabla\text{W}_3^0$, $\nabla\text{W}_4^0$
-
   - GPU-1: $\nabla\text{W}_1^1$ , $\nabla\text{W}_2^1$ , $\nabla\text{W}_3^1$, $\nabla\text{W}_4^1$ 
-
   - GPU-2: $\nabla\text{W}_1^2$ , $\nabla\text{W}_2^2$ , $\nabla\text{W}_3^2$, $\nabla\text{W}_4^0$
-
   - GPU-2: $\nabla\text{W}_1^3 , $\nabla\text{W}_2^3$ , $\nabla\text{W}_3^3$, $\nabla\text{W}_4^3$
 
 
-**Output:** GPU $i$ holds only shard $i$ of the reduced tensor
+**After ReduceScatter:** GPU $i$ holds only shard $i$ of the reduced tensor
+
+  - GPU-0: averaged($\nabla \text{W}_1$) - globally averaged, shard 0
+  - GPU-1: averaged($\nabla \text{W}_2$) - globally averaged, shard 1
+  - GPU-2: averaged($\nabla \text{W}_3$) - globally averaged, shard 2
+  - GPU-3: averaged($\nabla \text{W}_4$) - globally averaged, shard 2
+
+
 
 <!-- Figure 3: ReduceScatter diagram - TODO: Add image -->
 
