@@ -31,21 +31,25 @@ toc:
       - name: DDP Limitations
   - name: ZeRO-1 Sharding Optimizer States
     subsections:
-      - name: The Communication Pattern
+      - name: Communication Pattern
       - name: Example Workflow
       - name: Training Steps
       - name: Memory Comparison DDP vs ZeRO-1
       - name: Memory Savings for Llama 3 8B (8 GPUs)
   - name: ZeRO-2 Sharding Gradients
     subsections:
-      - name: Gradient Partitioning
+      - name: Memory Comparison DDP vs ZeRO-1 vs ZeRO-2
+      - name: Memory Savings for Llama 3 8B (8 GPUs)
   - name: ZeRO-3 Sharding Parameters
     subsections:
-      - name: Parameter Partitioning
+      - name: Communication Pattern
+      - name: Example Workflow
+      - name: Memory Comparison DDP vs ZeRO-1 vs ZeRO-2 vs ZeRO-3
   - name: Summary
     subsection:
       - name: Evolution from DDP to ZeRO
       - name: Memory Footprint Comparison
+      - name: Communication Cost Trade-off
       - name: Communication Cost Comparison
 
 
@@ -1076,7 +1080,7 @@ The communication pattern is identical to ZeRO-1 — ReduceScatter followed by A
 <p style="text-align:center; font-size:13px; margin-top:16px;"><em>$\bar{\nabla}\text{W}_i$ denotes the globally averaged gradient for shard $i$</em></p>
 
 
-### Memory Comparison: DDP vs ZeRO-1 vs ZeRO-2
+### Memory Comparison DDP vs ZeRO-1 vs ZeRO-2
 
 <figure>
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:13px; border:2px dashed #555;">
@@ -1605,7 +1609,7 @@ ZeRO-3's memory savings come at the cost of increased communication:
 <figcaption style="text-align:center; font-size:13px; color:#666; margin-top:8px;">ZeRO-3 trades memory for communication — performs 2L AllGather calls per iteration — each communicating $\phi/L$ bytes (one layer's parameters). Across all 2L calls this totals $2\phi$ bytes, plus $\phi$ for ReduceScatter — giving $3\phi$ total versus $2\phi$ for ZeRO-1/2.</figcaption>
 </figure>
 
-### Memory Comparison: DDP vs ZeRO-1 vs ZeRO-2 vs ZeRO-3
+### Memory Comparison DDP vs ZeRO-1 vs ZeRO-2 vs ZeRO-3
 
 <figure>
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:13px; border:2px dashed #555;">
