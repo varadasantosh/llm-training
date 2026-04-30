@@ -1691,23 +1691,22 @@ Splitting data and model state across GPUs introduces a coordination challenge: 
 
 ### Evolution from DDP to ZeRO
 
-This section covered Data Parallelism and its memory-optimized extensions through ZeRO (Zero Redundancy Optimizer). Each stage progressively eliminates redundancy:
+Data Parallelism scales to multiple GPUs by replicating the full model across devices. ZeRO's three stages progressively eliminate that redundancy:
 
 ### Vanilla DDP
 
 The complete model is replicated on every GPU. The global batch is split into micro-batches — one per GPU. Each GPU runs its forward and backward pass independently, then 
 gradients are synchronized across all GPUs before the optimizer step.
 
-> Training Path: Forward Pass → Backward Pass → ReduceScatter Gradients → Local Optimizer Step
+> Training Path: Forward Pass → Backward Pass → AllReduce Gradients → Local Optimizer Step
 
-**The limitation:** Every component — parameters, gradients, and optimizer states — is fully replicated across every GPU. With 8 GPUs the cluster holds 8 × 144 GB = 1.15 TB of static 
-memory when 144 GB would logically suffice.
+**The limitation:** Every component — parameters, gradients, and optimizer states — is fully replicated across every GPU. With 8 GPUs the cluster holds 8 × 144 GB = 1.15 TB of static memory when when a  non-redundant representation of model would suffice.
 
 ### ZeRO Stage-1 — Shard Optimizer States
 
 Each GPU initializes and maintains only 1/N of the optimizer states. The gradient synchronization mechanism changes from AllReduce to ReduceScatter — each GPU receives only the averaged gradient shard for its assigned parameters. After the local optimizer step, AllGather reconstructs the full parameter set for the next forward pass.
 
-> Training Path:Forward Pass → Backward Pass → ReduceScatter Gradients → Local Optimizer 
+> Training Path: Forward Pass → Backward Pass → ReduceScatter Gradients → Local Optimizer 
 > Step → AllGather Parameters
 
 
@@ -1722,13 +1721,13 @@ Training Path:
 
 ### ZeRO Stage-3 — Shard Parameters
 
-All three components are now sharded — parameters, gradients, and optimizer states. Each GPU holds only 1/N of everything at rest. This breaks DDP's fundamental requirement — the model no longer needs to fit on a single GPU.
+All three components are now sharded — parameters, gradients, and optimizer states. Each GPU holds only 1/N of everything at rest. This lifts DDP's fundamental constraint — the model no longer needs to fit on a single GPU.
 
 The forward and backward passes require per-layer AllGather operations — parameters are fetched layer by layer, used, then immediately freed. This gather-compute-discard cycle 
 repeats for every layer in both passes.
 
-> Training Path: AllGather Parameters (per layer) → Forward Pass → AllGather Parameters (per layer) → 
-> Backward Pass → ReduceScatter Gradients → Local Optimizer Step
+> Training Path: Forward Pass (per layer AllGather Parameters ) → Backward Pass (per layer AllGather Parameters )
+> → ReduceScatter Gradients → Local Optimizer Step
 
 **The trade-off:** Parameters are no longer replicated — but AllGather now happens 2L times per iteration instead of once.
 
@@ -1906,11 +1905,11 @@ Memory savings come with communication trade-offs:
 
 1. **Vanilla DDP** replicates everything — fast but memory-inefficient. Works only when the full model fits on a single GPU.
 
-2. **ZeRO-1** shards optimizer states (44% of memory) with no extra communication cost. First choice when DDP doesn't fit.
+2. **ZeRO-1** shards optimizer states, the largest single component at $8\phi$, 44% of total DDP footprint with no extra communication cost. First choice when DDP doesn't fit.
 
 3. **ZeRO-2** additionally shards gradients by deallocating non-owned shards after ReduceScatter. Same communication as ZeRO-1.
 
 4. **ZeRO-3** shards parameters themselves, enabling models that don't fit even with ZeRO-2. Trade-off: 2L AllGather calls per iteration (one per layer for forward and backward).
 
-The choice between stages depends on model size and available GPU memory. For Llama 3 8B on 8× H100s, ZeRO-2 provides sufficient memory savings with minimal communication overhead. For larger models like Llama 3 405B, ZeRO-3 becomes necessary.
+The choice between stages depends on model size and available GPU memory. For Llama 3 8B on 8× H100s, ZeRO-2 provides sufficient memory savings with no extra communication overhead. For larger models like Llama 3 405B, ZeRO-3 becomes necessary.
 
