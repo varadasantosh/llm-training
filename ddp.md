@@ -181,7 +181,10 @@ NCCL provides the synchronization primitives for this — purpose-built for GPU-
 
 ### NCCL — The Communication Foundation
 
-Every parallelism technique — DDP, ZeRO-1, ZeRO-2, ZeRO-3, TP, CP, PP — requires splitting data and model across GPUs, splitting data & model means splitting respective tensors across GPUs, due to mentioned model divergence problem we require framework to synchronize the models at specific points during training. After every backward pass gradients must be co-ordinated either using AllReduce or ReduceScatter . After every optimizer step parameters must be reconstructed. In ZeRO-3, parameters must be fetched layer by layer before every forward and backward pass.
+Every parallelism technique — DDP, ZeRO-1/2/3, Tensor, Pipeline, Context, and Expert Parallelism — requires GPUs to communicate at specific points during training. After every backward pass gradients must be co-ordinated either using AllReduce or ReduceScatter . After every optimizer step parameters must be reconstructed. In ZeRO-3, parameters must be fetched layer by layer before every forward and backward pass.
+
+The form that communication takes differs by technique. After every backward pass, gradients must be coordinated across GPUs — either fully synchronized via AllReduce in DDP, or averaged and distributed as shards via ReduceScatter in ZeRO stages. After every optimizer 
+step, parameters must be reconstructed. In ZeRO-3, parameters must be fetched layer by layer before every forward and backward pass.
 
 All communication operations needs a foundation to run on. For NVIDIA GPUs, that foundation is [NCCL]((https://developer.nvidia.com/nccl)) — the NVIDIA Collective Communications Library. NCCL provides the core routines for moving data across GPUs, whether they share the same node connected via NVLink, or spread across multiple nodes connected over InfiniBand. NCCL is not hardware-agnostic — it runs on NVIDIA GPUs only.
 
@@ -200,10 +203,10 @@ NCCL exposes a set of collective operations — each designed for a specific com
 | Operation | What it does |  appears in |
 |---|---|---|
 | Broadcast | Send from one GPU to all others | DDP initialization |
-| AllReduce | Sum/average across all GPUs, result to all | DDP gradient sync |
-| ReduceScatter | Reduce then distribute different shards | ZeRO-1/2/3 |
+| AllReduce | Sum/average across all GPUs, result to all | DDP gradient sync, TP|
+| ReduceScatter | Reduce then distribute different shards | ZeRO-1/2/3, Sequence Paralleleism |
 | AllGather | Collect shards from all GPUs, result to all | ZeRO-1/2/3 |
-| Send/Recv | Point-to-point between two GPUs | Pipeline Parallelism |
+| Send/Recv | Point-to-point between two GPUs | Pipeline Parallelism, Context Parallelism |
 
 ### Broadcast
 Broadcast sends data from one GPU — rank 0 — to all other GPUs. This is used once at the start of DDP training to ensure every GPU begins with identical model parameters.
@@ -212,14 +215,15 @@ A naive implementation would send from rank 0 directly to all other GPUs — but
 
 NCCL avoids this by building a logical tree over the flat network topology:
 
-Rank 0 (root)
-├── Rank 1
-│   ├── Rank 3
-│   └── Rank 4
-└── Rank 2
-├── Rank 5
-└── Rank 6
-
+```
+  Rank 0 (root)
+  ├── Rank 1
+  │   ├── Rank 3
+  │   └── Rank 4
+  └── Rank 2
+  ├── Rank 5
+  └── Rank 6
+```
 Each node forwards data to its children simultaneously. Communication time scales with O(log N) depth of the tree rather than O(N). Within a single node, NVLink is used for fast intra-node transfers. Across nodes, InfiniBand handles the inter-node hops.
 
 **Used in:** DDP initialization — once per training run.
@@ -250,7 +254,7 @@ All GPUS: $(\nabla\text{W}_i^0 + \nabla\text{W}_i^1 +  \nabla\text{W}_i^2 + \nab
   <tr style="background:var(--global-code-bg-color, #f8f8f8);">
     <td style="padding:10px 12px; border:2px dashed #555;"><strong>ReduceScatter</strong></td>
     <td style="padding:10px 12px; border:2px dashed #555;">Each GPU splits its tensor into N shards and sends them around the ring. Each GPU accumulates the sum for one shard.</td>
-    <td style="padding:10px 12px; border:2px dashed #555;">Each GPU holds the fully reduced sum for 1/N of the tensor</td>
+    <td style="padding:10px 12px; border:2px dashed #555;">Each GPU holds the fully reduced average for 1/N of the tensor</td>
   </tr>
   <tr>
     <td style="padding:10px 12px; border:2px dashed #555;"><strong>AllGather</strong></td>
@@ -268,7 +272,7 @@ All NCCL communication operation can be implemented using different topologies, 
 
 ### ReduceScatter
 
-ReduceScatter is the first half of AllReduce, few Paralleleism techniques use it independently ex: DDP + ZeRO. It takes a tensor from every GPU, reduces (sums) them, and distributes the result so each GPU ends up with a different shard of the reduced tensor.
+ReduceScatter is the first half of AllReduce, in ZeRO stages it is used independently, without the subsequent AllGather. It takes a tensor from every GPU, reduces (sums) them and distributes the result so each GPU ends up with a different shard of the reduced tensor.
 
 **Before ReduceScatter:** Every GPU holds the full tensor (e.g., all gradients)
 
@@ -283,7 +287,7 @@ ReduceScatter is the first half of AllReduce, few Paralleleism techniques use it
   - GPU-0: averaged($\nabla \text{W}_1$) - globally averaged, shard 0
   - GPU-1: averaged($\nabla \text{W}_2$) - globally averaged, shard 1
   - GPU-2: averaged($\nabla \text{W}_3$) - globally averaged, shard 2
-  - GPU-3: averaged($\nabla \text{W}_4$) - globally averaged, shard 2
+  - GPU-3: averaged($\nabla \text{W}_4$) - globally averaged, shard 3
 
 
 
@@ -312,7 +316,7 @@ After AllGather:
 
 Total data transferred per GPU: $\frac{(N-1)}{N} \times \text{tensor\_size}$, again independent of N.
 
-ZeRO uses AllGather to reconstruct parameters on-demand. Since Stage 3 shards the model parameters themselves across GPUs, parameters must be gathered before each forward and backward pass, then discarded immediately after. AllGather is what makes this reconstruction possible without a dedicated parameter server.
+ZeRO uses AllGather to reconstruct parameters on-demand. Since Stage 3 shards the model parameters themselves across GPUs, parameters must be gathered before each forward and backward pass, then discarded immediately after. Each GPU contributes its shard and receives the complete model, all without any central coordinator.
 
 
 ### Send/Recv
