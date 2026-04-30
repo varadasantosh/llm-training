@@ -298,6 +298,15 @@ ZeRO Stage 2 uses ReduceScatter instead of AllReduce for gradient synchronizatio
 
 AllGather is the second half of AllReduce, and the most frequently used operation in ZeRO Stages 1, 2, and 3. It takes a different shard from each GPU and assembles the complete tensor on every GPU.
 
+Before AllGather (4 GPUs, after optimizer step):
+  - GPU-0: updated W₁ shard
+  - GPU-1: updated W₂ shard
+  - GPU-2: updated W₃ shard
+  - GPU-3: updated W₄ shard
+
+After AllGather:
+  All GPUs: [W₁, W₂, W₃, W₄] 
+
 **Input:** GPU $i$ holds shard $i$ (different on every GPU)  
 **Output:** Every GPU holds the complete tensor (all shards concatenated)
 
