@@ -1676,50 +1676,202 @@ ZeRO-3's memory savings come at the cost of increased communication:
 
 ## Summary
 
-LLM Training process has two major constraints Time & Memory. Since a model can't be placed on GPU. Memory constraint is a major bottleneck for training process, Parallelism techniques are aimed at addressing both these constraints by distributing model and data across multiple GPUs in a node (Node consists of 8 GPUs) or multiple such nodes form a network.
+Training large language models faces two fundamental constraints: **time** and **memory**. A single GPU cannot hold the entire model state — parameters, gradients, and optimizer states for Llama 3 8B alone require 144 GB, nearly double an H100's 80 GB VRAM. Parallelism techniques address both constraints by distributing computation and model state across multiple GPUs.
 
-Without coordinated communication between these GPUs, splitting model & data across GPUs lead to **model divergence**, to ensure model is synchronized across GPUs and iterations , training process relies on communication framework, every ML accelerator provides library for performing communication & data transfer between GPUs within a node and across nodes, Llama-3 series of models were trained using cluster of NVIDIA H-100. NVIDIA provides CUDA Toolkit contains Development and Runtime libraries ,  NCCL communication library and APIs are bundled into CUDA toolkit.
+### The Communication Foundation
 
-NCCL supports list of operations mentioned below , these operations either transfer data between GPUs or perform reduce operations on it such as (sum, average, minimum, maximum etc...)
-  
-  ```
-    1. Broadcast 
-    2. AllReduce 
-    3. ReduceScatter 
-    4. AllGather 
-    5. Send/Recv  
-    6. AlltoAll
+Splitting data and model state across GPUs introduces a coordination challenge: without synchronized communication, each GPU would train a divergent copy of the model. NVIDIA's NCCL (NVIDIA Collective Communications Library) provides the communication primitives that keep GPUs synchronized:
 
-  ```
+| Operation | Purpose | Used In |
+|-----------|---------|---------|
+| **Broadcast** | Send data from one GPU to all others | DDP initialization |
+| **AllReduce** | Sum/average across GPUs, result to all | DDP gradient sync |
+| **ReduceScatter** | Reduce then distribute different shards | ZeRO-1/2/3 |
+| **AllGather** | Collect shards from all GPUs, result to all | ZeRO-1/2/3 |
 
-From the list of Parallelism techniques mentioned , Llama-3 used few of them & current section is focused on Data Parallelism which involves splitting data across GPUs and ZeRO strategies extending Data Parallelism to split optimizer states, gradients & parameters.
+### Evolution from DDP to ZeRO
 
-**Vanilla DDP:** Splits data into micro batches with same model replicated across all GPUs in network, each GPU has access to one/multiple micro-batches but a micro-batch passes only through one GPU.
+This section covered Data Parallelism and its memory-optimized extensions through ZeRO (Zero Redundancy Optimizer). Each stage progressively eliminates redundancy:
 
-> Training Path:  Forward Pass → Backward Pass → AllReduce for Gradients → Local Optimizer Step
+<figure>
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:13px; border:2px dashed #555;">
+<thead>
+    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:left;">Strategy</th>
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:left;">What's Sharded</th>
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:left;">Training Path</th>
+    </tr>
+</thead>
+<tbody>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555; font-weight:600; color:#dc3545;">Vanilla DDP</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Data only (model fully replicated)</td>
+      <td style="padding:10px 12px; border:2px dashed #555; font-size:12px;">Forward → Backward → <strong>AllReduce</strong> Gradients → Optimizer</td>
+    </tr>
+    <tr style="background:rgba(25, 113, 194, 0.03);">
+      <td style="padding:10px 12px; border:2px dashed #555; font-weight:600; color:#1971c2;">ZeRO-1</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Data + Optimizer States</td>
+      <td style="padding:10px 12px; border:2px dashed #555; font-size:12px;">Forward → Backward → <strong>ReduceScatter</strong> Gradients → Optimizer → <strong>AllGather</strong> Params</td>
+    </tr>
+    <tr style="background:rgba(47, 158, 68, 0.03);">
+      <td style="padding:10px 12px; border:2px dashed #555; font-weight:600; color:#2f9e44;">ZeRO-2</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Data + Optimizer States + Gradients</td>
+      <td style="padding:10px 12px; border:2px dashed #555; font-size:12px;">Forward → Backward → <strong>ReduceScatter</strong> Gradients → Optimizer → <strong>AllGather</strong> Params</td>
+    </tr>
+    <tr style="background:rgba(156, 54, 181, 0.03);">
+      <td style="padding:10px 12px; border:2px dashed #555; font-weight:600; color:#9c36b5;">ZeRO-3</td>
+      <td style="padding:10px 12px; border:2px dashed #555;">Data + Optimizer States + Gradients + Parameters</td>
+      <td style="padding:10px 12px; border:2px dashed #555; font-size:12px;"><strong>AllGather</strong> Params (per layer) → Forward → <strong>AllGather</strong> Params (per layer) → Backward → <strong>ReduceScatter</strong> Gradients → Optimizer</td>
+    </tr>
+</tbody>
+</table>
+<figcaption style="text-align:center; font-size:13px; color:#666; margin-top:8px;">Table: Training path evolution from DDP to ZeRO-3</figcaption>
+</figure>
 
+### Memory Footprint Comparison
 
-**ZeRO-1:** Shards optimizer states across GPUs, every GPU has optimizer states sharded for specific parameters, here **AllReduce** which consists of **ReduceScatter** & **AllGather** is decompsed into two operations . Vanilla DDP performs **ReduceScatter - Gradients** & **AllGather for gradients** hence they don't need to be split into two.
+Each ZeRO stage reduces per-GPU memory by eliminating redundant copies:
 
-ZeRO-1 has optimizer states sharded, after backward pass & ReduceScatter for gradients each GPU holds gradients reduced for same set of parameters whose optimizer shards are available. Local optimizer step updates parameters whose optimizer states are available on the GPU. Once resepctive parameters are updated **AllGather - parameters** reconstructs the parameters across all GPUs.
+<figure>
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:13px; border:2px dashed #555;">
+<thead>
+    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:left;">Strategy</th>
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:center;">Parameters</th>
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:center;">Gradients</th>
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:center;">Optimizer States</th>
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:center;">Total per GPU</th>
+    </tr>
+</thead>
+<tbody>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555; font-weight:600; color:#dc3545;">Vanilla DDP</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">$6\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">$4\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">$8\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; font-weight:600;">$18\phi$</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555; font-weight:600; color:#1971c2;">ZeRO-1</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">$6\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">$4\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#d4edda;">$8\phi/N$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; font-weight:600;">$(10 + 8/N)\phi$</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555; font-weight:600; color:#2f9e44;">ZeRO-2</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#f8d7da;">$6\phi$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#d4edda;">$4\phi/N$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#d4edda;">$8\phi/N$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; font-weight:600;">$(6 + 12/N)\phi$</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555; font-weight:600; color:#9c36b5;">ZeRO-3</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#d4edda;">$6\phi/N$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#d4edda;">$4\phi/N$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; background:#d4edda;">$8\phi/N$</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; font-weight:600;">$18\phi/N$</td>
+    </tr>
+</tbody>
+</table>
+<figcaption style="text-align:center; font-size:13px; color:#666; margin-top:8px;">$\phi$ = number of parameters, N = number of GPUs. <span style="background:#f8d7da; padding:2px 6px; border-radius:3px;">Replicated</span> <span style="background:#d4edda; padding:2px 6px; border-radius:3px;">Sharded</span></figcaption>
+</figure>
 
-> Training Path: Forward Pass → Backward Pass → Reduce Scatter Gradients → Local Optimizer →
-> AllGather Parameters
+### Communication Cost Comparison
 
-**ZeRO-2:** Shards Gradients across GPUs, every GPU has optimizer states sharded for specific parameters & gradients, ZeRO-2 communication pattern is same as ZeRO-1 except memory of unused gradient shards is deallocated after **ReduceScatter-Gradients**
+Memory savings come with communication trade-offs:
 
-> Training Path: Forward Pass → Backward Pass → Reduce Scatter Gradients → Local Optimizer →
-> AllGather Parameters
+<figure>
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:13px; border:2px dashed #555;">
+<thead>
+    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:left;">Strategy</th>
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:center;">ReduceScatter</th>
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:center;">AllGather</th>
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:center;">Total Volume/Iteration</th>
+    </tr>
+</thead>
+<tbody>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555; font-weight:600; color:#dc3545;">Vanilla DDP</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">1× (gradients)</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">1× (gradients)</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$2\phi$ (AllReduce)</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555; font-weight:600; color:#1971c2;">ZeRO-1</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">1× (gradients)</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">1× (parameters)</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$2\phi$</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555; font-weight:600; color:#2f9e44;">ZeRO-2</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">1× (gradients)</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">1× (parameters)</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">$2\phi$</td>
+    </tr>
+    <tr style="background:rgba(156, 54, 181, 0.03);">
+      <td style="padding:10px 12px; border:2px dashed #555; font-weight:600; color:#9c36b5;">ZeRO-3</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">1× (gradients)</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; font-weight:600;">2L× (params per layer)</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; font-weight:600;">$3\phi$</td>
+    </tr>
+</tbody>
+</table>
+<figcaption style="text-align:center; font-size:13px; color:#666; margin-top:8px;">L = number of layers. ZeRO-3 trades memory for communication — 2L AllGather calls (forward + backward) vs 1 in ZeRO-1/2.</figcaption>
+</figure>
 
-**ZeRO-3:** Shards Parameters across GPUs, each GPU has access to shard of optimizers states, gradients & parameters , this changes communication pattern of ZeRO-3, when compared to ZeRO-1 & ZeRO-2 , ZeRO-3 requires more number of communication operations . ZeRO-1 & ZeRO-2 requires two communication operations per iteration. ZeRO-3 requires two communication operations per layer & two communication operations per iteration
+### Llama 3 8B: Concrete Memory Numbers (8 GPUs)
 
-> Training Path: Forward Pass(AllGather Parameters) → Backward Pass (AllGather Parameters) →
-> ReduceScatter (Average Gradients) → Local Optimizer Step 
+<figure>
+<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:13px; border:2px dashed #555;">
+<thead>
+    <tr style="background:var(--global-code-bg-color, #f8f8f8);">
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:left;">Strategy</th>
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:center;">Memory per GPU</th>
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:center;">Reduction vs DDP</th>
+      <th style="padding:10px 12px; border:2px dashed #555; text-align:center;">Fits on H100 (80GB)?</th>
+    </tr>
+</thead>
+<tbody>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555; font-weight:600; color:#dc3545;">Vanilla DDP</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">144 GB</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">—</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; color:#dc3545; font-weight:600;">✗ No</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555; font-weight:600; color:#1971c2;">ZeRO-1</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">88 GB</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">38%</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; color:#dc3545; font-weight:600;">✗ No</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555; font-weight:600; color:#2f9e44;">ZeRO-2</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">60 GB</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">58%</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; color:#2f9e44; font-weight:600;">✓ Yes</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px; border:2px dashed #555; font-weight:600; color:#9c36b5;">ZeRO-3</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">18 GB</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center;">87%</td>
+      <td style="padding:10px 12px; border:2px dashed #555; text-align:center; color:#2f9e44; font-weight:600;">✓ Yes</td>
+    </tr>
+</tbody>
+</table>
+<figcaption style="text-align:center; font-size:13px; color:#666; margin-top:8px;">Llama 3 8B ($\phi$ = 8B parameters) on 8 GPUs. Memory shown is static only (excludes activations).</figcaption>
+</figure>
 
+### Key Takeaways
 
-<!-- include table for memory savings to compare  DDP, ZeRO-1, ZeRO-2, ZeRO-3 -->
+1. **Vanilla DDP** replicates everything — fast but memory-inefficient. Works only when the full model fits on a single GPU.
 
-<!-- include table to capture difference in communication operations ReduceScatter, AllGather & per iteration in ZeRO-1,ZeRO-2 vs extra per layer in ZeRO-3  -->
+2. **ZeRO-1** shards optimizer states (44% of memory) with no extra communication cost. First choice when DDP doesn't fit.
 
-<!-- include statics for how much each memory each GPU contains when 8B models is place DDP, ZeRO-1, ZeRO-2, ZeRO-3 -->
+3. **ZeRO-2** additionally shards gradients by deallocating non-owned shards after ReduceScatter. Same communication as ZeRO-1.
+
+4. **ZeRO-3** shards parameters themselves, enabling models that don't fit even with ZeRO-2. Trade-off: 2L AllGather calls per iteration (one per layer for forward and backward).
+
+The choice between stages depends on model size and available GPU memory. For Llama 3 8B on 8× H100s, ZeRO-2 provides sufficient memory savings with minimal communication overhead. For larger models like Llama 3 405B, ZeRO-3 becomes necessary.
 
