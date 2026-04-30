@@ -25,6 +25,7 @@ toc:
       - name: DDP Limitations
   - name: NCCL Operations
     subsections:
+      - name: Broadcast
       - name: AllReduce
       - name: ReduceScatter
       - name: AllGather
@@ -146,7 +147,7 @@ These are two distinct problems that require two distinct ways of thinking about
 
 <span class="factor-tag tag-time">Time</span>
 
-Though the scale of the problem is very large(18,000 years) in this context , time constraints are a familiar problem in engineering. The standard solution is parallelism divide the work across multiple workers, each handling a subset of the problem simultaneously.
+Though the scale of the problem is very large(18,000 years) in this context , time constraints are a familiar problem in engineering. The standard solution is parallelism divides the work across multiple workers, each handling a subset of the problem simultaneously.
 
 The same principle applies here. Training on 15 trillion tokens means processing an enormous amount of data. If we split that data across multiple GPUs — each GPU seeing a different subset — and run the forward and backward passes simultaneously, training time scales down proportionally with the number of GPUs. This is the core idea behind **Data Parallelism**.
 
@@ -181,7 +182,7 @@ Every parallelism technique — DDP, ZeRO-1/2/3, Tensor, Pipeline, Context, and 
 The form that communication takes differs by technique. After every backward pass, gradients must be coordinated across GPUs — either fully synchronized via AllReduce in DDP, or averaged and distributed as shards via ReduceScatter in ZeRO stages. After every optimizer 
 step, parameters must be reconstructed. In ZeRO-3, parameters must be fetched layer by layer before every forward and backward pass.
 
-All communication operations needs a foundation to run on. For NVIDIA GPUs, that foundation is [NCCL]((https://developer.nvidia.com/nccl)) — the NVIDIA Collective Communications Library. NCCL provides the core routines for moving data across GPUs, whether they share the same node connected via NVLink, or spread across multiple nodes connected over InfiniBand. NCCL is not hardware-agnostic — it runs on NVIDIA GPUs only.
+All communication operations needs a foundation to run on. For NVIDIA GPUs, that foundation is [NCCL](https://developer.nvidia.com/nccl) — the NVIDIA Collective Communications Library. NCCL provides the core routines for moving data across GPUs, whether they share the same node connected via NVLink, or spread across multiple nodes connected over InfiniBand. NCCL is not hardware-agnostic — it runs on NVIDIA GPUs only.
 
 This is where PyTorch's abstraction layer becomes important. Each accelerator vendor provides its own communication library — **RCCL for AMD**, **oneCCL for Intel XPUs**, proprietary libraries for Google TPUs. PyTorch's **torch.distributed** sits above all of them, selecting the appropriate backend automatically based on the hardware available. ML researchers write **torch.distributed** or **torch.DistributeDataParallel** code once and it runs across different hardware without modification.
 
@@ -199,7 +200,7 @@ NCCL exposes a set of collective operations — each designed for a specific com
 |---|---|---|
 | Broadcast | Send from one GPU to all others | DDP initialization |
 | AllReduce | Sum/average across all GPUs, result to all | DDP gradient sync, TP|
-| ReduceScatter | Reduce then distribute different shards | ZeRO-1/2/3, Sequence Paralleleism |
+| ReduceScatter | Reduce then distribute different shards | ZeRO-1/2/3, Sequence Parallelism |
 | AllGather | Collect shards from all GPUs, result to all | ZeRO-1/2/3 |
 | Send/Recv | Point-to-point between two GPUs | Pipeline Parallelism, Context Parallelism |
 
@@ -234,7 +235,7 @@ Before AllReduce (4 GPUs, gradient sync):
   - GPU-3: $\nabla\text{W}_{i}^3$
 
 After AllReduce:
-All GPUS: $(\nabla\text{W}_i^0 + \nabla\text{W}_i^1 +  \nabla\text{W}_i^2 + \nabla\text{W}_i^3)$/4
+All GPUS: $(\nabla\text{W}_i^0 + \nabla\text{W}_i^1 +  \nabla\text{W}_i^2 + \nabla\text{W}_i^3)/4$
 
 <figure>
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
@@ -261,19 +262,19 @@ All GPUS: $(\nabla\text{W}_i^0 + \nabla\text{W}_i^1 +  \nabla\text{W}_i^2 + \nab
 <figcaption style="text-align:center; font-size:14px; color:#666; margin-top:8px;">Table 8: AllReduce as Two Phases — ReduceScatter followed by AllGather</figcaption>
 </figure>
 
-All NCCL communication operation can be implemented using different topologies, the ring-based tolology used in PyTorch and other distributed frameworks ensures every GPU is active simultaneously — no single GPU becomes a bottleneck. Communication cost is linear in data size and independent of the number of GPUs.
+All NCCL communication operations can be implemented using different topologies, the ring-based topology used in PyTorch and other distributed frameworks ensures every GPU is active simultaneously — no single GPU becomes a bottleneck. Communication cost is linear in data size and independent of the number of GPUs.
 
 **Used in:** DDP gradient synchronization — once per training iteration.
 
 ### ReduceScatter
 
-ReduceScatter is the first half of AllReduce, in ZeRO stages it is used independently, without the subsequent AllGather. It takes a tensor from every GPU, reduces (averages) them and distributes the result so each GPU ends up with a different shard of the reduced tensor.
+ReduceScatter is the first half of AllReduce, in ZeRO stages it is used independently without the subsequent AllGather. It takes a tensor from every GPU, reduces (averages) them and distributes the result so each GPU ends up with a different shard of the reduced tensor.
 
 **Before ReduceScatter:** Every GPU holds the full tensor (e.g., all gradients)
 
   - GPU-0: $\nabla\text{W}_1^0$ , $\nabla\text{W}_2^0$ , $\nabla\text{W}_3^0$, $\nabla\text{W}_4^0$
   - GPU-1: $\nabla\text{W}_1^1$ , $\nabla\text{W}_2^1$ , $\nabla\text{W}_3^1$, $\nabla\text{W}_4^1$ 
-  - GPU-2: $\nabla\text{W}_1^2$ , $\nabla\text{W}_2^2$ , $\nabla\text{W}_3^2$, $\nabla\text{W}_4^0$
+  - GPU-2: $\nabla\text{W}_1^2$ , $\nabla\text{W}_2^2$ , $\nabla\text{W}_3^2$, $\nabla\text{W}_4^2$
   - GPU-3: $\nabla\text{W}_1^3$ , $\nabla\text{W}_2^3$ , $\nabla\text{W}_3^3$, $\nabla\text{W}_4^3$
 
 
@@ -288,7 +289,7 @@ ReduceScatter is the first half of AllReduce, in ZeRO stages it is used independ
 
 <!-- Figure 3: ReduceScatter diagram - TODO: Add image -->
 
-ZeRO Stage 2 uses ReduceScatter instead of AllReduce for gradient synchronization. Rather than every GPU computing and storing the full averaged gradient, each GPU only receives the shard it is responsible for. The gradients that each GPU does not own are never materialized — they are reduced in-flight and discarded.
+ZeRO Stage 2 uses ReduceScatter instead of AllReduce for gradient synchronization. Rather than every GPU computing and storing the full averaged gradient, each GPU only receives the shard it is responsible for. The gradients that each GPU does not own are never materialized — they are reduced in-flight and discarded. ZeRO Stage 1 also uses ReduceScatter — it decomposes AllReduce into ReduceScatter + optimizer step + AllGather.
 
 
 ### AllGather
