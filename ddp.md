@@ -176,7 +176,7 @@ NCCL provides the synchronization primitives for this — purpose-built for GPU-
 
 ### NCCL — The Communication Foundation
 
-Every parallelism technique — DDP, ZeRO-1/2/3, Tensor, Pipeline, Context, and Expert Parallelism — requires GPUs to communicate at specific points during training. After every backward pass gradients must be co-ordinated either using AllReduce or ReduceScatter . After every optimizer step parameters must be reconstructed. In ZeRO-3, parameters must be fetched layer by layer before every forward and backward pass.
+Every parallelism technique — DDP, ZeRO-1/2/3, Tensor, Pipeline, Context, and Expert Parallelism — requires GPUs to communicate at specific points during training. 
 
 The form that communication takes differs by technique. After every backward pass, gradients must be coordinated across GPUs — either fully synchronized via AllReduce in DDP, or averaged and distributed as shards via ReduceScatter in ZeRO stages. After every optimizer 
 step, parameters must be reconstructed. In ZeRO-3, parameters must be fetched layer by layer before every forward and backward pass.
@@ -193,7 +193,7 @@ In this blog we solely focus on NCCL — since Llama-3 was trained on NVIDIA H10
   The Llama 3 team extended NCCL into <strong>NCCLX</strong>, optimizing collective operations for their specific network topology across large GPU clusters. See Section 3.3.3 (Collective Communication) of the Llama 3 <a href="https://arxiv.org/pdf/2407.21783">paper</a> for details.
 </div>
 
-NCCL exposes a set of collective operations — each designed for a specific communication pattern. These operations are core of the distributted training process
+NCCL exposes a set of collective operations — each designed for a specific communication pattern. These operations are core of the distributed training process
 
 | Operation | What it does |  appears in |
 |---|---|---|
@@ -267,7 +267,7 @@ All NCCL communication operation can be implemented using different topologies, 
 
 ### ReduceScatter
 
-ReduceScatter is the first half of AllReduce, in ZeRO stages it is used independently, without the subsequent AllGather. It takes a tensor from every GPU, reduces (sums) them and distributes the result so each GPU ends up with a different shard of the reduced tensor.
+ReduceScatter is the first half of AllReduce, in ZeRO stages it is used independently, without the subsequent AllGather. It takes a tensor from every GPU, reduces (averages) them and distributes the result so each GPU ends up with a different shard of the reduced tensor.
 
 **Before ReduceScatter:** Every GPU holds the full tensor (e.g., all gradients)
 
@@ -311,7 +311,7 @@ After AllGather:
 
 Total data transferred per GPU: $\frac{(N-1)}{N} \times \text{tensor\_size}$, again independent of N.
 
-ZeRO uses AllGather to reconstruct parameters on-demand. Since Stage 3 shards the model parameters themselves across GPUs, parameters must be gathered before each forward and backward pass, then discarded immediately after. Each GPU contributes its shard and receives the complete model, all without any central coordinator.
+ZeRO uses AllGather to reconstruct parameters on-demand. Since ZeRO-3 shards the model parameters themselves across GPUs, parameters must be gathered layer by layer before each forward and backward pass, then discarded immediately after. Each GPU contributes its shard and receives the complete model, all without any central coordinator.
 
 
 ### Send/Recv
@@ -321,8 +321,6 @@ Send/Recv enables direct point-to-point communication between two specific GPUs 
 This is the primitive used in Pipeline Parallelism, where activations flow forward from one pipeline stage to the next, and gradients flow backward — one stage at a time. We will cover this in detail in the Pipeline Parallelism section.
 
 **Used in:** Pipeline Parallelism — every micro-batch.
-
-
 
 In practice, frontier teams do not rely on a single technique — they combine multiple dimensions simultaneously. The Llama 3 paper (Section 3.3.2) describes how Meta used four dimensions of parallelism — Tensor, Pipeline, Context, and Data — across 16,000 GPUs to train the 405B model. That combined approach is where this series is headed.
 
