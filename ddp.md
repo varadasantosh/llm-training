@@ -207,7 +207,7 @@ NCCL exposes a set of collective operations — each designed for a specific com
 | AllGather | Collect shards from all GPUs, result to all | ZeRO-1/2/3 |
 | Send/Recv | Point-to-point between two GPUs | Pipeline Parallelism |
 
-**Broadcast**
+### Broadcast
 Broadcast sends data from one GPU — rank 0 — to all other GPUs. This is used once at the start of DDP training to ensure every GPU begins with identical model parameters.
 
 A naive implementation would send from rank 0 directly to all other GPUs — but this makes rank 0 a bottleneck. Data transfer is limited by rank 0's bandwidth, and the time scales linearly with the number of GPUs.
