@@ -168,12 +168,7 @@ Splitting data across GPUs introduces an immediate challenge. Each GPU sees a di
 
 <div class="goal-statement">Our goal is to train one model, not N independent models.</div>
 
-To achieve this, GPUs cannot work in isolation — they need to communicate and synchronize at specific points during training. How efficiently they do this determines how well the parallelism strategy scales.
-
-> This coordination requirement appears everywhere in distributed computing — multiple 
-> processes writing to a shared database need locking to prevent conflicts, multiple servers
-> handling web requests need load balancing to share work evenly, multiple threads in a 
-> program need synchronization primitives to stay in step.
+To achieve this, GPUs cannot work in isolation — they need to communicate and synchronize at specific points during training. This coordination requirement appears everywhere in distributed computing — multiple processes writing to a shared database need locking to prevent conflicts, multiple servers handling web requests need load balancing to share work evenly, multiple threads in a program need synchronization primitives to stay in step.
 
 Distributed LLM training is the same class of problem. Multiple GPUs computing gradients from different data need to agree on a single averaged value before updating parameters. Multiple GPUs holding different parameter shards need to share them before the forward pass can run.
 
