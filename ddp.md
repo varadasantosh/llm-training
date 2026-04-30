@@ -17,11 +17,13 @@ toc:
       - name: Memory Factor
       - name: Parallelism Techniques
       - name: The Coordination Problem
-      - name: NCCL — The Communication Foundation
+  - name: NCCL — The Communication Foundation
+    subsections:
       - name: Broadcast
       - name: AllReduce
       - name: ReduceScatter
       - name: AllGather
+      - name: Send/Recv
   - name: Vanilla DDP
     subsections:
       - name: How DDP Works
@@ -39,10 +41,6 @@ toc:
   - name: Summary
     subsection:
       - name: Evolution from DDP to ZeRO
-      - name: Vanilla DDP
-      - name: ZeRO-1 — Shard Optimizer States
-      - name: ZeRO-2 — Shard Gradients
-      - name: ZeRO-3 — Shard Parameters
       - name: Memory Footprint Comparison
       - name: Communication Cost Comparison
 
