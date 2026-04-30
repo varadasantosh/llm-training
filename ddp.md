@@ -235,7 +235,7 @@ Before AllReduce (4 GPUs, gradient sync):
   - GPU-3: $\nabla\text{W}_{i}^3$
 
 After AllReduce:
-All GPUS: $(\nabla\text{W}_{i}^0 + \nabla\text{W}_{i}^1 +  \nabla\text{W}_{i}^2 + \nabla\text{W}_{i}^3)$/4
+All GPUS: $(\nabla\text{W}_i^0 + \nabla\text{W}_i^1 +  \nabla\text{W}_i^2 + \nabla\text{W}_i^3)$/4
 
 <figure>
 <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; border:2px dashed #555;">
