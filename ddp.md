@@ -181,7 +181,7 @@ NCCL provides the synchronization primitives for this — purpose-built for GPU-
 
 ### NCCL — The Communication Foundation
 
-Every parallelism technique — DDP, ZeRO-1, ZeRO-2, ZeRO-3, TP, CP, PP — requires splitting data and model across GPUs, splitting data & model means splitting respective tensors across GPUs, due to mentioned model divergence problem, we require framework to communicate at specific points during training. After every backward pass gradients must be co-ordinated either using AllReduce or ReduceScatter . After every optimizer step parameters must be reconstructed. In ZeRO-3, parameters must be fetched layer by layer before every forward and backward pass.
+Every parallelism technique — DDP, ZeRO-1, ZeRO-2, ZeRO-3, TP, CP, PP — requires splitting data and model across GPUs, splitting data & model means splitting respective tensors across GPUs, due to mentioned model divergence problem we require framework to synchronize the models at specific points during training. After every backward pass gradients must be co-ordinated either using AllReduce or ReduceScatter . After every optimizer step parameters must be reconstructed. In ZeRO-3, parameters must be fetched layer by layer before every forward and backward pass.
 
 All communication operations needs a foundation to run on. For NVIDIA GPUs, that foundation is [NCCL]((https://developer.nvidia.com/nccl)) — the NVIDIA Collective Communications Library. NCCL provides the core routines for moving data across GPUs, whether they share the same node connected via NVLink, or spread across multiple nodes connected over InfiniBand. NCCL is not hardware-agnostic — it runs on NVIDIA GPUs only.
 
