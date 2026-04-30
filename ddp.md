@@ -523,7 +523,7 @@ Looking at memory requirements of the model components from [table](#table-2-ddp
 
 ZeRO-1 targets optimizer states first for two reasons: they are the largest component, and sharding them has no impact on the forward or backward pass — optimizer states are only read and written during the optimizer step. This makes them the safest component to shard without changing any other part of the training loop.
 
-### The Communication Pattern
+### Communication Pattern
 
 In vanilla DDP, gradient synchronization uses AllReduce — a single operation that averages gradients and returns the full averaged tensor to every GPU.
 
