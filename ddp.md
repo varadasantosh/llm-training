@@ -1695,12 +1695,11 @@ Data Parallelism scales to multiple GPUs by replicating the full model across de
 
 ### Vanilla DDP
 
-The complete model is replicated on every GPU. The global batch is split into micro-batches — one per GPU. Each GPU runs its forward and backward pass independently, then 
-gradients are synchronized across all GPUs before the optimizer step.
+The complete model is replicated on every GPU. The global batch is split into micro-batches — one per GPU. Each GPU runs its forward and backward pass independently, then gradients are synchronized across all GPUs before the optimizer step.
 
 > Training Path: Forward Pass → Backward Pass → AllReduce Gradients → Local Optimizer Step
 
-**The limitation:** Every component — parameters, gradients, and optimizer states — is fully replicated across every GPU. With 8 GPUs the cluster holds 8 × 144 GB = 1.15 TB of static memory when when a  non-redundant representation of model would suffice.
+**The limitation:** Every component — parameters, gradients, and optimizer states — is fully replicated across every GPU. With 8 GPUs the cluster holds 8 × 144 GB = 1.15 TB of static memory when a non-redundant representation of model would suffice.
 
 ### ZeRO Stage-1 — Shard Optimizer States
 
@@ -1726,7 +1725,7 @@ All three components are now sharded — parameters, gradients, and optimizer st
 The forward and backward passes require per-layer AllGather operations — parameters are fetched layer by layer, used, then immediately freed. This gather-compute-discard cycle 
 repeats for every layer in both passes.
 
-> Training Path: Forward Pass (per layer AllGather Parameters ) → Backward Pass (per layer AllGather Parameters )
+> Training Path: Forward Pass (per layer AllGather Parameters) → Backward Pass (per layer AllGather Parameters)
 > → ReduceScatter Gradients → Local Optimizer Step
 
 **The trade-off:** Parameters are no longer replicated — but AllGather now happens 2L times per iteration instead of once.
@@ -1905,7 +1904,7 @@ Memory savings come with communication trade-offs:
 
 1. **Vanilla DDP** replicates everything — fast but memory-inefficient. Works only when the full model fits on a single GPU.
 
-2. **ZeRO-1** shards optimizer states, the largest single component at $8\phi$, 44% of total DDP footprint with no extra communication cost. First choice when DDP doesn't fit.
+2. **ZeRO-1** shards optimizer states, the largest single component at $8\phi$, 44% of total DDP footprint with no additional communication cost.
 
 3. **ZeRO-2** additionally shards gradients by deallocating non-owned shards after ReduceScatter. Same communication as ZeRO-1.
 
