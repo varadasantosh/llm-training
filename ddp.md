@@ -53,6 +53,15 @@ toc:
       - name: Communication Cost Comparison
 
 
+series_nav:
+  title: "LLM Training Parallelism"
+  prev:
+    label: "Part 1: Introduction"
+    url: "/"
+  next:
+    label: "Part 3: Tensor Parallelism"
+    url: "/tp/"
+
 # bibliography: references.bib
 
 _styles: >
