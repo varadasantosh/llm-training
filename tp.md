@@ -65,51 +65,23 @@ This is what makes Tensor Parallelism essential for models like Llama 3 405B —
 
 ### Core Principle
 
-Tensor Parallelism relies on two mathematical properties of matrix multiplication **distributive** & **associative**
+Tensor Parallelism relies on two key properties of  matrix multiplication **distributive** & **associative**
 
-        ```
-        distributive  -  A(X₁|X)₂ = (A.X₁|A.X₂)  
-        associative   -  A*(B*C) = (A*B)*C
-        ```
-Matrix multiplication always involves two matrices **A: M*K, B:K*N** , dimesions  M & N are outer dimensions and K is referred as inner dimension
+**1. Distributive Property**
+    
+    ```A·(B + C) = A·B + A·C```
 
-> M: denotes Rows of Matrix A - Outer dimension
-> N: deontes Columsn of Matrix B - Outer dimension
-> K: denotes Columns of Matrix A & Rows of B - Inner dimension
+In ML training context a weight matrix can be partitioned and each partition multiplied independently — partial results combine to produce the exact correct answer.
 
-General matrix multiplication in ML training is of the form ```Y= $X.W^T$``` , X = Input data , W= Weight matrix. Weigth matrices can be split column-wise or row-wise. Following above notation splitting across inner dimension implies splitting the weight matrix row-wise, splitting across outer dimension implies two possibilities - to split input data **X** across rows or split weight matrix **W** across columns, each has different implications on communication between GPUs which directly impacts LLM training process. Let us look into these scenarios individually to understand the implications
+   X.W = X.(W₁+W₂) = X.W₁ + X.W₂
 
-1. Split Inner dimensions:
+Here Weight matrix W is partitioned into W₁ & W₂ across 2 GPUs, each 
+partition multiplied independently — partial results combine to produce the exact correct answer
 
-    - X - Shape M*K
-    - W - Shape K*N
-    - Splitting across Kth dimension, If we only split the weight matrix across
-      rows, this change shape of W to be of shape K/2*N across 2 GPUs, while shape of X stays M*K, this prevents matrix multiplication due to mismatch in dimensions of X & W. 
-    - Splitting columns of X and rows of weight matrix , this reshapes both X and W. X -> M*K/2 , W -> K/2*N
-    - Both GPUs produce M*N but they are partial results since each only worked on partial weights , AllReduce is required to gather results from multiple GPU
+**2. Associative Property**
+    
+    ```A·(B·C) = (A·B)·C```
 
+This property allows re-ordering matrix mulitplications without changing the result - Output of split layer on one GPU feeds correctly into next split layer on same GPU without inter-layer communication.
 
-2. Split Outer dimensions:
-
-    - X - Shape M*K
-    - W - Shape K*N
-    - Splitting across Outer dimension has two possibilities 1. Split X matrix row-wise(M dimension) or split W matrix column-wise(N dimension).
-    - Splitting W matrix column-wise reshapes W to K*N/2 and X stays same M*K
-    - Splitting X matrix row-wise reshapes X to M/2*K AND W stays same K*N
-    - Splitting X row-wise across M dimension leaves us weight matrix without splitting, which does not give us much benefit 
-    - Splitting W matrix column-wise and X.W results in shape M*N/2 on two GPUs,
-      requires AllGather to reconstruct all values from GPUs
-
-
-Looking at both one that is more beneficial is Splitting across Kth dimension, does both splitting X:Input across columns and W:Weights across rows, reshapes X:M*K/2 & W:K/2*N , X*W results in M*N and AllReduce is required for aggregating results from both GPUs.
-
-
-
-
-
-
-
-
-
-
- though matrix multiplication is an associative operation, floating point operations are not associative, to maintain consistency between iterations and model convergence a mixed precision training is used for training Large Language Models. two copies of weights are used one with BF16/FP16 which does not gaurantee associativity , to make sure the accuracy of precision it requires us to maitain another master copy of parameters in FP32, the weights used with BF16 gives a benefit of Activations being produced in BF16/FP16 rather than FP32, this help reduce activation memory size and split the tensors across GPUs
+Together these properties mean matrix multiplications can be partitioned across GPUs producing partital results, we need a communication operation like **AllReduce** or **AllGather** to arrive at final result 
