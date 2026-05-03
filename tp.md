@@ -83,4 +83,25 @@ Here Weight matrix W is partitioned into W₁ & W₂ across 2 GPUs, each partiti
 
 This property allows re-ordering matrix mulitplications without changing the result - Output of split layer on one GPU feeds correctly into next split layer on same GPU without inter-layer communication.
 
-Together these properties mean matrix multiplications can be partitioned across GPUs producing partital results, we need a communication operation like **AllReduce** or **AllGather** to arrive at final result 
+    Equation (ML Context): Y = X.W₁.W₂ = (X.W₁).W₂
+
+Together these properties mean matrix multiplications can be partitioned across GPUs producing partital results, we need a communication operation like **AllReduce** or **AllGather** to arrive at final result.
+
+### Matrix Notation
+
+General matrix multiplication in ML training:
+
+    Y = X · W
+    X: Input  — shape M×K
+    W: Weight — shape K×N
+    Y: Output — shape M×N
+
+    M = batch × sequence length
+    K = hidden dimension (inner)
+    N = output dimension (outer)
+
+
+
+
+
+ 
