@@ -67,17 +67,17 @@ This is what makes Tensor Parallelism essential for models like Llama 3 405B —
 
 Tensor Parallelism relies on two key properties of  matrix multiplication **distributive** & **associative**
 
-**1. Distributive Property**
+**1.Distributive Property**
     
 > A·(B + C) = A·B + A·C
 
-In ML training context a weight matrix can be partitioned and each partition multiplied independently — to produce the correct answer partial results from each GPU is combined using NCCL communication operation **AllReduce** or **AllGather**.
+In ML training context a weight matrix can be partitioned and each partition multiplied independently 
 
    X.W = X.(W₁+W₂) = X.W₁ + X.W₂
 
 Here Weight matrix W is partitioned into W₁ & W₂ across 2 GPUs, each partition multiplied independently — partial results from each GPU are communicated to other GPUs.
 
-**2. Associative Property**
+**2.Associative Property**
     
 > A·(B·C) = (A·B)·C
 
