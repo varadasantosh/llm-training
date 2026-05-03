@@ -69,7 +69,7 @@ Tensor Parallelism relies on two key properties of  matrix multiplication **dist
 
 **1. Distributive Property**
     
-    ```A·(B + C) = A·B + A·C```
+    `A·(B + C) = A·B + A·C`
 
 In ML training context a weight matrix can be partitioned and each partition multiplied independently — partial results combine to produce the exact correct answer.
 
@@ -80,7 +80,7 @@ partition multiplied independently — partial results combine to produce the ex
 
 **2. Associative Property**
     
-    ```A·(B·C) = (A·B)·C```
+    `A·(B·C) = (A·B)·C`
 
 This property allows re-ordering matrix mulitplications without changing the result - Output of split layer on one GPU feeds correctly into next split layer on same GPU without inter-layer communication.
 
